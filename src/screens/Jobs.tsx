@@ -29,7 +29,7 @@ function JobList() {
     <>
       <PageHead
         title={t('hello', { name: me.name.split(' ')[0] })}
-        lead={data.jobs.length ? t('jobsLead', { n: data.jobs.length }) : t('jobsNone')}
+        lead={data.jobs.length === 0 ? t('jobsNone') : data.jobs.length === 1 ? t('jobsLeadOne') : t('jobsLead', { n: data.jobs.length })}
       />
       <div className="jobs-layout">
         <div className="jobs">

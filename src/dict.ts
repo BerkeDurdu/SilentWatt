@@ -155,6 +155,7 @@ export const DICT = {
   // jobs
   hello: { tr: 'Merhaba {name}', en: 'Hello {name}' },
   jobsLead: { tr: 'Size atanmış {n} açık iş emri var. Önceliği yüksek olan en üstte.', en: 'You have {n} open work orders. Highest priority first.' },
+  jobsLeadOne: { tr: 'Size atanmış 1 açık iş emri var.', en: 'You have 1 open work order.' },
   jobsNone: { tr: 'Şu an size atanmış açık iş emri yok.', en: 'You have no open work orders right now.' },
   openCase: { tr: 'Vakayı aç', en: 'Open case' },
   inbox: { tr: 'Gelen SMS', en: 'Incoming SMS' },
