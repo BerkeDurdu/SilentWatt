@@ -6,8 +6,8 @@ import type { FieldResult } from '../shared/types';
 import { authenticate, csrfGuard, endSessionsFor, langOf, login, logout, notFound, requireCapability, requireScreen } from './auth';
 import {
   assignCase, canViewCase, dataSources, dismissCase, getCase, jobsFor, listCases, listTechnicians, markOpened,
-  notificationsFor, overview, recordResult, report, reportCsv, reviewCase, team, toDetail, toMe, updateUser, usersData,
-  type CaseRecord,
+  notificationsFor, overview, recordResult, report, reportCsv, requestPage, reviewCase, submitRequest, team,
+  toDetail, toMe, updateUser, usersData, type CaseRecord,
 } from './store';
 
 const PROD = process.argv.includes('--prod');
@@ -29,6 +29,34 @@ const api = express.Router();
 api.use(csrfGuard);
 api.post('/auth/login', login);
 api.post('/auth/logout', logout);
+
+/* resident-facing pages: no account, no session — the token in the SMS link is the only key */
+
+const submitAttempts = new Map<string, { count: number; reset: number }>();
+const SUBMIT_WINDOW = 60 * 60 * 1000;
+const MAX_SUBMITS = 20;
+
+api.get('/public/request/:token', (req, res) => {
+  const page = requestPage(String(req.params.token), langOf(req));
+  if (!page) return void notFound(res);
+  res.json(page);
+});
+
+api.post('/public/request/:token', (req, res) => {
+  const t = Date.now();
+  const seen = submitAttempts.get(req.ip ?? '');
+  const entry = seen && seen.reset > t ? seen : { count: 0, reset: t + SUBMIT_WINDOW };
+  if (entry.count >= MAX_SUBMITS) return void res.status(429).json({ error: 'too_many_requests' });
+  entry.count += 1;
+  submitAttempts.set(req.ip ?? '', entry);
+
+  const result = submitRequest(String(req.params.token), req.body ?? {}, langOf(req));
+  if (!result.ok) {
+    if (result.error === 'not_found') return void notFound(res);
+    return void res.status(400).json({ error: result.error });
+  }
+  res.json(result.receipt);
+});
 
 // Everything below needs a signed-in user.
 api.use(authenticate);

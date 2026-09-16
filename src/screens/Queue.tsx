@@ -81,7 +81,10 @@ function QueueList() {
                     </td>
                     <td><Sparkline act={c.spark.act} ref={c.spark.ref} onset={c.spark.onset} closed={!isOpenStatus(c.status)} /></td>
                     <td className="r mono">{t('days', { n: c.days })}</td>
-                    <td><StatusPill status={c.status} /></td>
+                    <td>
+                      <StatusPill status={c.status} />
+                      {c.customerRequest && <span className="pill req">{t('hasRequest')}</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

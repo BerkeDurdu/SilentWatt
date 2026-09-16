@@ -50,6 +50,8 @@ export interface CaseSummary {
   spark: { act: number[]; ref: number[]; onset: number };
   technicianName: string | null;
   firstCheck: string;
+  /** True once the resident asked for an inspection from the SMS link. */
+  customerRequest: boolean;
   /** Where this user can open the case, or null if they can't. */
   href: string | null;
 }
@@ -58,6 +60,61 @@ export interface CaseList {
   items: CaseSummary[];
   counts: { open: number; closed: number; all: number };
 }
+
+/* ── resident notice & service request ─────────────────── */
+
+export type RequestSlot = 'morning' | 'afternoon' | 'evening' | 'any';
+
+/** The informational SMS the resident received, with the link that opens the request form. */
+export interface CustomerNotice {
+  at: string;
+  text: string;
+  /** Only roles that see full addresses can open the resident's page; others read the link as text. */
+  href: string | null;
+  linkText: string;
+}
+
+/** A request the resident sent from that link, as staff see it. */
+export interface CustomerRequest {
+  reference: string;
+  at: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  address: string;
+  addressEdited: boolean;
+  slotLabel: string;
+  note: string | null;
+  masked: boolean;
+}
+
+export interface RequestReceipt {
+  reference: string;
+  at: string;
+  name: string;
+  phone: string;
+  address: string;
+  slotLabel: string;
+  note: string | null;
+}
+
+/** Everything the public request page shows. No meter number, no diagnosis internals. */
+export interface RequestPage {
+  caseId: string;
+  noticeAt: string;
+  headline: string;
+  body: string;
+  points: string[];
+  equipmentLabel: string;
+  lossKwhMonth: number;
+  days: number;
+  closed: boolean;
+  /** Prefilled from the subscriber record; the resident can change any of it. */
+  customer: { name: string; phone: string; email: string; address: string };
+  slots: { value: RequestSlot; label: string }[];
+  submitted: RequestReceipt | null;
+}
+
 
 export interface SeriesPoint {
   d: number;
@@ -83,6 +140,8 @@ export interface CaseDetail extends CaseSummary {
   series: SeriesPoint[];
   onset: number;
   events: CaseEvent[];
+  notice: CustomerNotice | null;
+  request: CustomerRequest | null;
   actions: { review: boolean; assign: boolean; dismiss: boolean; result: boolean };
 }
 

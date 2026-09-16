@@ -38,6 +38,7 @@ function JobList() {
               <div className="job-top">
                 <span className="case-id">{job.id}</span>
                 <StatusPill status={job.status} />
+                {job.customerRequest && <span className="pill req">{t('hasRequest')}</span>}
                 <span className="job-prio"><StepGlyph priority={job.priority} /></span>
               </div>
               <h2>{job.topCause.label}</h2>

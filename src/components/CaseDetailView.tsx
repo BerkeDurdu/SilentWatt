@@ -115,6 +115,53 @@ export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
             </div>
           </section>
 
+          {c.notice && (
+            <section className="panel">
+              <div className="panel-h"><h2>{t('custNotice')}</h2></div>
+              <div className="panel-b">
+                <p className="bubble">
+                  {c.notice.text}{' '}
+                  {c.notice.href
+                    ? <a className="link mono" href={c.notice.href} target="_blank" rel="noreferrer">{c.notice.linkText}</a>
+                    : <span className="mono muted">{c.notice.linkText}</span>}
+                </p>
+                {c.notice.href ? (
+                  <a className="btn quiet sms-link" href={c.notice.href} target="_blank" rel="noreferrer">
+                    <Icon name="send" />{t('custOpenLink')}
+                  </a>
+                ) : (
+                  <p className="masked"><Icon name="lock" />{t('custLinkMasked')}</p>
+                )}
+              </div>
+            </section>
+          )}
+
+          <section className="panel">
+            <div className="panel-h"><h2>{t('custRequest')}</h2></div>
+            <div className="panel-b">
+              {c.request ? (
+                <>
+                  <dl className="kv">
+                    <dt>{t('custRef')}</dt><dd className="mono">{c.request.reference}</dd>
+                    <dt>{t('pubName')}</dt><dd>{c.request.name}</dd>
+                    <dt>{t('custPhone')}</dt><dd className="mono">{c.request.phone}</dd>
+                    {c.request.email && <><dt>{t('custEmail')}</dt><dd>{c.request.email}</dd></>}
+                    <dt>{t('address')}</dt>
+                    <dd>
+                      {c.request.address}
+                      {c.request.addressEdited && !c.request.masked && <span className="sub">{t('custEdited')}</span>}
+                    </dd>
+                    <dt>{t('custSlot')}</dt><dd>{c.request.slotLabel}</dd>
+                  </dl>
+                  {c.request.note && <p className="bubble note-quote">{c.request.note}</p>}
+                  {c.request.masked && <p className="masked"><Icon name="lock" />{t('custMaskedAddr')}</p>}
+                </>
+              ) : (
+                <p className="muted">{t('custNone')}</p>
+              )}
+            </div>
+          </section>
+
           <section className="panel">
             <div className="panel-h"><h2>{t('history')}</h2></div>
             <div className="panel-b">

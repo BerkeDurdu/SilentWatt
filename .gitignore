@@ -21,3 +21,6 @@ npm-debug.log*
 Thumbs.db
 desktop.ini
 
+
+# sunum ciktilari
+output/

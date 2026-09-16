@@ -5,12 +5,15 @@ import { Shell } from './components/Shell';
 import { GoHome, Loading } from './components/ui';
 import { useI18n } from './i18n';
 import LoginPage from './pages/Login';
+import RequestPage from './pages/Request';
 import { registry } from './registry';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/giris" element={<LoginPage />} />
+      {/* The resident's SMS link. Public on purpose: no session, one case, token-scoped. */}
+      <Route path="/talep/:token" element={<RequestPage />} />
       <Route path="*" element={<SignedInArea />} />
     </Routes>
   );

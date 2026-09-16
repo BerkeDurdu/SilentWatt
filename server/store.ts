@@ -1,8 +1,10 @@
 // In-memory data store with example data. Swap for a database later; the API shape stays the same.
+import { randomBytes } from 'node:crypto';
 import type {
-  AddressLevel, Capability, CaseDetail, CaseList, CaseStatus, CaseSummary, Cause, DataSourcesData,
-  Equipment, FaultKey, FieldResult, JobsData, Lang, Me, Notification, OverviewData, Priority, ReportData,
-  ReportRow, RoleKey, ScreenKey, SeriesPoint, TeamMember, Technician, UserRow, UsersData,
+  AddressLevel, Capability, CaseDetail, CaseList, CaseStatus, CaseSummary, Cause, CustomerNotice, CustomerRequest,
+  DataSourcesData, Equipment, FaultKey, FieldResult, JobsData, Lang, Me, Notification, OverviewData, Priority,
+  ReportData, ReportRow, RequestPage, RequestReceipt, RequestSlot, RoleKey, ScreenKey, SeriesPoint, TeamMember,
+  Technician, UserRow, UsersData,
 } from '../shared/types';
 import { ROLES, SCREENS, SCREEN_ORDER, isRoleKey, isScreenKey, screenLinks, type Text } from './catalog';
 import { hashPassword } from './password';
@@ -112,7 +114,7 @@ const FAULTS: Record<FaultKey, { label: Text; check: Text; evidence: Record<Lang
 
 /* ── cases ─────────────────────────────────────────────── */
 
-type EventType = 'created' | 'review' | 'assigned' | 'opened' | 'verified' | 'other' | 'dismissed';
+type EventType = 'created' | 'review' | 'assigned' | 'opened' | 'requested' | 'verified' | 'other' | 'dismissed';
 
 interface CaseEventRecord {
   type: EventType;
@@ -182,6 +184,170 @@ const messages: MessageRecord[] = [
   { id: 'm-3', techId: 'u-emre', caseId: 'SW-F-24795', at: at('09-11T10:12') },
 ];
 
+/* ── residents: notice SMS and service requests ────────── */
+
+interface CustomerRecord {
+  name: string;
+  phone: string;
+  email: string;
+}
+
+/** The subscriber on record for each meter. Used to prefill the request form; example data. */
+const CUSTOMERS: Record<string, CustomerRecord> = {
+  'SW-F-24817': { name: 'Ayşe Demir', phone: '0532 118 44 07', email: 'ayse.demir@ornek.com' },
+  'SW-F-24809': { name: 'Mert Özkan', phone: '0505 447 20 91', email: 'mert.ozkan@ornek.com' },
+  'SW-F-24795': { name: 'Hacer Yalçın', phone: '0543 260 71 88', email: 'hacer.yalcin@ornek.com' },
+  'SW-F-24788': { name: 'Burak Şen', phone: '0538 905 13 62', email: 'burak.sen@ornek.com' },
+  'SW-F-24776': { name: 'Nalan Kurt', phone: '0554 371 08 25', email: '' },
+  'SW-F-24761': { name: 'Serkan Aksoy', phone: '0531 642 99 10', email: 'serkan.aksoy@ornek.com' },
+  'SW-F-24744': { name: 'Fatma Uysal', phone: '0536 208 55 41', email: '' },
+  'SW-F-24702': { name: 'İlker Bayrak', phone: '0542 713 66 09', email: 'ilker.bayrak@ornek.com' },
+  'SW-F-24698': { name: 'Zeynep Çelik', phone: '0533 884 17 50', email: 'zeynep.celik@ornek.com' },
+};
+
+const FALLBACK_CUSTOMER: CustomerRecord = { name: 'Abone', phone: '0500 000 00 00', email: '' };
+const customerOf = (c: CaseRecord) => CUSTOMERS[c.id] ?? FALLBACK_CUSTOMER;
+
+/** One unguessable link per case. The resident never signs in; the token is the whole key. */
+const tokenByCase = new Map<string, string>();
+const caseByToken = new Map<string, string>();
+for (const c of cases) {
+  const token = randomBytes(12).toString('base64url');
+  tokenByCase.set(c.id, token);
+  caseByToken.set(token, c.id);
+}
+
+export const REQUEST_PATH = '/talep';
+const requestHref = (c: CaseRecord) => `${REQUEST_PATH}/${tokenByCase.get(c.id)}`;
+
+interface RequestRecord {
+  caseId: string;
+  reference: string;
+  at: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  addressEdited: boolean;
+  slot: RequestSlot;
+  note: string;
+}
+
+const requests: RequestRecord[] = [];
+const requestFor = (caseId: string) => requests.find((r) => r.caseId === caseId);
+
+const SLOT_LABELS: Record<Lang, Record<RequestSlot, string>> = {
+  tr: { morning: 'Sabah · 09:00–12:00', afternoon: 'Öğleden sonra · 12:00–17:00', evening: 'Akşam · 17:00–20:00', any: 'Farketmez' },
+  en: { morning: 'Morning · 09:00–12:00', afternoon: 'Afternoon · 12:00–17:00', evening: 'Evening · 17:00–20:00', any: 'Any time' },
+};
+const SLOTS = Object.keys(SLOT_LABELS.tr) as RequestSlot[];
+const isSlot = (v: unknown): v is RequestSlot => typeof v === 'string' && SLOTS.includes(v as RequestSlot);
+
+const fullAddress = (c: CaseRecord) => `${c.hood} ${c.street}, ${c.district}/İzmir`;
+const equipmentLabel = (c: CaseRecord, l: Lang) =>
+  c.equipment === 'pv' ? (l === 'tr' ? 'çatı güneş paneli' : 'rooftop solar') : (l === 'tr' ? 'ısı pompası' : 'heat pump');
+
+/**
+ * The informational SMS the resident gets when a case opens: what we noticed, in plain words,
+ * plus a link they can use if — and only if — they want an inspection.
+ */
+export function customerNotice(c: CaseRecord, level: AddressLevel, l: Lang): CustomerNotice {
+  const href = requestHref(c);
+  const dev = Math.abs(c.dev);
+  const gear = equipmentLabel(c, l);
+  const text = l === 'tr'
+    ? `SilentWatt: Sayacınız son ${c.days} gündür benzer hava koşullarında beklenenin %${dev} ${c.dev < 0 ? 'altında üretim' : 'üzerinde tüketim'} gösteriyor; ${gear} sisteminizde verim kaybı olabilir. Acil bir durum yok. Ücretsiz kontrol isterseniz:`
+    : `SilentWatt: For ${c.days} days your meter has been ${dev}% ${c.dev < 0 ? 'below expected production' : 'above expected consumption'} in similar weather; your ${gear} may be losing efficiency. Nothing is urgent. For a free inspection:`;
+  // The resident's page carries their full address and phone. Roles that see masked addresses
+  // get neither the link nor the token it contains.
+  const full = level === 'full';
+  return { at: c.events[0].at, text, href: full ? href : null, linkText: `silentwatt.app${full ? href : `${REQUEST_PATH}/••••••`}` };
+}
+
+/** What staff see about the resident's request, with the address masked to their role. */
+function toCustomerRequest(r: RequestRecord, level: AddressLevel, l: Lang): CustomerRequest {
+  const c = getCase(r.caseId)!;
+  const masked = level !== 'full';
+  return {
+    reference: r.reference, at: r.at, name: r.name, phone: r.phone, email: r.email || null,
+    address: masked ? address(c, level) : r.address,
+    addressEdited: r.addressEdited, slotLabel: SLOT_LABELS[l][r.slot], note: r.note || null, masked,
+  };
+}
+
+const toReceipt = (r: RequestRecord, l: Lang): RequestReceipt => ({
+  reference: r.reference, at: r.at, name: r.name, phone: r.phone, address: r.address,
+  slotLabel: SLOT_LABELS[l][r.slot], note: r.note || null,
+});
+
+/** The public page behind the SMS link, or null when the token means nothing. */
+export function requestPage(token: string, l: Lang): RequestPage | null {
+  const c = getCase(caseByToken.get(token) ?? '');
+  if (!c) return null;
+  const tr = l === 'tr';
+  const dev = Math.abs(c.dev);
+  const gear = equipmentLabel(c, l);
+  const existing = requestFor(c.id);
+  const customer = customerOf(c);
+  return {
+    caseId: c.id,
+    noticeAt: c.events[0].at,
+    headline: tr ? 'Sayacınızda sessiz bir verim kaybı görüyoruz' : 'We see a silent efficiency loss on your meter',
+    body: tr
+      ? `Son ${c.days} gündür, benzer hava koşullarında beklenenin %${dev} ${c.dev < 0 ? 'altında üretim' : 'üzerinde tüketim'} ölçüyoruz. Acil bir durum yok; ${gear} sisteminiz çalışmaya devam ediyor. Bu fark ayda yaklaşık ${c.kwh} kWh'e karşılık geliyor.`
+      : `For ${c.days} days we have measured ${dev}% ${c.dev < 0 ? 'below expected production' : 'above expected consumption'} in similar weather. Your ${gear} keeps running; nothing is urgent. The gap is worth about ${c.kwh} kWh a month.`,
+    points: tr
+      ? ['Bu bir arıza ihbarı değil, sayaç verisine dayanan bir ön tespit.', 'Kontrol ücretsizdir ve size uygun bir saatte yapılır.', 'Talep oluşturmak zorunda değilsiniz; istemiyorsanız bu mesajı yok sayabilirsiniz.']
+      : ['This is not a fault report; it is an early finding from meter data.', 'The inspection is free and happens at a time that suits you.', 'You do not have to ask for one; you can ignore this message.'],
+    equipmentLabel: gear,
+    lossKwhMonth: c.kwh,
+    days: c.days,
+    closed: !isOpen(c),
+    customer: { name: customer.name, phone: customer.phone, email: customer.email, address: fullAddress(c) },
+    slots: SLOTS.map((value) => ({ value, label: SLOT_LABELS[l][value] })),
+    submitted: existing ? toReceipt(existing, l) : null,
+  };
+}
+
+export type RequestInput = Record<string, unknown>;
+export type SubmitResult = { ok: true; receipt: RequestReceipt } | { ok: false; error: string };
+
+const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '');
+
+/**
+ * Saves a resident's inspection request. Every field arrives from the form, including the address —
+ * the prefilled values are a convenience, not a constraint.
+ */
+export function submitRequest(token: string, input: RequestInput, l: Lang): SubmitResult {
+  const c = getCase(caseByToken.get(token) ?? '');
+  if (!c) return { ok: false, error: 'not_found' };
+
+  const name = text(input.name, 80);
+  const phone = text(input.phone, 24);
+  const email = text(input.email, 120);
+  const address = text(input.address, 240);
+  const note = typeof input.note === 'string' ? input.note.trim().slice(0, 400) : '';
+
+  if (name.length < 2) return { ok: false, error: 'invalid_name' };
+  if (!/^[+\d][\d\s()-]{8,23}$/.test(phone)) return { ok: false, error: 'invalid_phone' };
+  if (email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) return { ok: false, error: 'invalid_email' };
+  if (address.length < 10) return { ok: false, error: 'invalid_address' };
+  if (!isSlot(input.slot)) return { ok: false, error: 'invalid_slot' };
+
+  const existing = requestFor(c.id);
+  const record: RequestRecord = {
+    caseId: c.id,
+    reference: existing?.reference ?? `TL-${c.id.slice(-5)}`,
+    at: now(), name, phone, email, address,
+    addressEdited: address !== fullAddress(c),
+    slot: input.slot, note,
+  };
+  if (existing) Object.assign(existing, record);
+  else requests.push(record);
+  c.events.push({ type: 'requested', at: record.at });
+  return { ok: true, receipt: toReceipt(record, l) };
+}
+
 export const getCase = (id: string) => cases.find((c) => c.id === id);
 export const isOpen = (c: CaseRecord) => c.status === 'new' || c.status === 'review' || c.status === 'assigned';
 
@@ -243,6 +409,7 @@ export function toSummary(c: CaseRecord, u: User, l: Lang): CaseSummary {
     spark: { act: s.points.map((p) => p.act), ref: s.points.map((p) => p.ref), onset: s.onset },
     technicianName: nameOf(c.techId, l),
     firstCheck: FAULTS[top[0]].check[l],
+    customerRequest: Boolean(requestFor(c.id)),
     href: caseHref(u, c),
   };
 }
@@ -254,6 +421,7 @@ function eventLabel(e: CaseEventRecord, l: Lang) {
     case 'review': return tr ? 'Operatör incelemeye aldı' : 'Operator moved it to review';
     case 'assigned': return tr ? `${nameOf(e.techId, l)} kişisine SMS gönderildi` : `SMS sent to ${nameOf(e.techId, l)}`;
     case 'opened': return tr ? 'Teknisyen linki açtı' : 'Technician opened the link';
+    case 'requested': return tr ? 'Müşteri SMS linkinden kontrol talebi oluşturdu' : 'The resident asked for an inspection from the SMS link';
     case 'verified': return tr ? 'Saha sonucu: önerilen neden doğrulandı' : 'Field result: suggested cause confirmed';
     case 'other': return tr ? 'Saha sonucu: farklı arıza bulundu' : 'Field result: a different fault was found';
     case 'dismissed': return tr ? 'Kapatıldı: yanlış alarm' : 'Closed: false alarm';
@@ -275,6 +443,11 @@ export function toDetail(c: CaseRecord, u: User, l: Lang): CaseDetail {
     series: s.points,
     onset: s.onset,
     events: c.events.map((e) => ({ label: eventLabel(e, l), at: e.at, note: e.note ?? null })),
+    notice: can(u, 'case.assign') || c.techId === u.id ? customerNotice(c, level, l) : null,
+    request: (() => {
+      const r = requestFor(c.id);
+      return r ? toCustomerRequest(r, level, l) : null;
+    })(),
     actions: {
       review: can(u, 'case.assign') && c.status === 'new',
       assign: can(u, 'case.assign') && triage,
@@ -366,6 +539,17 @@ export function notificationsFor(u: User, l: Lang): Notification[] {
     for (const c of cases.filter((x) => x.status === 'new')) {
       const p = PRIORITY_WORD[l][c.priority];
       list.push({ id: `n-new-${c.id}`, text: tr ? `Yeni vaka ${c.id} · ${p} öncelik` : `New case ${c.id} · ${p} priority`, at: c.events[0].at, href: caseHref(u, c) });
+    }
+  }
+  if (u.screens.includes('queue')) {
+    for (const r of requests) {
+      const c = getCase(r.caseId);
+      if (!c) continue;
+      list.push({
+        id: `n-req-${c.id}`,
+        text: tr ? `Müşteri kontrol talebi · ${c.id}` : `Resident asked for an inspection · ${c.id}`,
+        at: r.at, href: caseHref(u, c),
+      });
     }
   }
   if (u.screens.includes('jobs')) {
