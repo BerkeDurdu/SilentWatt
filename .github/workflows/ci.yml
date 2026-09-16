@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+  ml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: packages/ml/requirements.lock
+      - run: python -m pip install -r packages/ml/requirements.lock
+      - run: python -m pip install --no-build-isolation -c packages/ml/requirements.lock -e packages/ml
+      - run: python -m pip check
+      - run: python -m unittest discover -s packages/ml/tests -v
+      - run: silentwatt-ml --help

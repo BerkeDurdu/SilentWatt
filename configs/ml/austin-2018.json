@@ -1,0 +1,38 @@
+{
+  "dataset_id": "pecan-austin-2018-v1",
+  "display_timezone": "America/Chicago",
+  "files": {
+    "electric_1m": "1minute_data_austin.csv",
+    "electric_15m": "15minute_data_austin.csv",
+    "weather": "open-meteo-30.26N97.69W157m.csv"
+  },
+  "columns": {
+    "household_id": "dataid",
+    "timestamp_1m": "localminute",
+    "timestamp_15m": "local_15min",
+    "target": "air1",
+    "weather_timestamp": "time",
+    "temperature": "temperature_2m (°C)"
+  },
+  "analysis_window_utc": {
+    "start": "2018-01-01T06:00:00Z",
+    "end": "2019-01-01T06:00:00Z"
+  },
+  "splits_local_date": {
+    "train": ["2018-01-01", "2018-06-01"],
+    "calibration": ["2018-06-01", "2018-07-01"],
+    "development": ["2018-07-01", "2018-08-01"],
+    "test": ["2018-08-01", "2019-01-01"]
+  },
+  "cohort": {
+    "minimum_target_coverage": 0.95,
+    "exclude_if_observed": ["air2", "airwindowunit1"]
+  },
+  "baseline": {
+    "temperature_bin_c": 2.0,
+    "minimum_hour_temperature_samples": 20,
+    "minimum_temperature_samples": 50,
+    "quantiles": [0.05, 0.5, 0.95]
+  }
+}
+

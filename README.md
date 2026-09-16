@@ -13,10 +13,10 @@ Tüm veriler sunum için **örnek veridir**.
 
 ## Çalıştırma
 
-Node 20 veya üstü gerekir.
+Node 22.12 veya üstü gerekir; ekip ve CI için Node 22 kullanılır (`.nvmrc`).
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -30,6 +30,33 @@ npm start
 ```
 
 `npm start` hem API'yi hem derlenmiş arayüzü tek bir porttan sunar (`PORT` ortam değişkeni, varsayılan 3001).
+
+## AI/ML geliştirme
+
+AI/ML kodu `packages/ml` altında ayrı bir Python paketi olarak tutulur. Büyük dataset dosyaları Git'e eklenmez. Dataset yolu `--data-dir` ile veya dışa aktarılmış `SILENTWATT_DATA_DIR` ortam değişkeniyle verilir. Python komutları `.env` dosyasını kendiliğinden yüklemez.
+
+Ürün ve teknik kapsamın ana sözleşmesi: [`docs/product/SilentWatt-Teknik-PRD-v1.1.md`](docs/product/SilentWatt-Teknik-PRD-v1.1.md).
+
+İlk çalıştırılabilir akış kaynak denetimi ve sıcaklık/saat tabanlı kuantil baseline'dır. Kurulum ve komutlar `packages/ml/README.md`, veri sınırı `data/README.md`, modül sorumlulukları `docs/architecture/ml-pipeline.md` içinde açıklanır.
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r packages/ml/requirements.lock
+python -m pip install --no-build-isolation -c packages/ml/requirements.lock -e packages/ml
+
+silentwatt-ml audit --data-dir ../dataset \
+  --config configs/ml/austin-2018.json \
+  --output artifacts/data-audit.json
+```
+
+Rol sahipleri:
+
+- Berke Durdu: UX/UI ve frontend
+- Muharrem Dokgöz: backend, veri hattı ve bulut işletimi
+- Yusuf Ziya Demirel: AI/ML, kalibrasyon, anomali tespiti ve değerlendirme
+
+Mevcut ML akışı çevrimdışı ve keşifseldir; konsoldaki örnek vakalara bağlı değildir. Baseline varsayılan olarak geliştirme dönemini değerlendirir. İnceleme bulguları ve kalan teslimler: [teknik değerlendirme](docs/architecture/foundation-review.md).
 
 ## Demo hesapları
 

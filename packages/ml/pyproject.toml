@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "silentwatt-ml"
+version = "0.1.0"
+description = "Data quality, baseline forecasting, calibration and anomaly detection for SilentWatt"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=2.0,<3",
+  "pandas>=2.2,<3"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "ruff>=0.8,<1"
+]
+modeling = [
+  "scikit-learn>=1.5,<2",
+  "joblib>=1.4,<2"
+]
+
+[project.scripts]
+silentwatt-ml = "silentwatt_ml.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
