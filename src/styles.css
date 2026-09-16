@@ -249,7 +249,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--brand); outline:
 .two-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .fine.left { text-align: left; margin-top: 2px; }
 .sms-link { margin-top: 10px; }
-.note-quote { margin-top: 12px; font-style: italic; }
+.panel-b > p.note-quote { margin-top: 14px; font-style: italic; }
 textarea { min-height: 74px; resize: vertical; }
 .radios { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .radios legend { margin-bottom: 8px; padding: 0; }
