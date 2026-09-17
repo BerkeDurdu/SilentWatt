@@ -52,7 +52,7 @@ Ek kontroller:
   Mevcut çıktı yazma seçenekleri kullanıcı tarafından açıkça seçilen dosyalara
   yöneliktir; bu entegrasyon betikleri otomatik çalıştırmaz.
 - Scanner HTML içindeki script'leri kapsamaz. Ek olarak diagram skill'in
-  `self_check.py` aracıyla **172 HTML asset** doğrulandı. HTML ağ referansları,
+  `self_check.py` aracıyla **165 HTML asset** tarandı: 163 PASS, 2 FAIL (catalog dosyaları). HTML ağ referansları,
   script ve olay işleyicileri de incelendi: şablonlar Google Fonts CSS yükleyebilir;
   çevrimdışı/özel diyagramlarda yerel font kullanımı proje yönergesine eklendi.
 - Skill'ler üst düzey talimatların yerine geçmez. Örnek rol/persistence ifadeleri
@@ -80,7 +80,7 @@ kanıtlamaz. Her güncellemede aynı kontroller yeniden yapılmalı.
 | Tam kaynak audit'i | 25 hane; 873.286 15m, 13.100.539 1m, 8.760 hava satırı; eski audit ile zaman alanı hariç eşit |
 | Cohort diagnostikleri | 8 aday; tüm hanelerin slot/kapsam sonuçları paket audit'iyle eşit |
 | Skill kaynak/lisans kontrolü | Sabit commit içerikleri birebir; 3 tam lisans metni dahil |
-| Skill scanner / HTML kontrolü | 14 PASS + 1 incelenmiş yanlış pozitif FAIL; 172 HTML kontrolü geçti |
+| Skill scanner / HTML kontrolü | 14 PASS + 1 incelenmiş yanlış pozitif FAIL; 165 HTML tarandı: 163 PASS, 2 catalog FAIL; 163 diyagram/şablon ayrıca exit=0 |
 | Yerel belge/sözdizimi/secret kontrolü | 32 Python dosyası parse edildi; yerel belge linkleri sağlam; özel anahtar/token örüntü eşleşmesi yok |
 
 Yerel runtime: Python 3.12.14, Node 26.4.0. CI Node 22 ve Python 3.12 kullanır;
@@ -114,3 +114,30 @@ onayı alan sahibini bekliyor. 10 hane hedefi sağlanmadı. Günlük kalite/çal
 imzası/kalibrasyon ve görülmemiş kör değerlendirme bu teslimde uygulanmış değildir.
 Bu kararların açık kalması belgelerin/skill entegrasyonunun PR olarak teslimini
 engellemez; veri kapısının veya MVP'nin tamamlandığı anlamına gelmez.
+
+
+## P0 yeniden inceleme düzeltmesi
+
+Önceki “172 HTML kontrolü geçti” ifadesi yanlıştı: 172 dosya değil, çıktı
+satırıydı; ilk komutun exit kodu sonraki komutla maskelenmişti. Gerçek sonuç
+165 dosyada 163 PASS / 2 FAIL, toplu çıkış kodu 1'dir. Bu düzeltme önceki
+kanıt iddiasını geçersiz kılar; ham rapor değiştirilmedi.
+
+- `icons.html`: iki dış kaynak atıf bağlantısı ve erişilebilir bağımsız SVG
+  olmaması. Bu dosya bir ikon kataloğudur; dış bağlantılar navigasyon içindir.
+- `index.html`: yerel iframe, katalog seçim script'i, bağımsız erişilebilir SVG
+  ve motion-root yokluğu. Script'in iframe kaynağı statik tab etiketlerinden
+  `example-<type><variant>.html` üretir; ağdan veri/kod indirme veya dış girdiyi
+  çalıştırma yolu bulunmadı. Bu dosya galeridir, yayımlanacak diyagram değildir.
+
+İki bulgu genel taramada FAIL olarak korunur; kataloglara diyagram teslim
+sözleşmesi uygulanması olarak manuel gerekçelendirilmiştir. Gerçek 158 örnek
+ve 5 şablon, `subprocess.run(..., check=True)` ile ayrıca doğrulandı: **163/163,
+exit=0**. Vendor içeriği veya kontrol kuralları değiştirilmedi.
+
+Yeniden doğrulama: 18/18 test, pip check, typecheck/build; skill scanner yine
+14 PASS / aynı bir base64 FAIL; pinned kaynak içerikleri eşit. PR #1 açık,
+head `0ccdfb5b0c016d241682943ec011902ede9f0e13` üzerinde ML/web/GitGuardian
+başarılıydı. Yeni P1 sonuçları bu tarihsel P0 kontrolünün yerine geçmez.
+
+Tam kaynak audit’i yeniden çalıştırıldı: zaman alanı dışında P0 ile aynı; üç kaynak hash’i eşit. Eğitim cohort diagnostikleri de birebir aynı. Teknik P0 yeniden doğrulaması bu raporlama düzeltmesiyle tamamlandı. D-01–D-05 alan sahibi kararları açık kalır; ilk P0 kapsamı bunları kanıtla kaydetmeyi gerektiriyordu, dışarıdan onay uydurmayı değil. P1 yalnız koşullu çevrimdışı araştırma olarak ilerler.

@@ -18,7 +18,7 @@ Uygulama mimarisi, veri dönüşümleri, cohort eşikleri ve bölmeler korunacak
 
 18 ML testi, pip check, web typecheck/build geçti. Npm/OSV advisory sorguları
 bulgu döndürmedi. 15 skill kaynak commit'leriyle birebir; 14 PASS ve manuel
-incelenmiş 1 base64 yanlış pozitifi var. 172 HTML kontrolü ve Python sözdizimi
+incelenmiş 1 base64 yanlış pozitifi var. 163 diyagram/şablon kontrolü (165 genel dosyada 2 katalog FAIL belgeli) ve Python sözdizimi
 kontrolleri geçti. Tam audit önceki sonuçla eşit; train analizi 8 adayı doğruladı.
 Kaynak CSV'ler/ham artifact'lar Git dışında. Veri anlamı ve nihai ekip onayı açık.
 
@@ -31,3 +31,15 @@ Bu dosyayı içeren ayrı P0 commit'i `feat/ml-foundation` dalında teslim edili
 Push, PR URL'si ve uzak CI sonucu değişken GitHub durumudur; son görev yanıtı ve
 PR commit/check kayıtları teslim kanıtıdır. `main` tabanlı PR, önceden mevcut
 `b52e6d5` foundation commit'ini de içerir. Merge bu görevin kapsamında değildir.
+
+# P0 yeniden doğrulama → P1 ML temelini tamamlama
+
+- [x] P0: commit/PR, testler, kaynak audit'i, cohort ve skill kanıtlarını yeniden doğrula; varsa hataları önce düzelt.
+- [ ] P1 tasarımını sabitle: train-only B0/B1, ayrı calibration, development-only karşılaştırma, günlük kalite politikası.
+- [ ] Günlük kalite kapıları ve sonlu örneklem CQR kalibrasyonunu uygula.
+- [ ] Çok haneli B0/B1 değerlendirmesi ve hane/ay metriklerini üret.
+- [ ] Sızıntı, DST, kalibrasyon yeterliliği, donma/eksik/negatif veriler, adil payda ve tekrar üretilebilirliği test et.
+- [ ] Gerçek aday cohort'ta çalıştır; yalnız development sonuçlarını karşılaştır; kararları/limitleri belgeleyip teslim et.
+
+P1 boyunca birim/fiziksel eşleme ve nihai cohort onayı açık kalır. Bu koşullu
+çevrimdışı deney, G0 veya ürün yayını onayı değildir. Test bölmesi karşılaştırmaya kapalıdır.
