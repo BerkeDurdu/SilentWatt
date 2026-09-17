@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -68,6 +69,37 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue((result.predictions.q05 <= result.predictions.q50).all())
         self.assertTrue((result.predictions.q50 <= result.predictions.q95).all())
         self.assertEqual(result.metadata["provenance"]["config"], self.raw)
+
+    def test_p0_cohort_diagnostics_accounting_sensitivity_and_provenance(self):
+        script = Path(__file__).resolve().parents[3] / "docs/product/ekler/review_p0_cohort.py"
+        review = runpy.run_path(str(script))["review"]
+        self.electric["air3"] = np.nan
+        self.electric = self.electric.drop(index=0)
+        self.electric.loc[1, "air1"] = np.nan
+        self.electric.loc[2, "air1"] = -0.001
+        self.electric.loc[3, "air1"] = -0.002
+        self.electric.loc[4, "air1"] = np.inf
+        self.electric.loc[96:, "air2"] = 2.0
+        self.electric.loc[96:, "air1"] = -100.0
+        self.write_sources()
+        audit_path = self.root / "audit.json"
+        audit_path.write_text(json.dumps(build_audit(load_config(self.config_path), self.data)))
+        before = sha256_file(self.data / self.raw["files"]["electric_15m"])
+        report = review(str(self.config_path), str(self.data), str(audit_path))
+        household = report["households"][0]
+        self.assertEqual(report["candidate_household_ids"], [])
+        self.assertEqual(household["valid_slots"], 91)
+        self.assertEqual(household["absent_slots"], 1)
+        self.assertEqual(household["null_or_nonfinite_present_slots"], 2)
+        self.assertEqual(household["negative_slots"], 2)
+        self.assertEqual(household["longest_invalid_run_slots"], 5)
+        self.assertEqual(household["observed_exclusion_channels"], [])
+        self.assertEqual(report["negative_tolerance_sensitivity"][1]["ids"], [999999])
+        self.assertEqual(sha256_file(self.data / self.raw["files"]["electric_15m"]), before)
+        self.electric.loc[5, "air1"] = 2.0
+        self.write_sources()
+        with self.assertRaisesRegex(ValueError, "source differs"):
+            review(str(self.config_path), str(self.data), str(audit_path))
 
     def test_held_out_targets_never_fit_quantiles(self):
         before = self.run_model()

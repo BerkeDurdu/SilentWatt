@@ -37,6 +37,10 @@ AI/ML kodu `packages/ml` altında ayrı bir Python paketi olarak tutulur. Büyü
 
 Ürün ve teknik kapsamın ana sözleşmesi: [`docs/product/SilentWatt-Teknik-PRD-v1.1.md`](docs/product/SilentWatt-Teknik-PRD-v1.1.md).
 
+Codex proje skill’leri [`.codex/skills/README.md`](.codex/skills/README.md) içinde seçili ve kaynak commit’leriyle belgelenmiştir. Skill’ler pasif proje talimatlarıdır; uygulamanın MCP/hook çalışma zamanını değiştirmez. Üçüncü taraf lisansları [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) içinde bulunur.
+
+17 Eylül P0 değerlendirmesi: [veri kararları ve 8 aday hane analizi](docs/project-status/p0-data-decisions-2026-09-17.md), [skill güvenliği ve doğrulama sonuçları](docs/project-status/p0-verification-2026-09-17.md). Veri anlamı ve nihai cohort onayı açık; eşikler değiştirilmedi.
+
 İlk çalıştırılabilir akış kaynak denetimi ve sıcaklık/saat tabanlı kuantil baseline'dır. Kurulum ve komutlar `packages/ml/README.md`, veri sınırı `data/README.md`, modül sorumlulukları `docs/architecture/ml-pipeline.md` içinde açıklanır.
 
 ```bash
