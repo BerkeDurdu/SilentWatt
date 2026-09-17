@@ -11,12 +11,15 @@ dataset audit + cohort manifest
         v
 leakage-safe feature table
         |
-        +--> empirical quantile baseline
-        |       |
-        |       v
-        |   baseline metrics
+        +--> empirical quantile baseline (B0)
         |
-        +--> quantile candidate + calibration      [next milestone]
+        +--> quantile boosting candidate (B1)
+                    |
+                    v
+              daily quality gates + split calibration
+                    |
+                    v
+              household/month development comparison
                     |
                     v
             acute/chronic detection                [next milestone]
@@ -39,7 +42,7 @@ The first executable milestone is the source audit and one-household baseline. I
 
 Role C writes versioned artifacts. Role B reads them and persists user-facing cases. Role C never writes directly into the application database.
 
-Today only offline audit and baseline files exist. `shared/types.ts` is the current TypeScript demo contract, not the analytical evidence schema. Do not map empirical quantiles or anomaly scores into demo fault probabilities or kWh savings. Role B will own the versioned API contract, with C defining evidence/status semantics and A consuming the same fixtures.
+Today offline audit, baseline, daily quality, calibrated comparison and fitted model files exist. `shared/types.ts` is the current TypeScript demo contract, not the analytical evidence schema. Do not map empirical quantiles or anomaly scores into demo fault probabilities or kWh savings. Role B will own the versioned API contract, with C defining evidence/status semantics and A consuming the same fixtures.
 
 The existing Express API remains in `server/`; a second FastAPI service is not required for this foundation. PostgreSQL, object storage and cloud batch jobs are future Role B deliveries. Local file paths remain configurable so the ML code does not depend on Google Cloud or Huawei SDKs.
 
@@ -56,4 +59,8 @@ The future evidence JSON must include dataset, config, model, calibration, detec
 - Large data and artifacts are ignored by Git.
 - CI verifies the TypeScript build and Python unit tests.
 
-The audit covers full-file exact timestamp-key duplication at both resolutions. Only 15-minute target/training coverage selects candidates. One-minute cycle features, cross-resolution validation and daily quality gates remain separate milestones. Electricity timestamps use explicit source offsets; Open-Meteo requires UTC/GMT metadata. Hourly weather is joined within the same UTC hour without forward/back filling. Provider interval semantics remain unverified.
+The audit covers full-file exact timestamp-key duplication at both resolutions. Only 15-minute target/training coverage selects candidates. One-minute cycle features and cross-resolution validation remain separate milestones. P1 daily quality gates run in `compare`, not in the source audit. Electricity timestamps use explicit source offsets; Open-Meteo requires UTC/GMT metadata. Hourly weather is joined within the same UTC hour without forward/back filling. Provider interval semantics remain unverified.
+
+## P1 implementation
+
+`silentwatt-ml compare` adds a development-only multi-household path. Shared cohort rules and empirical fit/predict functions keep the original audit/baseline behavior. `data.daily` owns provisional daily gates; `models.calibration` owns per-household CQR; `models.comparison` orchestrates the split boundaries; `models.evaluation` publishes household/month and paired metrics. See [protocol](p1-ml-protocol.md). Detectors, online adaptation and the versioned product evidence/API integration remain separate work.

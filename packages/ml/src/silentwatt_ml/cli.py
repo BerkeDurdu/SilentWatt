@@ -59,6 +59,31 @@ def _baseline(args: argparse.Namespace) -> int:
     return 0
 
 
+def _compare(args: argparse.Namespace) -> int:
+    # Modeling extras are optional for the original audit/baseline commands.
+    import joblib
+
+    from silentwatt_ml.data.readers import sha256_file
+    from silentwatt_ml.models.comparison import run_comparison
+
+    config = load_config(args.config)
+    data_dir = Path(args.data_dir).expanduser().resolve()
+    output = _output_path(args.output_dir, data_dir)
+    result = run_comparison(config, data_dir)
+    output.mkdir(parents=True, exist_ok=False)
+    result.predictions.to_csv(output / "predictions.csv", index=False)
+    result.daily.to_csv(output / "daily-quality.csv", index=False)
+    joblib.dump(result.fitted_models, output / "B1-models.joblib", compress=3)
+    result.report["artifact_sha256"] = {
+        name: sha256_file(output / name)
+        for name in ("predictions.csv", "daily-quality.csv", "B1-models.joblib")
+    }
+    _write_json(output / "report.json", result.report)
+    print(f"Development comparison written to {output}")
+    print(json.dumps(result.report["comparison"], indent=2, allow_nan=False))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="silentwatt-ml")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -77,6 +102,12 @@ def build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--evaluation-split", choices=["development", "test"], default="development")
     baseline.add_argument("--allow-test", action="store_true", help="Explicitly unlock final evaluation after freezing experiments")
     baseline.set_defaults(handler=_baseline)
+
+    compare = subparsers.add_parser("compare", help="Calibrate and compare B0/B1 on development only")
+    compare.add_argument("--data-dir", default=os.getenv("SILENTWATT_DATA_DIR"), required=not os.getenv("SILENTWATT_DATA_DIR"))
+    compare.add_argument("--config", default=os.getenv("SILENTWATT_ML_CONFIG", "configs/ml/austin-2018.json"))
+    compare.add_argument("--output-dir", required=True)
+    compare.set_defaults(handler=_compare)
     return parser
 
 

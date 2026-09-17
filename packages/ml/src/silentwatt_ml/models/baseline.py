@@ -30,23 +30,41 @@ def pinball_loss(actual: np.ndarray, predicted: np.ndarray, quantile: float) -> 
     return float(np.mean(np.maximum(quantile * error, (quantile - 1.0) * error)))
 
 
-def _prepare_frame(config: ProjectConfig, paths: dict[str, Path], household_id: int) -> tuple[pd.DataFrame, dict]:
+def _prepare_frame(
+    config: ProjectConfig, paths: dict[str, Path], household_id: int,
+    *, raw: pd.DataFrame | None = None, weather: pd.DataFrame | None = None,
+    end_before: pd.Timestamp | None = None,
+) -> tuple[pd.DataFrame, dict]:
     columns = config.columns
-    raw = read_household_electric(
-        paths["electric_15m"], household_column=columns["household_id"],
-        household_id=household_id,
-        usecols=[columns["household_id"], columns["timestamp_15m"], columns["target"]],
-    )
+    if raw is None:
+        raw = read_household_electric(
+            paths["electric_15m"], household_column=columns["household_id"],
+            household_id=household_id,
+            usecols=[columns["household_id"], columns["timestamp_15m"], columns["target"]],
+        )
     ts = electric_timestamps(raw[columns["timestamp_15m"]])
+    if end_before is not None:
+        raw = raw.loc[ts.lt(end_before)]
+        ts = ts.loc[raw.index]
     target = valid_target(raw[columns["target"]])
     valid_slot = slot_mask(ts, config)
-    selected = pd.DataFrame({"ts_utc": ts[valid_slot], "target": target[valid_slot]})
+    numeric = pd.to_numeric(raw[columns["target"]], errors="coerce")
+    measurement = pd.Series("ok", index=raw.index)
+    measurement.loc[raw[columns["target"]].isna()] = "null_target"
+    measurement.loc[raw[columns["target"]].notna() & ~np.isfinite(numeric)] = "invalid_target"
+    measurement.loc[np.isfinite(numeric) & numeric.lt(0)] = "negative_target"
+    selected = pd.DataFrame({"ts_utc": ts[valid_slot], "target": target[valid_slot],
+                             "target_quality": measurement[valid_slot]})
     if selected["ts_utc"].duplicated().any():
         raise ValueError("Duplicate electricity timestamps: resolve source keys before modeling")
     start, end = (pd.Timestamp(config.raw["analysis_window_utc"][key]) for key in ("start", "end"))
+    if end_before is not None:
+        end = min(end, end_before).tz_convert(start.tz)
     grid = pd.DataFrame({"ts_utc": pd.date_range(start, end, freq="15min", inclusive="left")})
     frame = grid.merge(selected, how="left", on="ts_utc", validate="one_to_one")
-    _, weather = weather_frame(paths["weather"], config)
+    frame["target_quality"] = frame["target_quality"].fillna("missing_row")
+    if weather is None:
+        _, weather = weather_frame(paths["weather"], config)
     frame["weather_ts_utc"] = frame["ts_utc"].dt.floor("h")
     frame = frame.merge(weather, on="weather_ts_utc", how="left", validate="many_to_one")
     local = frame["ts_utc"].dt.tz_convert(config.timezone)
@@ -71,6 +89,48 @@ def _quantile_table(frame: pd.DataFrame, keys: list[str], minimum_samples: int) 
     return table.merge(counts, on=keys).query("sample_count >= @minimum_samples")
 
 
+def fit_empirical(train: pd.DataFrame, settings: dict) -> dict:
+    """Fit only the caller's approved training rows; reusable by the P1 comparison."""
+    detailed = _quantile_table(train, ["local_hour", "temperature_bin_c"], settings["minimum_hour_temperature_samples"])
+    temperature = _quantile_table(train, ["temperature_bin_c"], settings["minimum_temperature_samples"])
+    quantiles = train["target"].quantile(settings["quantiles"])
+    return {
+        "hour_temperature_table": detailed.to_dict(orient="records"),
+        "temperature_table": temperature.to_dict(orient="records"),
+        "global_quantiles": {str(key): float(value) for key, value in quantiles.items()},
+        "training_temperature_range_c": [float(train["temperature_c"].min()), float(train["temperature_c"].max())],
+    }
+
+
+def predict_empirical(evaluation: pd.DataFrame, model: dict) -> pd.DataFrame:
+    columns = ["temperature_bin_c", "q05", "q50", "q95", "sample_count"]
+    detailed = pd.DataFrame(model["hour_temperature_table"], columns=["local_hour", *columns])
+    temperature = pd.DataFrame(model["temperature_table"], columns=columns)
+    predicted = evaluation.merge(detailed, on=["local_hour", "temperature_bin_c"], how="left", validate="many_to_one")
+    fallback = predicted[["temperature_bin_c"]].merge(temperature, on="temperature_bin_c", how="left", validate="many_to_one")
+    source = np.full(len(predicted), "hour_temperature", dtype=object)
+    for quantile, column in [(0.05, "q05"), (0.5, "q50"), (0.95, "q95")]:
+        missing = predicted[column].isna()
+        predicted.loc[missing, column] = fallback.loc[missing, column]
+        source[missing.to_numpy()] = "temperature"
+        missing = predicted[column].isna()
+        predicted.loc[missing, column] = model["global_quantiles"][str(quantile)]
+        source[missing.to_numpy()] = "global"
+    predicted["prediction_source"] = source
+    low, high = model["training_temperature_range_c"]
+    predicted["prediction_status"] = "ok"
+    unsupported = predicted["temperature_c"].notna() & ~predicted["temperature_c"].between(low, high)
+    predicted.loc[unsupported, "prediction_status"] = "temperature_out_of_support"
+    predicted.loc[predicted["temperature_c"].isna(), "prediction_status"] = "missing_weather"
+    # An unsupported fallback must not silently become evidence for a maintenance case.
+    invalid_prediction = predicted["prediction_status"].ne("ok")
+    predicted.loc[invalid_prediction, ["q05", "q50", "q95"]] = np.nan
+    predicted.loc[invalid_prediction, "prediction_source"] = "none"
+    # Empty serialized group tables have object dtype; fallback values are still numeric.
+    predicted[["q05", "q50", "q95"]] = predicted[["q05", "q50", "q95"]].astype(float)
+    return predicted
+
+
 def run_baseline(
     config: ProjectConfig, data_dir: Path, household_id: int,
     *, evaluation_split: str = "development", allow_test: bool = False,
@@ -89,30 +149,9 @@ def run_baseline(
     evaluation = split(evaluation_split)
     if train.empty or evaluation.empty:
         raise ValueError("Train or evaluation split has no usable rows")
-    settings = config.raw["baseline"]
-    detailed = _quantile_table(train, ["local_hour", "temperature_bin_c"], settings["minimum_hour_temperature_samples"])
-    temperature = _quantile_table(train, ["temperature_bin_c"], settings["minimum_temperature_samples"])
-    quantiles = train["target"].quantile(settings["quantiles"])
-    predicted = evaluation.merge(detailed, on=["local_hour", "temperature_bin_c"], how="left", validate="many_to_one")
-    fallback = predicted[["temperature_bin_c"]].merge(temperature, on="temperature_bin_c", how="left", validate="many_to_one")
-    source = np.full(len(predicted), "hour_temperature", dtype=object)
-    for quantile, column in [(0.05, "q05"), (0.5, "q50"), (0.95, "q95")]:
-        missing = predicted[column].isna()
-        predicted.loc[missing, column] = fallback.loc[missing, column]
-        source[missing.to_numpy()] = "temperature"
-        missing = predicted[column].isna()
-        predicted.loc[missing, column] = float(quantiles.loc[quantile])
-        source[missing.to_numpy()] = "global"
-    predicted["prediction_source"] = source
-    low, high = float(train["temperature_c"].min()), float(train["temperature_c"].max())
-    predicted["prediction_status"] = "ok"
-    unsupported = predicted["temperature_c"].notna() & ~predicted["temperature_c"].between(low, high)
-    predicted.loc[unsupported, "prediction_status"] = "temperature_out_of_support"
-    predicted.loc[predicted["temperature_c"].isna(), "prediction_status"] = "missing_weather"
-    # An unsupported fallback must not silently become evidence for a maintenance case.
-    invalid_prediction = predicted["prediction_status"].ne("ok")
-    predicted.loc[invalid_prediction, ["q05", "q50", "q95"]] = np.nan
-    predicted.loc[invalid_prediction, "prediction_source"] = "none"
+    model = fit_empirical(train, config.raw["baseline"])
+    predicted = predict_empirical(evaluation, model)
+    unsupported = predicted["prediction_status"].eq("temperature_out_of_support")
     predicted["measurement_status"] = np.where(predicted["target"].notna(), "ok", "missing_or_invalid_target")
     predicted["scored"] = predicted["prediction_status"].eq("ok") & predicted["target"].notna()
     scored = predicted.loc[predicted["scored"]]
@@ -138,12 +177,7 @@ def run_baseline(
         "model_version": "0.2.0", "dataset_id": config.dataset_id,
         "evaluation_split": evaluation_split, "test_access_explicit": allow_test,
         "quality": quality, "provenance": provenance(config, paths),
-        "model_parameters": {
-            "hour_temperature_table": detailed.to_dict(orient="records"),
-            "temperature_table": temperature.to_dict(orient="records"),
-            "global_quantiles": {str(key): float(value) for key, value in quantiles.items()},
-            "training_temperature_range_c": [low, high],
-        },
+        "model_parameters": model,
         "source_unit": "source_unit_unverified",
         "limitations": [
             "Uncalibrated empirical intervals; no nominal coverage guarantee.",

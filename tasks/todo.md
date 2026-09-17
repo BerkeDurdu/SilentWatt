@@ -35,11 +35,20 @@ PR commit/check kayıtları teslim kanıtıdır. `main` tabanlı PR, önceden me
 # P0 yeniden doğrulama → P1 ML temelini tamamlama
 
 - [x] P0: commit/PR, testler, kaynak audit'i, cohort ve skill kanıtlarını yeniden doğrula; varsa hataları önce düzelt.
-- [ ] P1 tasarımını sabitle: train-only B0/B1, ayrı calibration, development-only karşılaştırma, günlük kalite politikası.
-- [ ] Günlük kalite kapıları ve sonlu örneklem CQR kalibrasyonunu uygula.
-- [ ] Çok haneli B0/B1 değerlendirmesi ve hane/ay metriklerini üret.
-- [ ] Sızıntı, DST, kalibrasyon yeterliliği, donma/eksik/negatif veriler, adil payda ve tekrar üretilebilirliği test et.
-- [ ] Gerçek aday cohort'ta çalıştır; yalnız development sonuçlarını karşılaştır; kararları/limitleri belgeleyip teslim et.
+- [x] P1 tasarımını sabitle: train-only B0/B1, ayrı calibration, development-only karşılaştırma, günlük kalite politikası.
+- [x] Günlük kalite kapıları ve sonlu örneklem CQR kalibrasyonunu uygula.
+- [x] Çok haneli B0/B1 değerlendirmesi ve hane/ay metriklerini üret.
+- [x] Sızıntı, DST, kalibrasyon yeterliliği, donma/eksik/negatif veriler, adil payda ve tekrar üretilebilirliği test et.
+- [x] Gerçek aday cohort'ta çalıştır; yalnız development sonuçlarını karşılaştır; kararları/limitleri belgeleyip teslim et.
 
 P1 boyunca birim/fiziksel eşleme ve nihai cohort onayı açık kalır. Bu koşullu
 çevrimdışı deney, G0 veya ürün yayını onayı değildir. Test bölmesi karşılaştırmaya kapalıdır.
+
+
+P1 doğrulama: 35/35 test geçti; eski gerçek baseline tahminleri/metrikleri korunuyor.
+8 adayda calibration tamam; gerçek run03/run04 dosyaları byte eşit. Development
+kararı B0'ı korumak: B1 macro pinball 0,216709 > 0,168172; kalibre kapsama
+B1 %84,370 / B0 %86,687. Skorlanan 13.423/23.808 slot ve donma kapısının
+6139'da 9 train gününe düşürmesi açık risk olarak belgelendi. P1 raporu:
+`docs/project-status/p1-ml-results-2026-09-17.md`. Güncel PR/CI durumu GitHub
+check kaydından doğrulanır; merge veya G0 onayı bu teslimin parçası değildir.

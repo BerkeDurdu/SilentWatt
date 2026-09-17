@@ -1,4 +1,10 @@
-# SilentWatt Yönetici Özet Raporu
+> **P1 güncellemesi:** Bu belgenin aşağısı P0 anlık görüntüsüdür. Güncel
+> [P1 raporunda](p1-ml-results-2026-09-17.md) ayrı calibration, günlük kalite
+> kapıları ve 8 haneli development karşılaştırması tamamlandı. B1, B0'ı geçemedi;
+> B0 korunuyor, iki modelin kapsama hedefi ve fiziksel veri kararları açık.
+> P0 HTML kanıtındaki sayım hatası düzeltilmiştir: 163 PASS / 2 katalog FAIL.
+
+# SilentWatt Yönetici Özet Raporu — P0 anlık görüntüsü
 
 **Tarih:** 17 Eylül 2026
 **Genel durum:** AMBER — teknik foundation çalışıyor; ürünün anomali tespit ve bakım önerisi akışı henüz tamamlanmadı.

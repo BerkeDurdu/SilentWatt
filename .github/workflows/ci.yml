@@ -29,9 +29,9 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: packages/ml/requirements.lock
-      - run: python -m pip install -r packages/ml/requirements.lock
-      - run: python -m pip install --no-build-isolation -c packages/ml/requirements.lock -e packages/ml
+          cache-dependency-path: packages/ml/requirements*.lock
+      - run: python -m pip install -r packages/ml/requirements-modeling.lock
+      - run: python -m pip install --no-build-isolation -c packages/ml/requirements-modeling.lock -e 'packages/ml[modeling]'
       - run: python -m pip check
       - run: python -m unittest discover -s packages/ml/tests -v
       - run: silentwatt-ml --help

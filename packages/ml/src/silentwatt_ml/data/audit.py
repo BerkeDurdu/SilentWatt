@@ -13,6 +13,25 @@ from silentwatt_ml.data.readers import iter_electric, require_files
 from silentwatt_ml.provenance import provenance
 
 
+def training_cohort_record(training: pd.DataFrame, has_duplicates: bool,
+                           config: ProjectConfig, expected: int) -> dict:
+    """The same train-only eligibility contract for audit and P1 evaluation."""
+    observed = [c for c in config.raw["cohort"]["exclude_if_observed"]
+                if training[c].notna().any()]
+    count = int(training["_target"].notna().sum())
+    reasons = []
+    if count / expected < config.raw["cohort"]["minimum_target_coverage"]:
+        reasons.append("insufficient_valid_training_coverage")
+    if observed:
+        reasons.append("additional_cooling_channel_observed_in_training")
+    if has_duplicates:
+        reasons.append("duplicate_training_keys")
+    return {"training_valid_target_slots": count,
+            "training_valid_target_coverage": count / expected,
+            "observed_training_exclusion_channels": observed,
+            "candidate": not reasons, "exclusion_reasons": reasons}
+
+
 def _profile_one_minute(path: Path, config: ProjectConfig) -> dict:
     columns = config.columns
     rows = invalid = invalid_target = off_grid = missing_household = 0
@@ -72,28 +91,17 @@ def build_audit(config: ProjectConfig, data_dir: Path) -> dict:
         clean = group.loc[grid.loc[idx] & ~duplicate.loc[idx]]
         training = clean.loc[clean["_ts"].ge(train_start) & clean["_ts"].lt(train_end)]
         train_duplicates = group["_ts"].ge(train_start) & group["_ts"].lt(train_end) & duplicate.loc[idx]
-        observed = [column for column in exclusions if training[column].notna().any()]
         valid_count = int(clean["_target"].notna().sum())
-        train_count = int(training["_target"].notna().sum())
-        reasons = []
-        if train_count / expected_train < minimum:
-            reasons.append("insufficient_valid_training_coverage")
-        if observed:
-            reasons.append("additional_cooling_channel_observed_in_training")
-        if train_duplicates.any():
-            reasons.append("duplicate_training_keys")
-        if not reasons:
+        eligibility = training_cohort_record(training, bool(train_duplicates.any()), config, expected_train)
+        if eligibility["candidate"]:
             candidates.append(int(household))
         households.append({
             "household_id": int(household),
             "annual_unique_grid_slots": int(group.loc[grid.loc[idx], "_ts"].nunique()),
             "annual_valid_target_slots": valid_count,
             "annual_valid_target_coverage": valid_count / expected,
-            "training_valid_target_slots": train_count,
-            "training_valid_target_coverage": train_count / expected_train,
-            "observed_training_exclusion_channels": observed,
             "duplicate_rows": int(duplicate.loc[idx].sum()),
-            "candidate": not reasons, "exclusion_reasons": reasons,
+            **eligibility,
         })
     weather_metadata, weather = weather_frame(paths["weather"], config)
     one_minute = _profile_one_minute(paths["electric_1m"], config)

@@ -88,6 +88,27 @@ def load_config(path: str | Path) -> ProjectConfig:
         exclusions = raw["cohort"]["exclude_if_observed"]
         if not isinstance(exclusions, list) or any(not isinstance(value, str) or not value for value in exclusions):
             raise ValueError("exclude_if_observed must be a list of column names")
+        if "p1" in raw:
+            p1 = raw["p1"]
+            if p1["protocol_version"] != "p1-v1":
+                raise ValueError("Unsupported P1 protocol_version")
+            quality, calibration, model = (p1[k] for k in ("daily_quality", "calibration", "quantile_model"))
+            if not 0 < quality["minimum_coverage"] <= 1:
+                raise ValueError("Daily minimum_coverage must be in (0, 1]")
+            if type(quality["block_frozen_days"]) is not bool:
+                raise ValueError("block_frozen_days must be boolean")
+            for value, minimum in ((quality["frozen_run_slots"], 2),
+                                   (calibration["minimum_days"], 1), (calibration["minimum_slots"], 1),
+                                   (model["max_iter"], 1), (model["max_leaf_nodes"], 2),
+                                   (model["min_samples_leaf"], 1)):
+                if type(value) is not int or value < minimum:
+                    raise ValueError("P1 counts must be valid positive integers")
+            if calibration["alpha"] != 0.1:
+                raise ValueError("P1 q05/q95 contract requires alpha=0.1")
+            if not math.isfinite(model["learning_rate"]) or model["learning_rate"] <= 0:
+                raise ValueError("learning_rate must be finite and positive")
+            if type(model["random_state"]) is not int or not 0 <= model["random_state"] < 2**32:
+                raise ValueError("random_state must be an unsigned 32-bit integer")
     except (KeyError, TypeError, OverflowError) as exc:
         raise ValueError(f"Invalid nested config: {exc}") from exc
     return ProjectConfig(raw=raw, source=source)

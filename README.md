@@ -41,7 +41,7 @@ Codex proje skill’leri [`.codex/skills/README.md`](.codex/skills/README.md) i�
 
 17 Eylül P0 değerlendirmesi: [veri kararları ve 8 aday hane analizi](docs/project-status/p0-data-decisions-2026-09-17.md), [skill güvenliği ve doğrulama sonuçları](docs/project-status/p0-verification-2026-09-17.md). Veri anlamı ve nihai cohort onayı açık; eşikler değiştirilmedi.
 
-İlk çalıştırılabilir akış kaynak denetimi ve sıcaklık/saat tabanlı kuantil baseline'dır. Kurulum ve komutlar `packages/ml/README.md`, veri sınırı `data/README.md`, modül sorumlulukları `docs/architecture/ml-pipeline.md` içinde açıklanır.
+Çalıştırılabilir akışlar kaynak denetimi, sıcaklık/saat kuantil baseline ve ayrı kalibrasyonlu çok haneli B0/B1 development karşılaştırmasıdır. [P1 sonuçları ve sınırlar](docs/project-status/p1-ml-results-2026-09-17.md) günlük kalite kapılarının etkisini ve model kararını açıklar. Kurulum ve komutlar `packages/ml/README.md`, veri sınırı `data/README.md`, modül sorumlulukları `docs/architecture/ml-pipeline.md` içinde açıklanır.
 
 ```bash
 python3.12 -m venv .venv
