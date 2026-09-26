@@ -1,12 +1,14 @@
-# Third-party Codex skills
+# Third-party agent skills
 
-The project includes selected skill directories copied from the following public repositories. Their upstream instructions remain in the copied files. Full license texts and copyright notices are included below; project-specific usage constraints are in `.codex/skills/README.md`.
+The project includes selected skill directories copied from the following public repositories. Their upstream instructions remain in the copied files. Full license texts and copyright notices are included below; project-specific usage constraints are in `.claude/skills/README.md`.
 
 | Source | Pinned commit | Included paths | License |
 | --- | --- | --- | --- |
 | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | `e3ba2aa6f1e6f0bc4d69eb09c9f0d0a93af56156` | `skills/ponytail*` → `.codex/skills/ponytail*` | MIT |
-| [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | `9874ad73813715fc36875e45afd9cd94c68f3c3f` | `skills/diagram-design` → `.codex/skills/diagram-design` | MIT |
-| [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | `19392f7a08264ed00486a251f5b2098321771f94` | `senior-ml-engineer`, `senior-data-scientist`, `data-quality-auditor`, `senior-architect`, `code-reviewer`, `tdd-guide`, `dependency-auditor`, `skill-security-auditor` | MIT |
+| [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | `9874ad73813715fc36875e45afd9cd94c68f3c3f` | `skills/diagram-design` → `.claude/skills/diagram-design` | MIT |
+| [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | `19392f7a08264ed00486a251f5b2098321771f94` | `senior-ml-engineer`, `senior-data-scientist`, `data-quality-auditor`, `senior-architect`, `code-reviewer`, `tdd-guide`, `dependency-auditor`, `skill-security-auditor` → `.claude/skills/<name>` | MIT |
+
+On 2026-09-23 the nine non-`ponytail` directories were moved from `.codex/skills/` to `.claude/skills/` with `git mv`; file contents are unchanged. The `ponytail` copies stay under `.codex/skills/` and are no longer used. Project usage constraints now live in [`.claude/skills/README.md`](.claude/skills/README.md).
 
 `mksglu/context-mode` was reviewed at commit `5bca2948959a7fb538e895d9a032c1a19b8685a5` but was not copied. It is an Elastic License 2.0 MCP/plugin package with runtime hooks and a separate Node process. The project records the optional setup in `.codex/skills/README.md`; no context-mode code, hook or MCP manifest is committed.
 
