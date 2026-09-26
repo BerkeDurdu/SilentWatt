@@ -65,7 +65,7 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | Q-06 | `.obsidian/` için `.gitignore` kaydı | ertelendi | Yusuf | O zamana kadar `.obsidian/` commit edilmez |
 | Q-07 | Notebook testleri CI'da çalışmıyor | açık | C | [ci.yml](../.github/workflows/ci.yml) yalnız `packages/ml/tests` çalıştırıyor |
 | Q-08 | Repo dışında eski PRD v1.1 kopyası (`../Dokümanlar/`, 34 satır farklı) | açık | Yusuf | Geçerli olan repodaki PRD |
-| Q-09 | Notebook ve second_brain için commit/dal kararı | açık | Yusuf | 2026-09-26: skill taşıması, AGENTS.md ve second_brain `feat/ml-foundation`'a commit edildi; push yapılmadı. Notebook açık: çıktılarında birkaç ham satır örneği var, AGENTS.md ham veriyi commit etmiyor |
+| Q-09 | Notebook ve second_brain için commit/dal kararı | açık | Yusuf | 2026-09-26: skill taşıması, AGENTS.md ve second_brain `feat/ml-foundation`'a commit ve push edildi; CI geçti. Notebook açık: çıktılarında birkaç ham satır örneği var; AGENTS.md'ye göre ham veri commit edilmez |
 | Q-10 | `mattpocock-skills` kurulum yöntemi (6 skill'i kopyalama mı, plugin mi) | açık | Yusuf | Plugin tek tek kapatılamıyor; inceleme 2026-09-22'de yapıldı ([.claude/skills](../.claude/skills/README.md)) |
 | Q-11 | Demo yönetici hesabı canlı derlemede de açık; parola herkese açık README'de | açık | B | `server/store.ts` demo kullanıcılarını `--prod` modunda da oluşturuyor. İnternete açılmadan önce kapatılmalı (PRD NFR-05, NFR-06) |
 | Q-12 | Test standardı: `unittest` kalsın, `pyproject.toml`'daki kullanılmayan `pytest` kaldırılsın mı? | öneri hazır | C | 37 test `unittest` ile; `dev` ekstrası pytest ve ruff listeliyor, ikisi de kullanılmıyor. Okunabilirlik için `subTest` ve elle yazılmış beklenen değerler önerildi |

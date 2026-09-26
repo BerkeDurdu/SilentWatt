@@ -28,7 +28,7 @@ kullanılmaz.
 | 2026-09-16 | `review-2026-09-16/development-661/` | `baseline` | train → development | Düzeltilmiş baseline, hane 661 | MAE 0,6571; bant kapsaması %91,75; 2.764 / 2.976 slot | [foundation-review](../../docs/architecture/foundation-review.md) | Hayır |
 | 2026-09-16 | `review-2026-09-16/data-audit.json` | `audit` (şema 1.1) | envanter + train | Düzeltilmiş denetim (provenance ile) | 8 aday | foundation-review | Hayır |
 | 2026-09-16 | `data-audit.json` (kök) | `audit` (şema 1.0) | envanter | İlk kaynak denetimi | Şema 1.1 ile yenilendi | — | Hayır |
-| 2026-09-16 | `baseline/661/` → 2026-09-26'da repo dışına taşındı: `../artifacts-test-seen/baseline-661/` | `baseline` (ilk foundation) | train → **test** | Hane 661 için ilk baseline | Keşifsel; **metrikleri kullanmayın** | [artifacts/README](../../artifacts/README.md), foundation-review risk 1 | **Evet** |
+| 2026-09-16 | `baseline/661/` → 2026-09-26'da repo dışına taşındı (repo köküne göre `../artifacts-test-seen/baseline-661/`) | `baseline` (ilk foundation) | train → **test** | Hane 661 için ilk baseline | Keşifsel; **metrikleri kullanmayın** | [artifacts/README](../../artifacts/README.md), foundation-review risk 1 | **Evet** |
 
 "Envanter" = tam yıl dosya taraması (bütünlük, anahtarlar); cohort seçimi yalnız train
 verisiyle yapılır.
