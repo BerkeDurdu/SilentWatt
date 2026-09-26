@@ -25,8 +25,8 @@ C Yusuf Ziya Demirel (AI/ML). İki parça var: rol bazlı web konsolu (React + E
   B0/B1 karşılaştırması) tamam; koşullu çevrimdışı deney. Veri anlama notebook'u tamam.
   **G0 (veri hazır) kapısı açık.**
 - **Git:** dal `feat/ml-foundation`; [PR #1](https://github.com/BerkeDurdu/SilentWatt/pull/1)
-  açık (P0 + P1). 2026-09-26: skill taşıması, `AGENTS.md` ve `second_brain/` commit
-  edildi, push yapılmadı. `notebooks/` commit edilmedi (Q-09).
+  açık (P0 + P1). 2026-09-26: skill taşıması, `AGENTS.md` ve `second_brain/` commit ve
+  push edildi; `bd59e7c` için CI (ml, web, GitGuardian) geçti. `notebooks/` commit edilmedi (Q-09).
 - **Veri:** 25 → 8 teknik aday (661, 1642, 2335, 3456, 6139, 7536, 7800, 8565); ekip
   onayı bekliyor (D-05) ([P0 §2](../docs/project-status/p0-data-decisions-2026-09-17.md)).
 - **Model:** Temmuz development taramasında **B0 korunur**; iki modelin kalibre
@@ -52,7 +52,7 @@ C Yusuf Ziya Demirel (AI/ML). İki parça var: rol bazlı web konsolu (React + E
 2. `02_negative_values_and_freeze.ipynb`: negatif ve donma analizlerini notebook'a taşımak.
 3. Q-04: ML kanıt JSON sözleşmesini B ile başlatmak (PRD §11.2).
 4. PRD'deki sonraki ML adımı: akut/kronik dedektör ve sentetik benchmark (PRD §8, §10).
-5. Notebook'un commit biçimi (Q-09); yeni commit'lerin push'u ve PR #1 açıklaması.
+5. Notebook'un commit biçimi (Q-09).
 6. Değerlendirmeden kalan orta/düşük öncelikli görevler ([günlük](log.md), 2026-09-26).
 
 ## Değişmezler

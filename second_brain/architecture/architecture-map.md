@@ -2,8 +2,8 @@
 type: map
 area: architecture
 status: aktif
-related: [Q-04, Q-05, Q-07, A-08, A-09, A-11]
-updated: 2026-09-23
+related: [Q-04, Q-05, Q-07, Q-10, A-08, A-09, A-11]
+updated: 2026-09-26
 ---
 
 # Mimari haritası
@@ -71,5 +71,5 @@ Notebook testleri (Q-07), API sözleşme/E2E testleri, lint, tam veri benchmark'
 
 ## Açık konular
 
-Q-04 (kanıt JSON ↔ API sözleşmesi) · Q-05 (Claude bağlamı ve skill keşfi) · Q-07 ·
+Q-04 (kanıt JSON ↔ API sözleşmesi) · Q-05 (CLAUDE.md) · Q-07 · Q-10 (`mattpocock-skills`) ·
 A-08, A-09, A-11. Ayrıntı: [decisions.md](../decisions.md).

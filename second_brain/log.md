@@ -13,10 +13,11 @@ analizler de buraya yazılır.
 
 - Claude Code uygunluk değerlendirmesi: testler, typecheck ve bağlantılar temiz; 17 bulgu.
   Yüksek öncelikli dördü kapatıldı: `AGENTS.md`'ye "Session Start" ve §5 eski kod kuralı;
-  661 test çıktısı `../artifacts-test-seen/`'e taşındı (hash'ler aynı); skill taşıması,
-  `AGENTS.md` ve `second_brain` commit edildi, push yok ([decisions.md](decisions.md)).
+  661 test çıktısı repo dışına taşındı; skill taşıması, `AGENTS.md` ve `second_brain` push
+  edildi; PR #1 açıklaması güncellendi, `bd59e7c` için CI geçti ([decisions.md](decisions.md)).
 - Açık kalanlar: kWh kuralında `AGENTS.md` ile PRD §13.2 çelişkisi, notebook'un commit
-  biçimi, `../dataset` dosyalarını salt okunur yapmak, PR #1 incelemesi, web test/lint, Q-07, Q-12.
+  biçimi, `../dataset` dosyalarını salt okunur yapmak, PR #1 incelemesi, web test/lint, Q-07, Q-12;
+  CI uyarısı: `actions/checkout@v4` ve `setup-node@v4` kullanımdan kalkan Node 20'yi hedefliyor.
 - Q-04 ve dedektör işi için skills.sh'te aday skill arandı (8 aday; `api-and-interface-design`
   ve `api-design-reviewer` ölçütleri geçti). Karar: yeni skill eklenmedi. `find-skills`
   kurulmadı; global ve onaysız kurulum öneriyor.
