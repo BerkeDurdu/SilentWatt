@@ -67,7 +67,7 @@ Ayrıca şunlar alınmadı: `statistical-analyst` (bağımsız örneklem varsaya
 `pr-review-expert` ve `adversarial-reviewer` (yerleşik `/code-review`), `tc-tracker` ve
 `handoff` (`second_brain` günlüğü). Sonraya bırakılanlar: `api-design-reviewer`,
 `ship-gate`, `env-secrets-manager`, `gcp-cloud-architect`, `a11y-audit`,
-`performance-profiler`. `mattpocock-skills` için kurulum yöntemi hâlâ açık (Q-05, Q-10).
+`performance-profiler`. `mattpocock-skills` için kurulum yöntemi hâlâ açık (Q-10).
 
 ## Güncelleme
 
