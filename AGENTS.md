@@ -1,5 +1,21 @@
 # SilentWatt Agent Guidelines
 
+## Session Start
+
+- Read `second_brain/home.md` first: current state, active blockers and the reading map.
+- For work that touches data or ML decisions, also read `second_brain/decisions.md`.
+
+## Project Invariants
+
+These hold unless the project owner or the team decides otherwise. Open items and their status are tracked in `second_brain/decisions.md`.
+
+- The test split (local dates 2018-08-01 to 2019-01-01) is closed: its targets never enter cleaning, feature tables, training, calibration, metrics or model selection. Household 661's test metrics were exposed on 2026-09-16 and stay exploratory; runs marked "test seen" in `second_brain/ml/experiment-log.md` are never used for decisions or tuning.
+- Split roles: train fits and selects, June calibrates, July (development) compares. Thresholds and the cohort are never chosen to reach a target household count or to improve a result.
+- Electricity values are `source_unit_unverified`: no kW/kWh, savings or "fault confirmed" wording. `air1` is a channel name; the product language is "air1 channel deviation".
+- Source CSVs under `../dataset/` are read-only, every run writes to a fresh `artifacts/` directory, and neither raw data nor artifacts are committed.
+- Config thresholds and data transformations do not change without a team decision. Generic skill advice (imputation, clipping, arbitrary de-duplication, DQS scores) is not applied here.
+- Open data decisions (D-01…D-05, Q-01) are not closed by an assumption written into code.
+
 ## Workflow
 
 ### 1. Plan Before Non-Trivial Work
@@ -9,11 +25,11 @@
 - If assumptions fail or the implementation diverges from the plan, stop and re-plan.
 - Include verification in the plan, not only implementation.
 
-### 2. Use Specialized Skills Deliberately
+### 2. Use the Project Skills Deliberately
 
-- Use project skills from `.codex/skills/` when their expertise matches the task.
-- Read `.codex/skills/README.md` for project-specific constraints before applying upstream examples; skill scaffolds are not validated pipeline tools.
-- Use `ponytail` for code implementation and modification.
+- The project skills live in `.claude/skills/`. That README lists each skill, when it applies, and the project constraints that override its upstream examples; read those constraints before following an example.
+- Skill scaffolds are not validated pipeline tools: the `senior-data-scientist` and `senior-ml-engineer` scripts report success without doing the work.
+- The `ponytail` family kept under `.codex/skills/` is not used; this project prefers readable, explainable code over minimal code.
 - Use subagents only when work can be meaningfully isolated or parallelized.
 - Keep each subagent focused on one well-defined responsibility.
 
@@ -34,7 +50,11 @@
 
 ### 5. Engineering Quality
 
-- Prioritize: correctness → simplicity → minimal impact → elegance.
+- Prioritize: correctness → readability → simplicity → minimal impact → elegance.
+- Write code the project owner can follow and explain in a technical presentation: descriptive names that use the domain terms in `second_brain/glossary.md`, explicit steps instead of compressed one-liners, and short comments that explain *why* for non-obvious domain logic (DST denominators, calibration ranks, freeze runs).
+- Keep the call flow easy to trace: do not add layers or helpers only to make code shorter, and do not merge distinct steps to save lines.
+- Code written before these rules is not refactored on its own. When a task changes an existing function, first bring that function to this standard in a separate behavior-preserving commit (tests pass, outputs unchanged), then make the functional change. Untouched code stays as it is.
+- After a code change, explain what changed, why, how the new code works step by step, and how it was verified.
 - Fix root causes rather than masking symptoms.
 - Avoid temporary fixes unless explicitly justified and documented.
 - Do not introduce unnecessary abstractions or dependencies.
