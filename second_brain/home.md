@@ -1,7 +1,7 @@
 ---
 type: map
 area: process
-updated: 2026-09-26
+updated: 2026-09-27
 ---
 
 # SilentWatt — başlangıç
@@ -21,39 +21,43 @@ C Yusuf Ziya Demirel (AI/ML). İki parça var: rol bazlı web konsolu (React + E
 
 ## Güncel durum
 
-- **Aşama:** P0 (veri denetimi, cohort kararları) ve P1 (kalibrasyon, günlük kalite,
-  B0/B1 karşılaştırması) tamam; koşullu çevrimdışı deney. Veri anlama notebook'u tamam.
-  **G0 (veri hazır) kapısı açık.**
+- **Aşama:** P0 ve P1 tamam (koşullu çevrimdışı deney); veri anlama notebook'u tamam.
+  **G0 (veri hazır) kapısı açık.** 2026-09-27: kapsamı `air1` dışına genişletme önerisi
+  hazır (Q-13, [kapsam önerisi](product/scope-broadening-proposal.md)). 30 Eylül'e kadar
+  ön işleme, EDA ve ML karşılaştırması teslim edilecek; ardından derin öğrenme planlanıyor.
 - **Git:** dal `feat/ml-foundation`; [PR #1](https://github.com/BerkeDurdu/SilentWatt/pull/1)
-  açık (P0 + P1). 2026-09-26: skill taşıması, `AGENTS.md` ve `second_brain/` commit ve
-  push edildi; `bd59e7c` için CI (ml, web, GitGuardian) geçti. `notebooks/` commit edilmedi (Q-09).
+  açık (P0 + P1), `78cb14c` için CI geçti, inceleme yok. 2026-09-27 değişiklikleri
+  commit edilmedi; `notebooks/` da edilmedi (Q-09).
 - **Veri:** 25 → 8 teknik aday (661, 1642, 2335, 3456, 6139, 7536, 7800, 8565); ekip
-  onayı bekliyor (D-05) ([P0 §2](../docs/project-status/p0-data-decisions-2026-09-17.md)).
+  onayı bekliyor (D-05). Birim (kW aralık ortalaması) ve 15 dk aralığı (etiket aralığın
+  başı) için öneri hazır (D-01, D-02; [kaynak anlamı notu](data/source-semantics-evidence.md)).
+  Dataport metadata dosyası `../dataset/` altında.
 - **Model:** Temmuz development taramasında **B0 korunur**; iki modelin kalibre
   kapsaması da %87 hedefinin altında; skorlanan pay 13.423 / 23.808 slot
   ([P1 raporu](../docs/project-status/p1-ml-results-2026-09-17.md)).
 - **Konsol:** örnek veriyle çalışıyor, bellek içi depo, ML çıktısına bağlı değil (Q-04).
-- **Ajan yapısı:** dokuz skill `.claude/skills` altında, yeni skill eklenmedi (2026-09-26);
-  `ponytail` kullanılmıyor. Oturum başlangıcı ve kod kuralları [AGENTS.md](../AGENTS.md)'de;
-  eski kodda yalnız dokunulan fonksiyon §5'e getirilir. CLAUDE.md (Q-05) ve
-  `mattpocock-skills` seçimi (Q-10) açık.
+- **Ajan yapısı:** dokuz skill `.claude/skills` altında; `ponytail` kullanılmıyor. Oturum
+  başlangıcı ve kod kuralları [AGENTS.md](../AGENTS.md)'de. CLAUDE.md (Q-05), Q-10 açık.
 
 ## Aktif blokajlar
 
-- **D-01, D-02, D-03:** birim, 15 dk değerin anlamı ve `air1` eşlemesi → sağlayıcı belgesi.
-- **D-04:** negatiflerin anlamı → yeni kanıt:
-  [negatif değerler notu](data/negative-values-sensor-floor.md).
+- **D-01, D-02:** öneri hazır; B+C kararı bekleniyor. **D-03:** `air1` kompresör,
+  `furnace1` iç ünite fanı gibi davranıyor; kanıt toplanıyor.
+- **D-04:** negatiflerin anlamı ([not](data/negative-values-sensor-floor.md)); kural kanal
+  bazında olmalı, çünkü `solar`/`grid` negatifleri fiziksel.
 - **Q-01:** donma kuralı 6139'u 151 train gününden 9'a düşürüyor; standby olabilir.
 - **D-05:** 8 aday için ekip onayı; PRD'nin 10 uygun hane hedefi karşılanmıyor.
+- **Q-13:** kapsam genişletme için ekip kararı (A+B+C).
 
 ## Sıradaki aday işler (henüz karar verilmedi)
 
-1. D-04 ve Q-01 için ekibe kısa bir karar önerisi (ölü bant + standby kanıtı).
-2. `02_negative_values_and_freeze.ipynb`: negatif ve donma analizlerini notebook'a taşımak.
-3. Q-04: ML kanıt JSON sözleşmesini B ile başlatmak (PRD §11.2).
-4. PRD'deki sonraki ML adımı: akut/kronik dedektör ve sentetik benchmark (PRD §8, §10).
-5. Notebook'un commit biçimi (Q-09).
-6. Değerlendirmeden kalan orta/düşük öncelikli görevler ([günlük](log.md), 2026-09-26).
+1. EDA notebook'u `02` (30 Eylül): kanal kalite matrisi, 27 Eylül kontrolleri, aile bazında
+   uygunluk tablosu. Test dönemi tüm kanallarda kapalı (Q-14, onay bekliyor).
+2. Ekip görüşmesi (1–2 Ekim): Q-13 kapsam, D-01/D-02 kararı, PR #1 incelemesi.
+3. D-04, Q-01 ve A-04 için ekibe tek bir karar önerisi (ölü bant, standby, mevsim desteği).
+4. Q-04: ML kanıt JSON sözleşmesini B ile başlatmak (PRD §11.2); aileleri taşıyacak biçimde.
+5. Aile bazında model ve dedektörler; derin öğrenme B2 adayı olarak (PRD §7.1, §8, §10).
+6. Notebook'un commit biçimi (Q-09) ve kalan görevler ([günlük](log.md), 2026-09-26).
 
 ## Değişmezler
 

@@ -115,3 +115,32 @@ yok; `home.md` 76 satır. Taşıma commit'inde 320 dosya içerik değişmeden (R
 taşındı. Dosyalar commit'lere tek tek eklendi; `notebooks/`, `.obsidian/` ve
 `artifacts/` (README hariç) girmedi. Kod, config, eşik ve notebook değişmediği
 için web typecheck çalıştırılmadı. Push yapılmadı.
+
+# Veri anlamı kanıtları ve kapsam önerisi — 27 Eylül 2026
+
+Kapsam: kullanıcının onayladığı ilk üç adım. (1) Metadata dosyasını kaynakların
+yanına taşımak; (2) 27 Eylül bulgularını `second_brain`'e işlemek ve üç tek
+seferlik sorguyu okunabilir betikler olarak repoya almak; (3) ekip için bir
+sayfalık kapsam önerisi (PRD v1.2 taslağı). Kod paketi, config, eşik, PRD,
+tarihli raporlar ve kök dosyalar değişmez; commit/push yok. Test dönemi
+(Ağustos–Aralık) hiçbir kanal için okunmaz.
+
+- [x] Metadata'yı `../dataset/` altına taşı; SHA-256'yı önce ve sonra karşılaştır; `data/README.md`'ye yaz.
+- [x] Üç sorguyu `docs/product/ekler/` altına AGENTS.md §5'e uygun betikler olarak yaz
+      (sohbette elle yapılan metadata kontrolü için dördüncü betik eklendi).
+- [x] Betikleri yeni `artifacts/data-review-2026-09-27/` dizinine çalıştır; ilk sonuçlarla karşılaştır.
+- [x] `second_brain`: iki veri notu, `decisions.md`, koşu kaydı, sözlük, veri ve ürün haritası.
+- [x] Kapsam önerisi karar notu: `second_brain/product/scope-broadening-proposal.md`.
+- [x] Kapanış: `home.md`, `log.md`, bağlantı kontrolü, `git status`, ML testleri.
+
+Doğrulama: Metadata dosyasının SHA-256'sı (`2f476b84…`) taşımadan önce ve sonra
+aynı; eski konum boş, dosya artık `git status`'ta görünmüyor. Dört betik
+derlendi (çıkış kodu 0) ve yeni artifact dizinine çalıştı. Dört JSON da geçerli.
+Kaynak hash'leri P0 kayıtlarıyla aynı (`00f38f62…`, `eed0695c…`). Repo betikleri
+ilk geçici sonuçları tekrarladı: GES oranı medyan 0,750; hizalama A'da 1.768.207
+aralığın %100'ü tolerans içinde; izlenen pay medyan 0,720; bayrak uyumu
+1.842/1.875. Bilinçli iki payda düzeltmesi notta yazılı. 35 ML testi geçti
+(çıkış kodu doğrudan yakalandı: 0). 17 `second_brain` dosyasında kırık bağlantı
+yok, `home.md` 80 satır, `git diff --check` temiz. Paket kodu, config, eşik, PRD,
+tarihli raporlar ve kök dosyalar değişmedi; test dönemi hiçbir kanal için
+okunmadı. Commit/push yapılmadı.

@@ -2,8 +2,8 @@
 type: map
 area: product
 status: aktif
-related: [D-05, A-06, A-07, A-08, A-11, Q-08]
-updated: 2026-09-22
+related: [D-05, A-06, A-07, A-08, A-11, Q-08, Q-13]
+updated: 2026-09-27
 ---
 
 # Ürün haritası
@@ -34,6 +34,13 @@ ve teknik kapsamın ana sözleşmesidir.
 Klima devresi ölçümlerini, gerekçesi ve veri sınırları görülebilen bakım incelemesi
 önerilerine dönüştürmek. **Ölçülen:** koşullara göre referans tüketimden sapma.
 **Ölçülmeyen:** soğutma kapasitesi, verim kaybı, arıza nedeni, kesin tasarruf (PRD §1.2).
+
+## Kapsam önerisi (2026-09-27)
+
+Teknik sunumdan gelen "yalnız klima arızasına odaklanmayın" geri bildirimi üzerine,
+kapsamın `air1` dışına genişletilmesi önerildi: HVAC (`air1` + `furnace1`), buzdolabı ve
+GES; tüm ev ve davranışa bağlı cihazlar bağlam göstergesi. Yöntem zinciri aynı kalıyor.
+Ekip kararı bekleniyor (Q-13): [kapsam önerisi](scope-broadening-proposal.md).
 
 ## İddia sınırları (G4)
 
@@ -71,4 +78,4 @@ kaydedilir, içerik kopyalanmaz.
 ## Açık ürün konuları
 
 D-05 ve PRD'nin 10 uygun hane hedefi · A-06 (referans sağlığı) · A-07 (uzman erişimi) ·
-A-08, A-11 (bulut kredileri) · Q-08. Ayrıntı: [decisions.md](../decisions.md).
+A-08, A-11 (bulut kredileri) · Q-08 · Q-13 (kapsam genişletme). Ayrıntı: [decisions.md](../decisions.md).

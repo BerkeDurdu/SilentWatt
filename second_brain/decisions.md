@@ -1,7 +1,7 @@
 ---
 type: map
 area: process
-updated: 2026-09-26
+updated: 2026-09-27
 ---
 
 # Kararlar ve açık sorular
@@ -21,10 +21,10 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 
 | ID | Konu | Durum | Sahip | Eşleşen | Onaya kadar uygulanan | Kanıt / not |
 |---|---|---|---|---|---|---|
-| D-01 | Güç birimi (W, kW, enerji?) | açık | B+C | A-01, R-04 | `source_unit_unverified`; kW/kWh yok | P0 §5 |
-| D-02 | 15 dk değerin anlamı ve zaman etiketi | açık | B+C | A-01, R-04 | Aynı UTC saatine hava eşlemesi | P0 §5 |
-| D-03 | `air1` hangi devreyi ölçüyor? | açık | B+C | A-02 | "air1 kanal sapması" dili | P0 §5 |
-| D-04 | Negatif değerler: gürültü mü, geçersiz mi? | kanıt toplanıyor | B+C | A-05, DQ-06, C-02 | Negatif = geçersiz; ham veri korunur | P0 §5 · [negatif değerler notu](data/negative-values-sensor-floor.md) |
+| D-01 | Güç birimi (W, kW, enerji?) | öneri hazır | B+C | A-01, R-04 | `source_unit_unverified`; kW/kWh yok | P0 §5 · [kaynak anlamı notu](data/source-semantics-evidence.md): kW aralık ortalaması (GES kapasitesiyle oran, cihaz büyüklükleri); resmî sözlük okunmadı |
+| D-02 | 15 dk değerin anlamı ve zaman etiketi | öneri hazır | B+C | A-01, R-04 | Aynı UTC saatine hava eşlemesi | P0 §5 · [kaynak anlamı notu](data/source-semantics-evidence.md): [t, t+15) içindeki 1 dk ortalaması, etiket aralık başı (25 hane, 6 kanal, train) |
+| D-03 | `air1` hangi devreyi ölçüyor? | kanıt toplanıyor | B+C | A-02 | "air1 kanal sapması" dili | P0 §5 · [kaynak anlamı notu](data/source-semantics-evidence.md): `air1` kompresör, `furnace1` iç ünite fanı gibi davranıyor; 9278 muhtemelen ısı pompası |
+| D-04 | Negatif değerler: gürültü mü, geçersiz mi? | kanıt toplanıyor | B+C | A-05, DQ-06, C-02 | Negatif = geçersiz; ham veri korunur | P0 §5 · [negatif değerler notu](data/negative-values-sensor-floor.md) · `solar`/`grid` negatifleri fiziksel, kural kanal bazında olmalı: [kanal notu](data/channel-inventory-and-metadata.md) |
 | D-05 | 8 teknik adayın cohort onayı | ekip kararında | B+C | A-10, C-01 | Aynı 8 aday ve kurallar | P0 §2, §5 · notebook D |
 
 ## Değişiklik önerileri (P0 §6, hiçbiri uygulanmadı)
@@ -44,7 +44,7 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | A-04 | Eğitimde yeterli soğutma ve sıcaklık desteği | kanıt toplanıyor | C | R-06, DQ-08 | Temmuz'da her hanede ≥ 212 slot destek dışı (6139: 260); skorlanan pay %56,38 (P1) |
 | A-06 | Referans dönemin fiziksel sağlığı | açık | C | R-02 | Mevcut veriyle kapanamaz; pilot gerekir |
 | A-07 | Hedef kullanıcı ve bağımsız uzman erişimi | açık | A | — | PRD §15.3 |
-| A-08 | Google Cloud kredisi, bölge, bütçe, veri yükleme hakkı | açık | B | R-11 | Repoda kanıt yok (PRD §6.3) |
+| A-08 | Google Cloud kredisi, bölge, bütçe, veri yükleme hakkı | açık | B | R-11 | Repoda kanıt yok (PRD §6.3). Verinin kullanım koşulu 2026-09-27'de değerlendirildi (alınmış kararlar); kredi, bölge ve bütçe açık |
 | A-09 | Repo yapısı ve varsayılan dal | açık | B | — | Yapı 2026-09-16'da belgelendi (PRD §17); dal koruması doğrulanmadı |
 | A-11 | Huawei kredisi ve yarışma koşulları | açık | B | R-13 | PRD §6.4 |
 
@@ -56,6 +56,8 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | Q-02 | Nihai kör değerlendirme için görülmemiş veri | açık | B+C | KPI-01…09 | 661 testi 16 Eylül'de açıldı ([foundation-review](../docs/architecture/foundation-review.md), risk 1) · P1 açık karar 4 |
 | Q-03 | Kalibre kapsama %87'nin altında (B0 %86,687, B1 %84,370) | açık | C | KPI-02 | P1 açık karar 3 |
 | Q-04 | ML kanıt JSON'u ile API arasındaki sözleşme | açık | B (anlam: C) | R-10 | `shared/types.ts` yalnız demo sözleşmesi ([ml-pipeline](../docs/architecture/ml-pipeline.md)) |
+| Q-13 | Kapsamı `air1` dışındaki ekipman ailelerine genişletmek (HVAC, buzdolabı, GES; tüm ev bağlam) | öneri hazır | A+B+C (öneri: C) | PRD §0.1, §3.1, D-05 | Teknik sunum geri bildirimi (Yusuf'un aktarımı, 2026-09-27) · [kapsam önerisi](product/scope-broadening-proposal.md) · önerilen görüşme 1–2 Ekim |
+| Q-14 | Test dönemi (Ağu–Ara) tüm kanallar için kapalı mı kalsın? | öneri hazır | Yusuf (C) | Q-02, AGENTS.md değişmezleri | Öneri: evet. Değer analizleri Oca–Tem, eşikler yalnız train, kanal varlığı gibi envanter tüm yıldan. Yeni ailelerin test dönemine yalnız envanter düzeyinde bakıldı |
 
 ### Süreç ve araçlar
 
@@ -74,7 +76,7 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 
 | Kapı | Durum | Eksik / not |
 |---|---|---|
-| G0 Veri hazır | açık | Birim ve interval (D-01, D-02), nihai cohort (D-05). Var olanlar: kaynak hash'leri (P0), split'ler (config), hane bazında sıcaklık desteği (P1). |
+| G0 Veri hazır | açık | Birim ve interval (D-01, D-02: öneri hazır 2026-09-27, ekip kararı bekleniyor), nihai cohort (D-05). Var olanlar: kaynak hash'leri (P0), split'ler (config), hane bazında sıcaklık desteği (P1). |
 | G1 Analitik hazır | açık | B0/B1 ve CQR yalnız development taramasında; dedektörler yok; KPI'lar test döneminde ölçülmedi. |
 | G2 Ürün akışı | başlamadı | Konsol örnek veriyle çalışıyor; ML bağlantısı yok (Q-04). |
 | G3 İşletim | başlamadı | Dağıtım, E2E, yedek/geri dönüş yok. |
@@ -109,12 +111,14 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | 2026-09-26 | Okunabilirlik kuralı eski koda yalnız dokunulan fonksiyonda uygulanır: önce davranışı koruyan ayrı commit, sonra işlevsel değişiklik; dokunulmayan kod refactor edilmez | [AGENTS.md](../AGENTS.md) §5 |
 | 2026-09-26 | Testi görmüş 661 baseline çıktısı çalışma dizininden çıkarıldı (`../artifacts-test-seen/baseline-661/`, hash'ler aynı); ajanlar yanlışlıkla okuyamaz | [koşu kaydı](ml/experiment-log.md) · [artifacts/README](../artifacts/README.md) |
 | 2026-09-26 | Q-04 ve dedektör işi için aday skill'ler incelendi; projeye yeni skill eklenmedi | [log.md](log.md) |
+| 2026-09-27 | Veri kullanımı: Pecan Street'in ücretsiz verisi üniversite destekli araştırmacılara ticari olmayan kullanım için açık. Proje ticari gelir hedeflemiyor ve Yusuf'un lisans bitirme tezi için de geliştiriliyor; kullanım bu koşula uygun (Yusuf). Tezde ve sunumlarda Pecan Street'e atıf yapılır; ham veri herkese açık paylaşılmaz | [Pecan Street 2018 duyurusu](https://www.pecanstreet.org/2018/03/press-release-pecan-street-releases-powerful-residential-electricity-dataset-with-potential-to-revolutionize-electricity-management/) · [AGENTS.md](../AGENTS.md) |
+| 2026-09-27 | Dataport metadata dosyası (`metadata_pecanstreetdata.csv`, 2.072 hane) diğer kaynaklarla birlikte `../dataset/` altında tutulur; repoya girmez (SHA-256 taşımadan önce ve sonra aynı) | [data/README.md](../data/README.md) · [kanal notu](data/channel-inventory-and-metadata.md) |
 
 ## Kanıtı olan riskler (tam liste: PRD §19.1)
 
 | ID | Risk | Güncel kanıt |
 |---|---|---|
 | R-01 | Arıza etiketi yok; gerçek isabet bilinmez | Kalıcı; sentetik değerlendirme henüz yok |
-| R-04 | Saat/birim hatası | D-01, D-02 açık |
+| R-04 | Saat/birim hatası | D-01, D-02 öneri hazır (2026-09-27); ekip kararı bekleniyor |
 | R-06 | Tek yıl/şehir; mevsim genellemesi | A-04: Temmuz'daki destek dışı slotlar |
 | R-10 | Ekip kapasitesi, entegrasyon gecikmesi | Q-04: sözleşme yok, konsol ML'ye bağlı değil |
