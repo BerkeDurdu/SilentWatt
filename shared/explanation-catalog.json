@@ -1,0 +1,236 @@
+{
+  "catalog_version": "exp-0.1",
+  "status": "draft",
+  "evidence_schema_version": "silentwatt.evidence/0.1",
+  "recommendation_library_version": "rec-0.1",
+  "documentation": "docs/architecture/explanation-catalog.md",
+  "ownership": {
+    "content": "Role C (Data & AI): templates, limitations, human-decision note, forbidden terms; wording review in pull requests.",
+    "server": "Role B (backend): explainCase in server/explain/index.ts reads this catalog and may adapt its format."
+  },
+  "assembly": [
+    "summary: languages.<lang>.summary[kind][origin], filled with the case placeholders.",
+    "reasons: one sentence per evidence reason, in the order of evidence.reasons, from languages.<lang>.reasons[code] with {value}.",
+    "recommendation: languages.<lang>.recommendations[recommendation_code], first_check and steps.",
+    "limitations: limitations.always, then limitations[kind], then limitations.synthetic for synthetic cases.",
+    "humanDecisionNote: languages.<lang>.human_decision_note, always the last text of the explanation."
+  ],
+  "placeholder_syntax": "{name}, where name is a key of placeholders. Static text carries no digit except the channel name air1, so every number in an explanation comes from the evidence.",
+  "placeholders": {
+    "household_id": {"source": "case.household_id", "format": "identifier", "used_in": "summary"},
+    "onset_local_date": {"source": "case.onset_local_date", "format": "date", "used_in": "summary"},
+    "detected_local_date": {"source": "case.detected_local_date", "format": "date", "used_in": "summary"},
+    "last_local_date": {"source": "case.last_local_date", "format": "date", "used_in": "summary"},
+    "flagged_days": {"source": "case.flagged_days", "format": "count", "used_in": "summary"},
+    "synthetic.start_local_date": {"source": "case.synthetic.start_local_date", "format": "date", "used_in": "synthetic summaries only"},
+    "synthetic.duration_days": {"source": "case.synthetic.duration_days", "format": "count", "used_in": "synthetic summaries only"},
+    "value": {"source": "reason.value", "format": "reason_value", "used_in": "reason templates only"}
+  },
+  "formats": {
+    "identifier": {"rule": "Written exactly as in the evidence, without a thousands separator: 90001."},
+    "count": {"rule": "Whole number without a thousands separator: 4."},
+    "statistic": {"rule": "The evidence number (at most 2 decimals), trailing zeros removed, with the language decimal separator: 3.2 -> '3,2' (tr), '3.2' (en). A negative value starts with '-'."},
+    "share": {"rule": "A share of 1 written as a percentage: value x 100 rounded to 2 decimals, trailing zeros removed, language decimal separator and percent sign position: 0.41 -> '%41' (tr), '41%' (en); 0.1278 -> '%12,78' (tr), '12.78%' (en)."},
+    "signed_share": {"rule": "Like share, with '+' before a positive and '-' before a negative value; 0 has no sign: 0.31 -> '+%31' (tr), '+31%' (en). This is how unit-hours appear in text: as a share of the model reference."},
+    "date": {"rule": "A local date YYYY-MM-DD written as day (no leading zero), month name and year: 2018-07-07 -> '7 Temmuz 2018' (tr), '7 July 2018' (en)."},
+    "unit_hours": {"rule": "Not used by the exp-0.1 templates. A surface that shows unit-hours (0.25 x sum of 15-minute values, e.g. the daily observed and reference values) writes the evidence number (at most 3 decimals, trailing zeros removed, language decimal separator) followed by the language unit-hours label: '33,984 kaynak birimi × saat' (tr), '33.984 source unit × hours' (en). Prefer the share of the model reference (signed_share). Never a physical energy unit."},
+    "reason_value": {"rule": "The format given for the reason code in reason_value_formats."}
+  },
+  "null_rule": "A null value is written as the language null text ('hesaplanmadı' / 'not computed'), never as 0 and never as an empty string. Templates put the value at the end of a clause so that the null text still reads as a sentence.",
+  "reason_value_formats": {
+    "DAILY_EXCESS_Z": "statistic",
+    "UPPER_BOUND_EXCEEDANCE": "share",
+    "CONSECUTIVE_FLAGGED_DAYS": "count",
+    "PERSISTENT_CUSUM": "statistic",
+    "EXCESS_OVER_REFERENCE": "signed_share",
+    "DAYS_NOT_SCORED": "count",
+    "MISSING_READINGS": "share",
+    "FROZEN_READINGS": "count"
+  },
+  "forbidden_terms_matching": "Every explanation text is checked against the terms of both languages. Matching ignores case and treats the Turkish letters ı/I and i/İ as one letter. A term matches where a word starts (not directly after a letter) and may continue into a longer word: 'tasarruf' also matches 'tasarrufu', 'kW' matches 'kWh' and '5kW', while the 'kw' inside 'backward' does not match.",
+  "languages": {
+    "tr": {
+      "formatting": {
+        "decimal_separator": ",",
+        "percent_sign_position": "before",
+        "null_text": "hesaplanmadı",
+        "unit_hours_label": "kaynak birimi × saat",
+        "month_names": ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+      },
+      "labels": {
+        "synthetic": "Sentetik deney"
+      },
+      "summary": {
+        "consumption_deviation": {
+          "observed": "Hane {household_id} için air1 kanal sapması. {onset_local_date} ile {last_local_date} arasında tüketim, sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez {detected_local_date} tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı {flagged_days}.",
+          "synthetic": "Sentetik deney. Hane {household_id} için air1 kanal sapması. {onset_local_date} ile {last_local_date} arasında tüketim, sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez {detected_local_date} tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı {flagged_days}. Bu vaka gerçek bir olay değildir: ölçülmüş air1 verisine {synthetic.start_local_date} tarihinden başlayarak {synthetic.duration_days} günlük bir senaryo uygulandı."
+        },
+        "data_issue": {
+          "observed": "Hane {household_id} için air1 kanalında veri sorunu. {onset_local_date} ile {last_local_date} arasında ölçümler günlük veri kalitesi kontrolünden geçemedi; bu günlerde tüketim değerlendirilemedi. Veri sorunu kuralı ilk kez {detected_local_date} tarihinde karşılandı; kontrolden geçemeyen gün sayısı {flagged_days}.",
+          "synthetic": "Sentetik deney. Hane {household_id} için air1 kanalında veri sorunu. {onset_local_date} ile {last_local_date} arasında ölçümler günlük veri kalitesi kontrolünden geçemedi; bu günlerde tüketim değerlendirilemedi. Veri sorunu kuralı ilk kez {detected_local_date} tarihinde karşılandı; kontrolden geçemeyen gün sayısı {flagged_days}. Bu vaka gerçek bir olay değildir: ölçülmüş air1 verisine {synthetic.start_local_date} tarihinden başlayarak {synthetic.duration_days} günlük bir senaryo uygulandı."
+        }
+      },
+      "reasons": {
+        "DAILY_EXCESS_Z": "İşaretli günlerdeki en yüksek günlük z değeri {value}; bu değer, gözlenen tüketim ile model referansı arasındaki günlük farkın Haziran günlerindeki farklara göre ne kadar büyük olduğunu gösterir.",
+        "UPPER_BOUND_EXCEEDANCE": "İşaretli günlerde modelin tahmin aralığının üst sınırını aşan geçerli çeyrek saatlik ölçümlerin payı {value}.",
+        "CONSECUTIVE_FLAGGED_DAYS": "Dedektör koşulunu art arda karşılayan gün sayısı {value}.",
+        "PERSISTENT_CUSUM": "Kalıcılık göstergesinin (birikimli toplam, CUSUM) vaka boyunca ulaştığı en yüksek değer {value}; bu gösterge, beklenenden yüksek tüketimli günler biriktikçe büyür.",
+        "EXCESS_OVER_REFERENCE": "İşaretli günlerin toplamında gözlenen tüketimin model referansına (sıcaklık ve saate göre beklenen tüketim) göre farkı {value}.",
+        "DAYS_NOT_SCORED": "Vaka penceresinde değerlendirilemeyen gün sayısı {value}; bu günler (örneğin eğitimde görülmemiş bir sıcaklık ya da eksik veri yüzünden) ne normal ne de sapmalı sayıldı.",
+        "MISSING_READINGS": "Vaka günlerinde beklenen çeyrek saatlik ölçümlerden geçerli değeri olmayanların payı {value}.",
+        "FROZEN_READINGS": "Donma şüphesi taşıyan (uzun süre aynı değerde kalan) çeyrek saatlik ölçüm sayısı {value}."
+      },
+      "recommendations": {
+        "HVAC_PERSISTENT_INCREASE": {
+          "first_check": "Termostat ayarlarını ve kullanım değişikliklerini kontrol edin; açıklama bulunmazsa teknisyen incelemesi planlayın.",
+          "steps": [
+            "Vaka tarihlerinde termostat ayarında ya da kullanım düzeninde bir değişiklik kaydı olup olmadığına bakın.",
+            "Grafikte sapmanın hangi saatlerde yoğunlaştığını ve günlerin en yüksek sıcaklıklarını inceleyin.",
+            "Bir açıklama bulunmazsa teknisyen incelemesi planlayın ve inceleme sonucunu vakaya kaydedin."
+          ]
+        },
+        "DATA_SOURCE_CHECK": {
+          "first_check": "Ölçüm ve veri kaynağını inceleyin; bu bir cihaz sinyali değildir.",
+          "steps": [
+            "Vaka günlerinde ölçüm donanımında ya da veri aktarımında bir kesinti olup olmadığını kontrol edin.",
+            "Okumaların uzun süre aynı değerde kalıp kalmadığına (donma şüphesi) bakın.",
+            "Sorun sürerse veri kaynağının sorumlusuna bildirin; veri düzelmeden bu günlerin tüketimini yorumlamayın."
+          ]
+        }
+      },
+      "limitations": {
+        "always": [
+          "Değerler doğrulanmamış kaynak birimindedir; bu yüzden fiziksel bir enerji birimiyle gösterilmez.",
+          "Model referansı ve tahmin aralığı, hanenin geçmiş verisinden sıcaklık ve saate göre öğrenilmiş beklentilerdir; cihazın sağlıklı çalıştığını gösteren sınırlar değildir.",
+          "Değerlendirilemeyen günler (eğitimde görülmemiş sıcaklık, eksik ya da donmuş veri) ne normal ne de sapmalı sayılır.",
+          "Dedektör eşikleri gerçek saha sonuçlarıyla doğrulanmadı; doğru ve yanlış uyarı oranları henüz bilinmiyor.",
+          "Vaka geçmiş verinin yeniden oynatılmasından üretildi; canlı bir izleme sonucu değildir."
+        ],
+        "consumption_deviation": [
+          "Sapmanın nedeni (kullanım, ayar, hava koşulları ya da cihaz) veriden belirlenemez; bu açıklama bir teşhis değildir."
+        ],
+        "data_issue": [
+          "Veri sorunu ölçümle ya da veri aktarımıyla ilgilidir; cihazın durumu hakkında bilgi vermez."
+        ],
+        "synthetic": [
+          "Sentetik vakalar dedektörü sınamak için üretilir; gerçek vaka sayılarına ve istatistiklerine katılmaz."
+        ]
+      },
+      "human_decision_note": "Bu bir inceleme önerisidir; karar ekibindir.",
+      "forbidden_terms": [
+        "kW",
+        "kilovat",
+        "kilowatt",
+        "arıza doğrulandı",
+        "kesin arıza",
+        "arıza",
+        "olasılık",
+        "olasılığı",
+        "ihtimal",
+        "tasarruf",
+        "TL",
+        "₺",
+        "lira",
+        "dolar",
+        "$",
+        "€",
+        "avro",
+        "euro",
+        "maliyet",
+        "fatura",
+        "ücret"
+      ]
+    },
+    "en": {
+      "formatting": {
+        "decimal_separator": ".",
+        "percent_sign_position": "after",
+        "null_text": "not computed",
+        "unit_hours_label": "source unit × hours",
+        "month_names": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+      },
+      "labels": {
+        "synthetic": "Synthetic experiment"
+      },
+      "summary": {
+        "consumption_deviation": {
+          "observed": "Household {household_id}: air1 channel deviation. Between {onset_local_date} and {last_local_date}, consumption was higher than expected for the temperature and time of day. The detector rule was first met on {detected_local_date}; number of days that met the daily condition (flagged days): {flagged_days}.",
+          "synthetic": "Synthetic experiment. Household {household_id}: air1 channel deviation. Between {onset_local_date} and {last_local_date}, consumption was higher than expected for the temperature and time of day. The detector rule was first met on {detected_local_date}; number of days that met the daily condition (flagged days): {flagged_days}. This case is not a real event: a {synthetic.duration_days}-day scenario was applied to measured air1 data starting on {synthetic.start_local_date}."
+        },
+        "data_issue": {
+          "observed": "Household {household_id}: data issue on the air1 channel. Between {onset_local_date} and {last_local_date}, the readings did not pass the daily data quality check, so consumption could not be assessed on these days. The data issue rule was first met on {detected_local_date}; number of days that failed the check: {flagged_days}.",
+          "synthetic": "Synthetic experiment. Household {household_id}: data issue on the air1 channel. Between {onset_local_date} and {last_local_date}, the readings did not pass the daily data quality check, so consumption could not be assessed on these days. The data issue rule was first met on {detected_local_date}; number of days that failed the check: {flagged_days}. This case is not a real event: a {synthetic.duration_days}-day scenario was applied to measured air1 data starting on {synthetic.start_local_date}."
+        }
+      },
+      "reasons": {
+        "DAILY_EXCESS_Z": "The largest daily z on the flagged days is {value}; it shows how large the daily difference between observed consumption and the model reference is compared with the differences on June days.",
+        "UPPER_BOUND_EXCEEDANCE": "On the flagged days, the share of valid quarter-hour readings above the upper bound of the model's prediction interval is {value}.",
+        "CONSECUTIVE_FLAGGED_DAYS": "The number of consecutive days that met the detector condition is {value}.",
+        "PERSISTENT_CUSUM": "The highest value the persistence statistic (cumulative sum, CUSUM) reached during the case is {value}; it grows as days with higher than expected consumption accumulate.",
+        "EXCESS_OVER_REFERENCE": "Over the flagged days, the difference between observed consumption and the model reference (the expected consumption for the temperature and time of day) is {value}.",
+        "DAYS_NOT_SCORED": "The number of days in the case window that could not be assessed is {value}; these days (for example because of a temperature not seen in training or missing data) count as neither normal nor deviating.",
+        "MISSING_READINGS": "On the case days, the share of expected quarter-hour readings without a valid value is {value}.",
+        "FROZEN_READINGS": "The number of quarter-hour readings in suspected freeze runs (the same value repeated for a long time) is {value}."
+      },
+      "recommendations": {
+        "HVAC_PERSISTENT_INCREASE": {
+          "first_check": "Check the thermostat settings and usage changes; if there is no explanation, plan a technician inspection.",
+          "steps": [
+            "Check whether a change in the thermostat setting or the usage pattern was recorded on the case dates.",
+            "In the chart, look at the hours where the deviation concentrates and at the highest temperatures of the days.",
+            "If no explanation is found, plan a technician inspection and record its outcome on the case."
+          ]
+        },
+        "DATA_SOURCE_CHECK": {
+          "first_check": "Inspect the measurement and data source; this is not a device signal.",
+          "steps": [
+            "Check whether the measurement hardware or the data transfer was interrupted on the case days.",
+            "Check whether readings stayed at the same value for a long time (suspected freeze).",
+            "If the problem continues, report it to whoever is responsible for the data source; do not interpret consumption on these days until the data is fixed."
+          ]
+        }
+      },
+      "limitations": {
+        "always": [
+          "Values are in an unverified source unit, so they are not shown in a physical energy unit.",
+          "The model reference and the prediction interval are expectations learned from the household's past data for the temperature and time of day; they are not limits that show the device works properly.",
+          "Days that could not be assessed (a temperature not seen in training, missing or frozen data) count as neither normal nor deviating.",
+          "The detector thresholds have not been validated against real field outcomes; the rates of correct and false alerts are not yet known.",
+          "The case comes from a replay of past data; it is not a live monitoring result."
+        ],
+        "consumption_deviation": [
+          "The cause of the deviation (usage, settings, weather or the device) cannot be determined from the data; this explanation is not a diagnosis."
+        ],
+        "data_issue": [
+          "A data issue concerns the measurement or the data transfer; it says nothing about the condition of the device."
+        ],
+        "synthetic": [
+          "Synthetic cases are generated to test the detector; they are not counted in real case numbers or statistics."
+        ]
+      },
+      "human_decision_note": "This is an inspection recommendation; the decision rests with the team.",
+      "forbidden_terms": [
+        "kW",
+        "kilowatt",
+        "fault confirmed",
+        "fault",
+        "probability",
+        "probable",
+        "probably",
+        "likelihood",
+        "saving",
+        "money",
+        "cost",
+        "bill",
+        "price",
+        "dollar",
+        "euro",
+        "$",
+        "€",
+        "₺",
+        "lira",
+        "TL"
+      ]
+    }
+  }
+}
