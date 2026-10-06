@@ -11,6 +11,10 @@ analizler de buraya yazılır.
 
 ## 2026-10-06
 
+- Model tarafı kararlar (Yusuf), P1 run04 üzerinde keşif ölçümüyle: Q-03 asimetrik CQR ile `p1-v3`
+  (Temmuz üst sınır aşımı %12,8 → %8,2); Haziran eğitime katılmaz (A-04, 253 günden 1'ini kurtarırdı);
+  olağandışı train günleri çıkarılmaz (Q-17, sezon geçişi); hafta günü ertelendi (Q-16); açıklama
+  katmanı önerisi Muharrem'e (Q-15). Yeni: Q-18 kısmi gün, Q-19 mevsim kayması ([decisions.md](decisions.md)).
 - Oturum sonu: web ve açıklama agent'ları durduruldu, ikisinde de commit yoktu. Görev alanımız
   Data & AI (C); konsol ve API A ile B'nin işi. Açıklama katmanının kimde olacağı açık (Q-15);
   Berke ve Muharrem'e haber verilecek ([decisions.md](decisions.md)).
