@@ -209,6 +209,34 @@ veriden türetilir (Haziran'da eşik, Temmuz'da değerlendirme, PRD v1.1 değerl
 - [ ] 30 Ekim'e: derin öğrenme, buzdolabı, kör test, 2361/3039 donma incelemesi (Q-01), hafta günü
       (Q-16), kısmi gün (Q-18), mevsime duyarlı eğitim (Q-19). EDA notebook `02` öne alındı.
 
+# Agent orkestrasyonu — 1. dalga (6 Ekim 2026)
+
+Onay: Yusuf, 6 Ekim. Her agent kendi worktree'sinde çalışır; `feat/mvp`'ye yalnız ana oturum
+birleştirir (sıra: 3 → 1 → 2). Her birleştirmeden önce kapsam kontrolü (`git diff --name-only`)
+ve reviewer onayı, sonra bütün testler, typecheck ve build. Agent'lar push, stash, dal değiştirme,
+`--allow-test`, yeni bağımlılık ve `second_brain`/`tasks` yazımı yapmaz; eşik ve veri kuralı
+değiştirmez; tutarsızlığı raporlar. Ortam: `PYTHONPATH=<worktree>/packages/ml/src`,
+`SILENTWATT_DATA_DIR` mutlak yol, artifact'lar ana klasördeki `artifacts/` altında agent'a özel
+yeni dizinde. Arayüz: P1 çıktı sütunları değişmez; dedektör rapordaki kalibrasyon alanlarını
+okumaz; gerekçe ve öneri kodları v0.1'de dondurulur.
+
+- [ ] Agent 1 · Kalibrasyon (`p1-v3`, Q-03). Skill: `tdd-guide`, `senior-data-scientist`,
+      `code-reviewer`. Alan: `models/calibration.py`, `models/comparison.py`, `config.py` (P1
+      kontrolü), ana config'in `p1` bloğu, `test_config.py`, `test_p1.py`, yeni kalibrasyon testi,
+      `p1-ml-protocol.md`, `p1_report_tables.py`, p1-v3 raporu. Ölçüt: simetrik geçici config run04'ü
+      bayt bayt verir; asimetrik koşu keşif ölçümünü birebir verir (Temmuz B0 üst aşım %8,20,
+      kapsama %90,34).
+- [ ] Agent 2 · Dedektör hattı. Skill: `tdd-guide`, `senior-ml-engineer`, `senior-data-scientist`,
+      `code-reviewer`. Alan: `detection/`, yeni dedektör ve sentetik plan config'leri, `cli.py`
+      (`detect`), dedektör testleri, `packages/ml/README.md`, yeni dedektör tasarım belgesi. Ölçüt:
+      park edilen test ayrı config'e uyarlanıp geçer; run04 üzerinde uçtan uca deneme koşusu; eşik
+      ızgarası önerisi Yusuf'un onayına (resmî seçim 2. dalgada p1-v3 üzerinde).
+- [ ] Agent 3 · Açıklama kataloğu (Q-15). Skill: `tdd-guide`. Alan: yeni katalog belgesi, yeni
+      `shared/explanation-catalog.json`, yeni katalog testi. Ölçüt: 8 gerekçe ve 2 öneri kodu TR/EN;
+      örnek vakalar yer tutucu açığı ve yasak ifade olmadan üretilir.
+- [ ] Reviewer: her teslimden sonra (`code-reviewer`, `tdd-guide`; bağımlılık değişirse
+      `dependency-auditor`). Bulguları düzeltmez, raporlar.
+
 # EDA notebook 02 — 21 hane (6–7 Ekim 2026)
 
 Kullanıcı kararı (6 Ekim): dedektörün gerçek veride çalıştırılması ve eşik seçimi, 21 hanenin
