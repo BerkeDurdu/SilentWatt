@@ -178,20 +178,62 @@ bağlantı kontrolü temiz. Push yapılmadı. İlk deneme `wip/dead-band-first-p
 # MVP (9 Ekim 2026) — uçtan uca HVAC dikey dilimi
 
 Dal: `feat/mvp`. Kararlar (5–6 Ekim): yalnız HVAC (`air1`), 21 hane, Temmuz yeniden oynatma ve
-sentetik vakalar (test ayları yok); açıklama önce şablon; konsol ve API'yi agent'lar yazar,
-Berke ve Muharrem PR'da inceler; push yok. PRD v1.1'in dedektör eşikleri ve sentetik ızgarası
-doğru kabul edilmez: yöntem iskeleti alınır, değerler veriden türetilir (Haziran'da eşik, Temmuz'da
-değerlendirme, PRD v1.1 değerleri yan yana raporlanır).
+sentetik vakalar (test ayları yok); açıklama önce şablon; push yok. 6 Ekim: konsol ve API bizim
+agent'larımızca yazılmaz (görev alanımız Data & AI; ekranlar Berke, API Muharrem). PRD v1.1'in
+dedektör eşikleri ve sentetik ızgarası doğru kabul edilmez: yöntem iskeleti alınır, değerler
+veriden türetilir (Haziran'da eşik, Temmuz'da değerlendirme, PRD v1.1 değerleri yan yana raporlanır).
 
 - [x] Faz 0: kanıt sözleşmesi v0.1 (`docs/architecture/evidence-contract.md`, `shared/evidence.ts`),
       tamamen sentetik örnek dosyalar ve üreticisi, açıklama arayüzü (`server/explain/index.ts`).
-- [ ] Web agent'ı (API + konsol, kendi worktree'sinde): kanıt dosyalarından vaka listesi ve detayı,
-      iş akışı, kWh/olasılık/İzmir dilinin kaldırılması, testler.
-- [ ] Açıklama agent'ı (`server/explain/`): şablon kütüphanesi, metin kalkanı, testler.
-- [ ] ML (ben): sözleşme doğrulayıcı (Python), günlük istatistikler, akut ve kronik dedektör, veri
-      sorunu kuralı, sentetik üretici (kaynaklı şiddet ızgarası), değerlendirme, kanıt yazıcı, CLI.
-- [ ] Eşik–yanlış alarm eğrisi (Haziran) ve alarm bütçesi kararı (Yusuf).
+- [ ] Devir: Berke (konsol) ve Muharrem (API) kanıt dosyalarını okuyacak; kanıt sözleşmesi v0.1,
+      `shared/evidence.ts` ve `server/explain/index.ts` taslağı Muharrem'in incelemesine (Q-04).
+      Web agent'ı 6 Ekim'de durduruldu, commit yoktu.
+- [ ] Açıklama katmanının sahibi (Q-15, B+C): içerik bizde, sunucu kodu kimde? Açıklama agent'ı
+      6 Ekim'de oturum kapanırken durduruldu, commit yoktu.
+- [x] ML çekirdeği (`09d5e98`): günlük istatistikler, akut ve kronik kurallar, veri sorunu kuralı,
+      sentetik enjeksiyon, kanıt yazıcı ve doğrulayıcı (25 test).
+- [ ] ML hattı: `detection/pipeline.py`, ayrı dedektör config'i (ana config hash'i değişmesin),
+      kaynaklı sentetik plan (`configs/ml/synthetic-mvp.json`), `detect` komutu. Önce yazılan test
+      `tasks/paused/test_detection_pipeline.py`'de; ayarları ana config'te varsayıyor, ayrı
+      config'e göre güncellenecek.
+- [ ] Eşik karşılaştırması (PRD v1.1 başlangıç değerleri, Haziran tabanlı, tarama): enjeksiyonsuz
+      Temmuz'daki vaka sayısı ile sentetik yakalama oranı birlikte; alarm bütçesi kararı (Yusuf).
 - [ ] PRD v2.0 (sayılar `p1_report_tables.py` ve dedektör değerlendirmesinden).
 - [ ] Birleştirme, denetçi agent'ı (test dönemi, yasak ifade, eşik, testler), demo senaryosu, prova.
-- [ ] 30 Ekim'e: EDA notebook `02` (21 hane, p1-v2 artifact'larına kilitli), derin öğrenme, buzdolabı,
-      kör test, üst sınırın ayrı kalibrasyonu (Q-03), 2361/3039 donma incelemesi (Q-01).
+- [ ] 30 Ekim'e: derin öğrenme, buzdolabı, kör test, 2361/3039 donma incelemesi (Q-01). EDA notebook
+      `02` öne alındı (aşağıdaki bölüm); Q-03'ün zamanı EDA sonrası kararda.
+
+# EDA notebook 02 — 21 hane (6–7 Ekim 2026)
+
+Kullanıcı kararı (6 Ekim): dedektörün gerçek veride çalıştırılması ve eşik seçimi, 21 hanenin
+analizinden sonra. Notebook `notebooks/02_cohort_eda_21.ipynb`; P0 final audit ve P1 run04'e
+kilitli (run04 = run03 içeriği, güncel paket hash'i). Ham hedefler yalnız train; Haziran/Temmuz için
+yalnız P1 özetleri (günlük kalite, rapor metrikleri); test kapalı.
+
+- [x] A. Kimlik kilidi: kaynak, config, paket ve artifact hash'leri.
+- [x] B. Veri kalitesi: hane × ay uygun gün, ölü bant, bant altı negatif, donma, destek dışı.
+- [x] C. Tüketim davranışı (train): günlük toplam, çalışma payı, çalışırken seviye, saatlik profil,
+      hafta içi/sonu, soğukta çalışma (ısı pompası).
+- [x] D. Sıcaklık tepkisi: hane bazında eğri, soğutma başlangıç sıcaklığı.
+- [x] E. Train'de olağandışı günler ve aylık kayma.
+- [x] F. Sıcaklık desteği ve Temmuz sıcak dalgası.
+- [x] G. Model tanısı (p1-v2 metrikleri): hane bazında aşım, Haziran → Temmuz kayması.
+- [x] H. Dedektör için çıkarımlar ve açık sorular; doğrulama özeti.
+- [x] Kayıtlar: `notebooks/README.md` (02 bölümü), `second_brain` (koşu kaydı: run04 ve EDA;
+      günlük; kararlar: Q-03, A-04, Q-01, D-03 güncellendi, Q-15–Q-17 eklendi). Notebook dosyaları
+      ve üretici betik (`notebooks/build_02_cohort_eda_21.py`) Q-09 kararına kadar commit edilmez.
+- [ ] Model tarafı kararlar (Yusuf/ekip), dedektörün gerçek veri koşusundan önce: üst sınırın ayrı
+      kalibrasyonu (Q-03), eğitimin Haziran'ı kapsaması (A-04), hafta günü özelliği (Q-16),
+      olağandışı train günleri (Q-17).
+
+## Doğrulama / inceleme
+
+Notebook nbclient ile baştan sona hatasız çalıştı (33 hücre). 20/20 kontrol UYUMLU
+(`artifacts/notebook-eda-21/verification.json`): kaynak, config, paket ve artifact hash'leri;
+aday listesi audit = P1 raporu; ölü bant 0,01; ayrıştırılan ham satırlar yalnız train
+(2018-01-01 06:00Z – 2018-06-01 04:45Z); ölü bant slotları (102.906) ve bant altı negatifler (183)
+ham okumada ve P1 günlük kalitede aynı; işlem sonrası kaynaklar ve artifact'lar değişmedi. 11 grafiğin
+hepsi gözle incelendi. Yeni model eğitilmedi, eşik seçilmedi, test hedefleri okunmadı. Sınırlama:
+E bölümündeki olağandışı gün taraması betimleyicidir; ölçek hanenin bütün sıcaklık kutularından ortak
+hesaplandığı için ılık günlerde genelde hiç çalışmayan hanelerde (ör. 9019, 9 gün) her kullanım
+"olağandışı yüksek" görünebilir.
