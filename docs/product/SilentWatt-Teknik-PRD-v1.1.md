@@ -1,5 +1,12 @@
 # SilentWatt Teknik PRD
 
+> **Uyarı (6 Ekim 2026):** Bu sürüm PRD v2.0 yayımlanınca `docs/archive/` klasörüne taşınacak.
+> Metrik hedefleri ([HEDEF]), dedektör eşikleri ve sentetik deney ızgarası doğrulanmamış
+> varsayımdır; değer olarak referans alınmaz. Güncel kurallar: negatif değerler için ±0,01 ölü bant
+> ve 21 hane ([p1-v2 raporu](../project-status/p1-v2-results-2026-10-06.md)), ML–web sözleşmesi
+> ([evidence-contract.md](../architecture/evidence-contract.md)), kararlar
+> ([decisions.md](../../second_brain/decisions.md)).
+
 **Sürüm:** 1.1 · **Tarih:** 15 Eylül 2026 · **Durum:** Google Cloud üzerinde MVP geliştirme sözleşmesi
 
 **Ürün:** Klima devrelerindeki kalıcı tüketim sapmalarını belirleyen ve bakım ekibine gerekçeli inceleme önerileri sunan karar destek sistemi.

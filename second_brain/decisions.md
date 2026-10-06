@@ -123,6 +123,7 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | 2026-10-06 | P1 raporu bandın iki yanını ayrı ölçer: üst/alt sınır aşımı ve klima çalışırken kapsama (çalışma eşiği 0,3: 27 Eylül HVAC incelemesindeki "air1 aktif" seviyesi). Tarama kuralı değişmedi | `f660801` · [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
 | 2026-10-06 | `baseline` komutunun development koşusu test dönemi satırlarını okumaz (eski sızıntı düzeltildi) | `d7ae6ed` |
 | 2026-10-06 | Sprint boyunca `git add`, `commit`, `switch`, `merge` için yerel izin kuralları (`.claude/settings.local.json`); commit'ler `feat/mvp`'ye adım adım; push izni yok (Yusuf) | `/permissions` |
+| 2026-10-06 | Eski PRD sürümleri (v0.9, v1.0) `docs/archive/` altında; arşiv referans alınmaz (AGENTS.md değişmezi). PRD v1.1, v2.0 yayımlandığı commit'te arşive taşınır; o zamana kadar metrik hedefleri, dedektör eşikleri ve sentetik ızgarası doğrulanmamış varsayımdır. Repo dışındaki `../Dokümanlar/` kopyalarına dokunulmadı (Yusuf) | [arşiv](../docs/archive/README.md) · Q-08 |
 
 ## Kanıtı olan riskler (tam liste: PRD §19.1)
 
