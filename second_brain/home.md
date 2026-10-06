@@ -26,9 +26,9 @@ C Yusuf Ziya Demirel (AI/ML). İki parça var: rol bazlı web konsolu (React + E
 - **Aşama:** P0, P1, `p1-v2` ve 21 hanelik EDA (notebook `02`) tamam. Dedektör çekirdeği ve
   kanıt yazıcı testleriyle var (`09d5e98`), gerçek veride çalıştırılmadı; kanıt sözleşmesi v0.1
   taslak (`6152229`). API, konsol bağlantısı ve açıklama yok. **G0 kapısı açık** (D-01, D-02).
-- **Git:** çalışma dalı `feat/mvp` (push yok). `feat/ml-foundation`'daki iki 27 Eylül commit'i
-  GitHub'da değil; [PR #1](https://github.com/BerkeDurdu/SilentWatt/pull/1) açık, inceleme
-  yok. İlk ölü bant denemesi `wip/dead-band-first-pass` dalında arşivli. `notebooks/` commit
+- **Git:** çalışma dalı `feat/mvp`; 6 Ekim'de push edildi, [PR #2](https://github.com/BerkeDurdu/SilentWatt/pull/2)
+  taslak (taban `feat/ml-foundation`). `feat/ml-foundation` da GitHub'da güncel;
+  [PR #1](https://github.com/BerkeDurdu/SilentWatt/pull/1) açık, inceleme yok. Push yalnız açık onayla. İlk ölü bant denemesi `wip/dead-band-first-pass` dalında arşivli. `notebooks/` commit
   edilmedi (Q-09); `tasks/paused/` (park edilen test, karşılaştırma betiği) da commit edilmedi.
   Durdurulan agent'ların worktree'leri `.claude/worktrees/` altında duruyor (commit yok);
   silinmeleri kullanıcı kararı.
