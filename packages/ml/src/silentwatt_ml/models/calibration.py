@@ -17,32 +17,61 @@ def ordered_quantiles(values: np.ndarray) -> np.ndarray:
 
 
 def calibrate(predictions: pd.DataFrame, settings: dict) -> dict:
-    """Input is explicitly the calibration split. Only daily-qualified slots fit."""
-    selected = predictions.loc[predictions['eligible']]
-    values = selected[['target', *QUANTILES]].to_numpy(dtype=float)
-    if not np.isfinite(values).all() or (values < 0).any():
+    """Split CQR profile of one household and model, fitted on the calibration split (June).
+
+    The input must be the calibration split; only daily-qualified ('eligible') slots fit.
+    The band correction qhat is the rank-th smallest conformity score with
+    rank = ceil((n + 1) * (1 - alpha)), floored at 0 so the band never shrinks.
+    """
+    calibration_slots = predictions.loc[predictions['eligible']]
+    target = calibration_slots['target'].to_numpy(dtype=float)
+    q05 = calibration_slots['q05'].to_numpy(dtype=float)
+    q50 = calibration_slots['q50'].to_numpy(dtype=float)
+    q95 = calibration_slots['q95'].to_numpy(dtype=float)
+
+    every_value = np.concatenate([target, q05, q50, q95])
+    if not np.isfinite(every_value).all() or (every_value < 0).any():
         raise ValueError('Calibration rows must be finite and nonnegative')
-    if len(values) and ((values[:, 1] > values[:, 2]) | (values[:, 2] > values[:, 3])).any():
+    if ((q05 > q50) | (q50 > q95)).any():
         raise ValueError('Calibration quantiles must be ordered')
-    n, days = len(selected), int(selected['local_date'].nunique())
-    rank = math.ceil((n + 1) * (1 - settings['alpha']))
-    result = {'status': 'calibration_pending', 'slots': n, 'days': days,
-              'alpha': settings['alpha'], 'rank': rank, 'qhat': None}
-    if n < settings['minimum_slots'] or days < settings['minimum_days'] or rank > n:
-        result['reason'] = 'insufficient_calibration_support'
-        return result
-    scores = np.maximum(values[:, 1] - values[:, 0], values[:, 0] - values[:, 3])
-    result.update(status='calibrated', reason='ok',
-                  qhat=max(0.0, float(np.partition(scores, rank - 1)[rank - 1])))
-    return result
+
+    slot_count = len(calibration_slots)
+    day_count = int(calibration_slots['local_date'].nunique())
+    # Finite-sample conformal rank: (n + 1) instead of n keeps the coverage level for a new slot.
+    rank = math.ceil((slot_count + 1) * (1 - settings['alpha']))
+    profile = {'status': 'calibration_pending', 'slots': slot_count, 'days': day_count,
+               'alpha': settings['alpha'], 'rank': rank, 'qhat': None}
+
+    # Too little June support gives no band at all rather than an unreliable one.
+    # rank > n means the conformal quantile does not exist for this many slots.
+    too_few_slots = slot_count < settings['minimum_slots']
+    too_few_days = day_count < settings['minimum_days']
+    if too_few_slots or too_few_days or rank > slot_count:
+        profile['reason'] = 'insufficient_calibration_support'
+        return profile
+
+    # Conformity score: how far the target falls outside the raw q05-q95 band
+    # (negative when inside). One score covers both sides of the band.
+    scores = np.maximum(q05 - target, target - q95)
+    rank_th_smallest_score = float(np.sort(scores)[rank - 1])
+    profile['status'] = 'calibrated'
+    profile['qhat'] = max(0.0, rank_th_smallest_score)
+    profile['reason'] = 'ok'
+    return profile
 
 
 def apply_calibration(predictions: pd.DataFrame, profile: dict) -> pd.DataFrame:
-    result = predictions.copy()
-    result['lower'] = np.nan
-    result['upper'] = np.nan
-    result['calibration_status'] = profile['status']
+    """Calibrated band of every slot: lower = max(0, q05 - qhat), upper = q95 + qhat.
+
+    While the profile is pending the bounds stay empty (NaN); no band is invented.
+    """
+    calibrated = predictions.copy()
+    calibrated['lower'] = np.nan
+    calibrated['upper'] = np.nan
+    calibrated['calibration_status'] = profile['status']
     if profile['status'] == 'calibrated':
-        result['lower'] = (result['q05'] - profile['qhat']).clip(lower=0)
-        result['upper'] = result['q95'] + profile['qhat']
-    return result
+        qhat = profile['qhat']
+        # The lower bound stops at 0: valid air1 targets are never negative (dead band rule).
+        calibrated['lower'] = (calibrated['q05'] - qhat).clip(lower=0)
+        calibrated['upper'] = calibrated['q95'] + qhat
+    return calibrated
