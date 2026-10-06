@@ -52,7 +52,7 @@ def _load_training_cohort(config: ProjectConfig, path: Path) -> tuple[pd.DataFra
         raise ValueError('Invalid household identifiers')
     if frame['_ts'].ne(frame['_ts'].dt.floor('15min')).any():
         raise ValueError('Off-grid source timestamps; resolve source audit first')
-    frame['_target'] = valid_target(frame[columns['target']])
+    frame['_target'] = valid_target(frame[columns['target']], config.target_dead_band)
 
     # Cohort eligibility uses train rows only; the denominator counts elapsed slots (DST-safe).
     train_start = pd.Timestamp(config.raw['splits_local_date']['train'][0], tz=config.timezone)

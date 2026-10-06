@@ -54,7 +54,7 @@ def _profile_one_minute(path: Path, config: ProjectConfig) -> dict:
         row_count += len(chunk)
         missing_household_rows += int(chunk[household_column].isna().sum())
         invalid_timestamp_rows += int(timestamps.isna().sum())
-        invalid_target_rows += int(valid_target(chunk[target_column]).isna().sum())
+        invalid_target_rows += int(valid_target(chunk[target_column], config.target_dead_band).isna().sum())
         off_minute_grid = timestamps.notna() & timestamps.ne(timestamps.dt.floor("min"))
         off_grid_rows += int(off_minute_grid.sum())
         for household, group in chunk.assign(_ts=timestamps).groupby(household_column):
@@ -112,7 +112,7 @@ def build_audit(config: ProjectConfig, data_dir: Path) -> dict:
     usecols = list(dict.fromkeys([household_column, columns["timestamp_15m"], columns["target"], *exclusions]))
     frame = pd.concat(iter_electric(paths["electric_15m"], usecols=usecols), ignore_index=True)
     frame["_ts"] = electric_timestamps(frame[columns["timestamp_15m"]])
-    frame["_target"] = valid_target(frame[columns["target"]])
+    frame["_target"] = valid_target(frame[columns["target"]], config.target_dead_band)
 
     # 2. Row checks: whole-number household ids, duplicate keys, slots on the analysis grid.
     household_numeric = pd.to_numeric(frame[household_column], errors="coerce")
@@ -197,6 +197,7 @@ def build_audit(config: ProjectConfig, data_dir: Path) -> dict:
         "cohort_rule": {
             "selection_split": "train",
             "minimum_valid_target_coverage": minimum,
+            "target_dead_band": config.target_dead_band,
             "exclude_if_observed": exclusions,
             "annual_inventory_is_descriptive_only": True,
         },

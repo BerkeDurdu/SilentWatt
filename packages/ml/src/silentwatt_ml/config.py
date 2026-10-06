@@ -32,6 +32,10 @@ class ProjectConfig:
     def timezone(self) -> str:
         return str(self.raw["display_timezone"])
 
+    @property
+    def target_dead_band(self) -> float:
+        return float(self.raw["target_dead_band"])
+
 
 def load_config(path: str | Path) -> ProjectConfig:
     """Read the project config and reject values the pipeline cannot use safely."""
@@ -44,6 +48,7 @@ def load_config(path: str | Path) -> ProjectConfig:
         "display_timezone",
         "files",
         "columns",
+        "target_dead_band",
         "analysis_window_utc",
         "splits_local_date",
         "cohort",
@@ -58,6 +63,7 @@ def load_config(path: str | Path) -> ProjectConfig:
         ZoneInfo(raw["display_timezone"])
         _check_files(raw["files"])
         _check_columns(raw["columns"])
+        _check_target_dead_band(raw["target_dead_band"])
         window_start, window_end = _check_analysis_window(raw["analysis_window_utc"])
         _check_splits(raw["splits_local_date"], raw["display_timezone"], window_start, window_end)
         _check_baseline(raw["baseline"])
@@ -84,6 +90,13 @@ def _check_columns(columns: dict) -> None:
         column = columns[name]
         if not isinstance(column, str) or not column:
             raise ValueError(f"Invalid column: {name}")
+
+
+def _check_target_dead_band(dead_band: object) -> None:
+    """Target readings within +-dead band of zero are the off state (D-04, decided 2026-10-06)."""
+    is_number = isinstance(dead_band, (int, float)) and not isinstance(dead_band, bool)
+    if not is_number or not math.isfinite(dead_band) or dead_band < 0:
+        raise ValueError("target_dead_band must be a finite number >= 0")
 
 
 def _check_analysis_window(window: dict) -> tuple[pd.Timestamp, pd.Timestamp]:
@@ -139,7 +152,8 @@ def _check_cohort(cohort: dict) -> None:
 
 def _check_p1(p1: dict) -> None:
     """P1 protocol: version, daily quality gates, calibration and quantile model settings."""
-    if p1["protocol_version"] != "p1-v1":
+    # p1-v2 adds the target dead band; p1-v1 results stay reproducible from their own commit.
+    if p1["protocol_version"] != "p1-v2":
         raise ValueError("Unsupported P1 protocol_version")
     quality = p1["daily_quality"]
     calibration = p1["calibration"]

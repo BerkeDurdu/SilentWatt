@@ -36,7 +36,7 @@ def household_diagnostics(household_id: int, group: pd.DataFrame, grid: pd.Datet
     expected = len(grid)
     readings = pd.to_numeric(group.set_index('_ts')[columns['target']], errors='coerce').reindex(grid)
     finite = np.isfinite(readings)
-    valid = valid_target(readings).notna()
+    valid = valid_target(readings, config.target_dead_band).notna()
     negative = readings[finite & readings.lt(0)]
     observed = [channel for channel in exclusions if group[channel].notna().any()]
     valid_count = int(valid.sum())
@@ -85,6 +85,10 @@ def household_diagnostics(household_id: int, group: pd.DataFrame, grid: pd.Datet
 def review(config_path: str, data_dir: str, audit_path: str) -> dict:
     """Train-only diagnostics of the P0 cohort, checked slot for slot against the package audit."""
     config = load_config(config_path)
+    # These diagnostics describe the P0 rule, in which every negative reading is invalid.
+    if config.target_dead_band != 0:
+        raise ValueError('P0 diagnostics describe the rule without a dead band; '
+                         'use review_dead_band_cohort.py for the dead band rule')
     audit = json.loads(Path(audit_path).read_text())
     # The diagnostics only describe the exact config and source file the audit used.
     if config.raw != audit['provenance']['config']:

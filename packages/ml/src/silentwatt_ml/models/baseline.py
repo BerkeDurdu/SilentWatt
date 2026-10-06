@@ -56,13 +56,18 @@ def _prepare_frame(
         timestamps = timestamps.loc[raw.index]
 
     # 2. Accepted target values and one quality label per reading.
-    target = valid_target(raw[target_column])
+    dead_band = config.target_dead_band
+    target = valid_target(raw[target_column], dead_band)
     valid_slot = slot_mask(timestamps, config)
     numeric = pd.to_numeric(raw[target_column], errors="coerce")
     measurement = pd.Series("ok", index=raw.index)
     measurement.loc[raw[target_column].isna()] = "null_target"
     measurement.loc[raw[target_column].notna() & ~np.isfinite(numeric)] = "invalid_target"
-    measurement.loc[np.isfinite(numeric) & numeric.lt(0)] = "negative_target"
+    # Off-state readings near zero that the dead band sets to 0 (D-04).
+    inside_dead_band = np.isfinite(numeric) & numeric.ne(0) & numeric.abs().le(dead_band)
+    measurement.loc[inside_dead_band] = "dead_band"
+    # Readings further below zero than the dead band stay invalid.
+    measurement.loc[np.isfinite(numeric) & numeric.lt(-dead_band)] = "negative_target"
 
     # 3. Keep rows on the analysis grid; duplicate keys must be resolved at the source.
     selected = pd.DataFrame({"ts_utc": timestamps[valid_slot], "target": target[valid_slot],
@@ -97,6 +102,7 @@ def _prepare_frame(
         "invalid_timestamp_rows": int(timestamps.isna().sum()),
         "excluded_timestamp_rows": int((~valid_slot).sum()),
         "invalid_or_missing_target_rows": int(target.isna().sum()),
+        "dead_band_rows": int(inside_dead_band.sum()),
     }
     return frame, quality
 

@@ -69,6 +69,8 @@ def daily_quality(frame: pd.DataFrame, timezone: str, settings: dict,
             'missing_row_slots': int(labels.eq('missing_row').sum()) + missing_grid,
             'null_target_slots': int(labels.eq('null_target').sum()),
             'negative_target_slots': int(labels.eq('negative_target').sum()),
+            # Off-state readings the dead band set to 0; they stay valid (D-04).
+            'dead_band_slots': int(labels.eq('dead_band').sum()),
             'invalid_target_slots': int(labels.eq('invalid_target').sum()),
             'missing_weather_slots': int((~np.isfinite(group['temperature_c'])).sum()),
             'frozen_suspected_slots': frozen,
