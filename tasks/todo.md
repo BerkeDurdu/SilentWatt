@@ -178,7 +178,7 @@ bağlantı kontrolü temiz. Push yapılmadı. İlk deneme `wip/dead-band-first-p
 # MVP (9 Ekim 2026) — uçtan uca HVAC dikey dilimi
 
 Dal: `feat/mvp`. Kararlar (5–6 Ekim): yalnız HVAC (`air1`), 21 hane, Temmuz yeniden oynatma ve
-sentetik vakalar (test ayları yok); açıklama önce şablon; push yok. 6 Ekim: konsol ve API bizim
+sentetik vakalar (test ayları yok); açıklama önce şablon. 6 Ekim: push edildi (taslak PR #2); konsol ve API bizim
 agent'larımızca yazılmaz (görev alanımız Data & AI; ekranlar Berke, API Muharrem). PRD v1.1'in
 dedektör eşikleri ve sentetik ızgarası doğru kabul edilmez: yöntem iskeleti alınır, değerler
 veriden türetilir (Haziran'da eşik, Temmuz'da değerlendirme, PRD v1.1 değerleri yan yana raporlanır).

@@ -11,6 +11,9 @@ analizler de buraya yazılır.
 
 ## 2026-10-06
 
+- Yusuf'un onayıyla push: `feat/ml-foundation`'daki 2 commit ve `feat/mvp`; taslak
+  [PR #2](https://github.com/BerkeDurdu/SilentWatt/pull/2), taban PR #1. Push öncesi typecheck, build,
+  80 ML testi, CLI ve pip check geçti; diff'te ham veri, artifact ve parola yok.
 - Model tarafı kararlar (Yusuf), P1 run04 üzerinde keşif ölçümüyle: Q-03 asimetrik CQR ile `p1-v3`
   (Temmuz üst sınır aşımı %12,8 → %8,2); Haziran eğitime katılmaz (A-04, 253 günden 1'ini kurtarırdı);
   olağandışı train günleri çıkarılmaz (Q-17, sezon geçişi); hafta günü ertelendi (Q-16); açıklama

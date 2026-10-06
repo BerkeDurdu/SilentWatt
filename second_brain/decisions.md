@@ -133,6 +133,7 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | 2026-10-06 | Üst sınır ayrı kalibre edilir (Q-03): asimetrik CQR, alt ve üst taraf Haziran'da ayrı ayrı %5'e (α/2; Romano vd. 2019). Dedektörün gerçek veri koşusundan önce P1 protokolü `p1-v3` olarak; önce testler, davranışı koruyan düzenleme ayrı commit (Yusuf) | sohbet, 2026-10-06 · Q-03 |
 | 2026-10-06 | Haziran eğitime katılmaz (A-04): kalibrasyon ve dedektör referansı olarak kalır. MVP'de eğitimde görülmemiş sıcaklıktaki Temmuz günleri "değerlendirilemedi" gösterilir; sentetik senaryolar 4–17 Temmuz'da (Yusuf) | sohbet, 2026-10-06 · A-04, Q-18, Q-19 |
 | 2026-10-06 | Train'deki olağandışı günler eğitimden çıkarılmaz (Q-17): klimanın sezona açılmasını yansıtıyorlar; veri kuralı değişmez (Yusuf) | sohbet, 2026-10-06 · Q-17, Q-19 |
+| 2026-10-06 | `feat/ml-foundation` (2 commit) ve `feat/mvp` push edildi; `feat/mvp` için taslak [PR #2](https://github.com/BerkeDurdu/SilentWatt/pull/2), taban `feat/ml-foundation` (PR #1 birleşince `main`). Push yalnız açık onayla (Yusuf) | sohbet, 2026-10-06 |
 
 ## Kanıtı olan riskler (tam liste: PRD §19.1)
 
