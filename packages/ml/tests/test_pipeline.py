@@ -73,6 +73,8 @@ class PipelineTests(unittest.TestCase):
     def test_p0_cohort_diagnostics_accounting_sensitivity_and_provenance(self):
         script = Path(__file__).resolve().parents[3] / "docs/product/ekler/review_p0_cohort.py"
         review = runpy.run_path(str(script))["review"]
+        # The P0 diagnostic describes the rule without a dead band: every negative is invalid.
+        self.raw["target_dead_band"] = 0.0
         self.electric["air3"] = np.nan
         self.electric = self.electric.drop(index=0)
         self.electric.loc[1, "air1"] = np.nan
@@ -100,6 +102,29 @@ class PipelineTests(unittest.TestCase):
         self.write_sources()
         with self.assertRaisesRegex(ValueError, "source differs"):
             review(str(self.config_path), str(self.data), str(audit_path))
+
+    def test_p0_cohort_diagnostics_refuse_the_dead_band_rule(self):
+        script = Path(__file__).resolve().parents[3] / "docs/product/ekler/review_p0_cohort.py"
+        review = runpy.run_path(str(script))["review"]
+        audit_path = self.root / "audit.json"
+        audit_path.write_text(json.dumps(build_audit(load_config(self.config_path), self.data)))
+        with self.assertRaisesRegex(ValueError, "without a dead band"):
+            review(str(self.config_path), str(self.data), str(audit_path))
+
+    def test_audit_counts_dead_band_readings_as_valid_training_slots(self):
+        # Five off-state readings just below zero and one far negative reading in the train day.
+        self.electric.loc[2:6, "air1"] = -0.001
+        self.electric.loc[7, "air1"] = -0.5
+        self.write_sources()
+        household = build_audit(load_config(self.config_path), self.data)["households"][0]
+        self.assertEqual(household["training_valid_target_slots"], 95)
+        self.assertTrue(household["candidate"])
+        # Without a dead band the same readings drop the household below 95 percent coverage.
+        self.raw["target_dead_band"] = 0.0
+        self.write_sources()
+        household = build_audit(load_config(self.config_path), self.data)["households"][0]
+        self.assertEqual(household["training_valid_target_slots"], 90)
+        self.assertFalse(household["candidate"])
 
     def test_held_out_targets_never_fit_quantiles(self):
         before = self.run_model()

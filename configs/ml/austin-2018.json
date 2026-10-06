@@ -14,6 +14,7 @@
     "weather_timestamp": "time",
     "temperature": "temperature_2m (°C)"
   },
+  "target_dead_band": 0.01,
   "analysis_window_utc": {
     "start": "2018-01-01T06:00:00Z",
     "end": "2019-01-01T06:00:00Z"
@@ -35,7 +36,7 @@
     "quantiles": [0.05, 0.5, 0.95]
   },
   "p1": {
-    "protocol_version": "p1-v1",
+    "protocol_version": "p1-v2",
     "daily_quality": {
       "minimum_coverage": 0.95,
       "frozen_run_slots": 16,
