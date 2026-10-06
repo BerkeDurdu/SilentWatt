@@ -1,0 +1,575 @@
+"""Explanation catalog exp-0.1 (Q-15): Turkish and English texts for evidence contract v0.1.
+
+The catalog shared/explanation-catalog.json is content owned by Role C (Data & AI). The server
+code that turns evidence into an explanation (explainCase in server/explain/index.ts) belongs to
+the backend owner, who may adapt the format. These tests check the content only:
+
+- every reason code, recommendation code, case kind and origin of the contract has texts in
+  Turkish and English,
+- placeholders name evidence fields, and static text carries no number of its own,
+- the made-up fixture cases (households 90001-90004) render without an unresolved placeholder,
+- no forbidden wording appears (unit claims, fault claims, fault probabilities, savings, money),
+- synthetic cases carry the synthetic label and every explanation ends with the
+  human-decision note.
+
+The small renderer in this file exists only to test the content; it is not a second server
+implementation. No real measurement and no real household id is used here.
+"""
+from __future__ import annotations
+
+import json
+import re
+import unittest
+from pathlib import Path
+
+from silentwatt_ml.detection.evidence import LIBRARY_VERSION, REASON_CODES, RECOMMENDATION_BY_KIND, SCHEMA_VERSION
+
+REPOSITORY = Path(__file__).resolve().parents[3]
+CATALOG_PATH = REPOSITORY / "shared" / "explanation-catalog.json"
+EVIDENCE_TYPES_PATH = REPOSITORY / "shared" / "evidence.ts"
+FIXTURE_CASES_DIRECTORY = REPOSITORY / "shared" / "fixtures" / "evidence" / "cases"
+
+CATALOG_VERSION = "exp-0.1"
+LANGUAGES = ("tr", "en")
+# {household_id}, {synthetic.start_local_date} or {value}
+PLACEHOLDER_PATTERN = re.compile(r"\{([a-z_]+(?:\.[a-z_]+)?)\}")
+# The channel name is the only digit allowed in static text: every other number in an
+# explanation must come from the evidence through a placeholder.
+CHANNEL_NAME = "air1"
+# Marks an evidence path that does not exist, e.g. synthetic details of an observed case.
+MISSING = object()
+
+
+def load_catalog() -> dict:
+    return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+
+
+def load_fixture_cases() -> list[dict]:
+    paths = sorted(FIXTURE_CASES_DIRECTORY.glob("*.json"))
+    return [json.loads(path.read_text(encoding="utf-8")) for path in paths]
+
+
+# --- The contract, read from shared/evidence.ts ------------------------------------------
+
+def typescript_union_members(type_name: str) -> set[str]:
+    """Members of a string union type in shared/evidence.ts, e.g. ReasonCode."""
+    source = EVIDENCE_TYPES_PATH.read_text(encoding="utf-8")
+    declaration = re.search(rf"export type {type_name} =([^;]+);", source)
+    if declaration is None:
+        raise AssertionError(f"type {type_name} not found in {EVIDENCE_TYPES_PATH}")
+    return set(re.findall(r"'(\w+)'", declaration.group(1)))
+
+
+def typescript_interface_fields(interface_name: str) -> set[str]:
+    """Field names of an interface in shared/evidence.ts; comment lines are skipped."""
+    source = EVIDENCE_TYPES_PATH.read_text(encoding="utf-8")
+    declaration = re.search(rf"export interface {interface_name}\b[^{{]*\{{(.*?)\n\}}", source, re.DOTALL)
+    if declaration is None:
+        raise AssertionError(f"interface {interface_name} not found in {EVIDENCE_TYPES_PATH}")
+    fields = set()
+    for line in declaration.group(1).splitlines():
+        field = re.match(r"\s+(\w+)\??:", line)
+        if field is not None:
+            fields.add(field.group(1))
+    return fields
+
+
+# --- Forbidden wording -------------------------------------------------------------------
+
+def fold_for_matching(text: str) -> str:
+    """Lower case with the two Turkish i letters folded together.
+
+    A plain lower() turns "ARIZA" into "ariza", which would slip past the term "arıza", and
+    turns "İ" into "i" plus a combining dot. Folding ı and i into one letter lets upper-case
+    Turkish text be checked exactly like lower-case text.
+    """
+    lowered = text.lower().replace("̇", "")
+    return lowered.replace("ı", "i")
+
+
+def forbidden_terms_in(text: str, terms: list[str]) -> list[str]:
+    """The terms that occur in text where a word starts (not directly after a letter).
+
+    A term may continue into a longer word, so "tasarruf" also catches "tasarrufu" and "kW"
+    catches "kWh" and "5kW", while the "kw" inside "backward" is not a match.
+    """
+    folded_text = fold_for_matching(text)
+    not_after_a_letter = r"(?<![^\W\d_])"
+    found = []
+    for term in terms:
+        if re.search(not_after_a_letter + re.escape(fold_for_matching(term)), folded_text):
+            found.append(term)
+    return found
+
+
+def all_forbidden_terms(catalog: dict) -> list[str]:
+    """The terms of both languages: a Turkish text must not carry English unit words either."""
+    terms = []
+    for language_code in LANGUAGES:
+        terms += catalog["languages"][language_code]["forbidden_terms"]
+    return terms
+
+
+# --- Formatting rules of the catalog ------------------------------------------------------
+
+def format_number(number: float, max_decimals: int, decimal_separator: str) -> str:
+    """At most max_decimals decimals, trailing zeros removed: 3.20 -> "3.2", 41.00 -> "41"."""
+    text = f"{number:.{max_decimals}f}"
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    if text == "-0":
+        text = "0"
+    return text.replace(".", decimal_separator)
+
+
+def format_share(share: float, formatting: dict, signed: bool) -> str:
+    """A share of 1 as a percentage: 0.41 -> "%41" (tr) or "41%" (en); signed adds + or -."""
+    # Round first: 0.58 * 100 is 57.99999999999999 in floating point.
+    percent = round(share * 100, 2)
+    digits = format_number(abs(percent), 2, formatting["decimal_separator"])
+    if formatting["percent_sign_position"] == "before":
+        text = "%" + digits
+    else:
+        text = digits + "%"
+    if percent < 0:
+        return "-" + text
+    if signed and percent > 0:
+        return "+" + text
+    return text
+
+
+def format_date(local_date: str, formatting: dict) -> str:
+    """2018-07-07 -> "7 Temmuz 2018" (tr) or "7 July 2018" (en)."""
+    year, month, day = local_date.split("-")
+    month_name = formatting["month_names"][int(month) - 1]
+    return f"{int(day)} {month_name} {year}"
+
+
+def format_value(value, value_format: str, formatting: dict) -> str:
+    """One evidence value as text. Null is written as the null text, never as 0."""
+    if value is None:
+        return formatting["null_text"]
+    if value_format in ("identifier", "count"):
+        return str(int(value))
+    if value_format == "statistic":
+        return format_number(value, 2, formatting["decimal_separator"])
+    if value_format == "share":
+        return format_share(value, formatting, signed=False)
+    if value_format == "signed_share":
+        return format_share(value, formatting, signed=True)
+    if value_format == "date":
+        return format_date(value, formatting)
+    raise ValueError(f"unknown value format {value_format!r}")
+
+
+# --- Rendering (test helper only) --------------------------------------------------------
+
+def evidence_field(case: dict, source: str):
+    """The value at a source path such as "case.synthetic.start_local_date", or MISSING."""
+    value = case
+    for step in source.split(".")[1:]:
+        if not isinstance(value, dict) or step not in value:
+            return MISSING
+        value = value[step]
+    return value
+
+
+def fill(template: str, values: dict[str, str]) -> str:
+    """Replace the known placeholders; an unknown one stays visible so a test can find it."""
+    def replacement(match: re.Match) -> str:
+        return values.get(match.group(1), match.group(0))
+    return PLACEHOLDER_PATTERN.sub(replacement, template)
+
+
+def case_placeholder_values(case: dict, catalog: dict, formatting: dict) -> dict[str, str]:
+    """Formatted values of every case placeholder that exists in this case."""
+    values = {}
+    for name, placeholder in catalog["placeholders"].items():
+        if not placeholder["source"].startswith("case."):
+            continue  # {value} belongs to one reason and is filled per reason
+        raw_value = evidence_field(case, placeholder["source"])
+        if raw_value is MISSING:
+            continue
+        values[name] = format_value(raw_value, placeholder["format"], formatting)
+    return values
+
+
+def render_explanation(case: dict, catalog: dict, language_code: str) -> dict:
+    """The parts of the server's Explanation shape, filled from one evidence case."""
+    language = catalog["languages"][language_code]
+    formatting = language["formatting"]
+    values = case_placeholder_values(case, catalog, formatting)
+
+    summary = fill(language["summary"][case["kind"]][case["origin"]], values)
+
+    # One sentence per evidence reason, in the order of the evidence.
+    reasons = []
+    for reason in case["reasons"]:
+        value_format = catalog["reason_value_formats"][reason["code"]]
+        reason_value = format_value(reason["value"], value_format, formatting)
+        reasons.append(fill(language["reasons"][reason["code"]], {"value": reason_value}))
+
+    recommendation = language["recommendations"][case["recommendation_code"]]
+
+    # Standard limitations first, then those of the case kind, then the synthetic ones.
+    limitations = list(language["limitations"]["always"])
+    limitations += language["limitations"][case["kind"]]
+    if case["origin"] == "synthetic":
+        limitations += language["limitations"]["synthetic"]
+
+    return {
+        "summary": summary,
+        "reasons": reasons,
+        "first_check": recommendation["first_check"],
+        "steps": list(recommendation["steps"]),
+        "limitations": limitations,
+        "human_decision_note": language["human_decision_note"],
+    }
+
+
+def explanation_text(explanation: dict) -> str:
+    """All parts in reading order, one per line; the human-decision note is the last line."""
+    lines = [explanation["summary"], *explanation["reasons"], explanation["first_check"],
+             *explanation["steps"], *explanation["limitations"], explanation["human_decision_note"]]
+    return "\n".join(lines)
+
+
+def language_texts(language: dict) -> list[tuple[str, str]]:
+    """Every user-visible text of one language with its location, e.g. "reasons.DAILY_EXCESS_Z"."""
+    texts = [("labels.synthetic", language["labels"]["synthetic"]),
+             ("formatting.null_text", language["formatting"]["null_text"]),
+             ("formatting.unit_hours_label", language["formatting"]["unit_hours_label"])]
+    for kind, templates_by_origin in language["summary"].items():
+        for origin, template in templates_by_origin.items():
+            texts.append((f"summary.{kind}.{origin}", template))
+    for code, template in language["reasons"].items():
+        texts.append((f"reasons.{code}", template))
+    for code, recommendation in language["recommendations"].items():
+        texts.append((f"recommendations.{code}.first_check", recommendation["first_check"]))
+        for number, step in enumerate(recommendation["steps"], start=1):
+            texts.append((f"recommendations.{code}.steps[{number}]", step))
+    for group, sentences in language["limitations"].items():
+        for number, sentence in enumerate(sentences, start=1):
+            texts.append((f"limitations.{group}[{number}]", sentence))
+    texts.append(("human_decision_note", language["human_decision_note"]))
+    return texts
+
+
+def numbers_in(text: str) -> list[str]:
+    """Number tokens of a text, with the channel name removed: "%12,78 ve 3" -> ["12,78", "3"]."""
+    return re.findall(r"\d+(?:[.,]\d+)?", text.replace(CHANNEL_NAME, ""))
+
+
+# --- Tests ---------------------------------------------------------------------------------
+
+class ForbiddenTermMatcherTests(unittest.TestCase):
+    """The matcher itself, so the wording tests below cannot pass by matching nothing."""
+
+    def test_matches_at_word_start_ignoring_case_and_turkish_i(self):
+        self.assertEqual(forbidden_terms_in("ARIZA DOĞRULANDI", ["arıza doğrulandı"]), ["arıza doğrulandı"])
+        self.assertEqual(forbidden_terms_in("İşte kesin arıza", ["kesin arıza"]), ["kesin arıza"])
+        self.assertEqual(forbidden_terms_in("toplam 5kWh", ["kW"]), ["kW"])
+        self.assertEqual(forbidden_terms_in("tasarrufu artar", ["tasarruf"]), ["tasarruf"])
+
+    def test_does_not_match_inside_a_longer_word(self):
+        self.assertEqual(forbidden_terms_in("a backward step", ["kW"]), [])
+        self.assertEqual(forbidden_terms_in("veri kesintisi", ["kesin arıza"]), [])
+
+
+class CatalogCoverageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def test_versions_match_the_contract(self):
+        self.assertEqual(self.catalog["catalog_version"], CATALOG_VERSION)
+        self.assertEqual(self.catalog["evidence_schema_version"], SCHEMA_VERSION)
+        self.assertEqual(self.catalog["recommendation_library_version"], LIBRARY_VERSION)
+
+    def test_code_lists_agree_between_typescript_and_python(self):
+        # The catalog follows the contract; if its two sources disagree, that is reported here.
+        self.assertEqual(typescript_union_members("ReasonCode"), REASON_CODES)
+        self.assertEqual(typescript_union_members("RecommendationCode"), set(RECOMMENDATION_BY_KIND.values()))
+        self.assertEqual(typescript_union_members("EvidenceKind"), set(RECOMMENDATION_BY_KIND))
+
+    def test_every_reason_code_has_a_value_format_and_a_text_in_both_languages(self):
+        codes = typescript_union_members("ReasonCode") | REASON_CODES
+        self.assertEqual(set(self.catalog["reason_value_formats"]), codes)
+        for language_code in LANGUAGES:
+            reasons = self.catalog["languages"][language_code]["reasons"]
+            with self.subTest(language=language_code):
+                # Equal sets: no code is missing and no unknown code (a typo) is present.
+                self.assertEqual(set(reasons), codes)
+                for code in codes:
+                    self.assertTrue(reasons[code].strip(), code)
+
+    def test_every_recommendation_code_has_a_first_check_and_steps_in_both_languages(self):
+        codes = typescript_union_members("RecommendationCode") | set(RECOMMENDATION_BY_KIND.values())
+        for language_code in LANGUAGES:
+            recommendations = self.catalog["languages"][language_code]["recommendations"]
+            with self.subTest(language=language_code):
+                self.assertEqual(set(recommendations), codes)
+                for code in codes:
+                    self.assertTrue(recommendations[code]["first_check"].strip(), code)
+                    self.assertGreater(len(recommendations[code]["steps"]), 0, code)
+                    for step in recommendations[code]["steps"]:
+                        self.assertTrue(step.strip(), code)
+
+    def test_every_case_kind_and_origin_has_a_summary_in_both_languages(self):
+        kinds = typescript_union_members("EvidenceKind")
+        origins = typescript_union_members("EvidenceOrigin")
+        for language_code in LANGUAGES:
+            summary = self.catalog["languages"][language_code]["summary"]
+            with self.subTest(language=language_code):
+                self.assertEqual(set(summary), kinds)
+                for kind in kinds:
+                    self.assertEqual(set(summary[kind]), origins)
+                    for origin in origins:
+                        self.assertTrue(summary[kind][origin].strip(), f"{kind}.{origin}")
+
+    def test_limitations_note_label_and_forbidden_terms_exist_in_both_languages(self):
+        kinds = typescript_union_members("EvidenceKind")
+        for language_code in LANGUAGES:
+            language = self.catalog["languages"][language_code]
+            with self.subTest(language=language_code):
+                self.assertEqual(set(language["limitations"]), {"always", "synthetic", *kinds})
+                self.assertGreater(len(language["limitations"]["always"]), 0)
+                self.assertGreater(len(language["limitations"]["synthetic"]), 0)
+                self.assertTrue(language["human_decision_note"].strip())
+                self.assertTrue(language["labels"]["synthetic"].strip())
+                self.assertGreater(len(language["forbidden_terms"]), 0)
+
+
+class TemplateRuleTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def test_placeholders_name_contract_fields_and_known_formats(self):
+        case_fields = typescript_interface_fields("EvidenceCaseSummary") | typescript_interface_fields("EvidenceCase")
+        synthetic_fields = typescript_interface_fields("SyntheticInjection")
+        reason_fields = typescript_interface_fields("EvidenceReason")
+        for name, placeholder in self.catalog["placeholders"].items():
+            source = placeholder["source"].split(".")
+            with self.subTest(placeholder=name):
+                if source[0] == "reason":
+                    self.assertEqual(len(source), 2)
+                    self.assertIn(source[1], reason_fields)
+                elif len(source) == 3:
+                    self.assertEqual(source[:2], ["case", "synthetic"])
+                    self.assertIn(source[2], synthetic_fields)
+                else:
+                    self.assertEqual(source[0], "case")
+                    self.assertIn(source[1], case_fields)
+                self.assertIn(placeholder["format"], self.catalog["formats"])
+
+    def test_every_placeholder_in_a_text_is_listed_and_no_stray_brace_remains(self):
+        listed = set(self.catalog["placeholders"])
+        for language_code in LANGUAGES:
+            for location, text in language_texts(self.catalog["languages"][language_code]):
+                with self.subTest(language=language_code, location=location):
+                    for name in PLACEHOLDER_PATTERN.findall(text):
+                        self.assertIn(name, listed)
+                    without_placeholders = PLACEHOLDER_PATTERN.sub("", text)
+                    self.assertNotIn("{", without_placeholders)
+                    self.assertNotIn("}", without_placeholders)
+
+    def test_placeholders_are_used_only_where_their_evidence_exists(self):
+        for language_code in LANGUAGES:
+            language = self.catalog["languages"][language_code]
+            for code, template in language["reasons"].items():
+                with self.subTest(language=language_code, reason=code):
+                    # A reason sentence shows its own value exactly once and nothing else.
+                    self.assertEqual(PLACEHOLDER_PATTERN.findall(template), ["value"])
+            for kind, templates_by_origin in language["summary"].items():
+                for origin, template in templates_by_origin.items():
+                    names = PLACEHOLDER_PATTERN.findall(template)
+                    with self.subTest(language=language_code, summary=f"{kind}.{origin}"):
+                        self.assertNotIn("value", names)
+                        if origin == "observed":
+                            # Observed cases have no synthetic details (synthetic is null).
+                            self.assertEqual([name for name in names if name.startswith("synthetic.")], [])
+            fixed_texts = [language["human_decision_note"], language["labels"]["synthetic"]]
+            for recommendation in language["recommendations"].values():
+                fixed_texts += [recommendation["first_check"], *recommendation["steps"]]
+            for sentences in language["limitations"].values():
+                fixed_texts += sentences
+            for text in fixed_texts:
+                with self.subTest(language=language_code, text=text):
+                    self.assertEqual(PLACEHOLDER_PATTERN.findall(text), [])
+
+    def test_static_text_has_no_number_of_its_own(self):
+        for language_code in LANGUAGES:
+            for location, text in language_texts(self.catalog["languages"][language_code]):
+                with self.subTest(language=language_code, location=location):
+                    static_text = PLACEHOLDER_PATTERN.sub("", text)
+                    self.assertEqual(numbers_in(static_text), [], text)
+
+    def test_no_forbidden_term_in_any_text(self):
+        terms = all_forbidden_terms(self.catalog)
+        for language_code in LANGUAGES:
+            for location, text in language_texts(self.catalog["languages"][language_code]):
+                with self.subTest(language=language_code, location=location):
+                    self.assertEqual(forbidden_terms_in(text, terms), [], text)
+
+    def test_forbidden_terms_cover_the_contract_wording_rules(self):
+        # Contract rules 1 and 2 and the MVP wording rules: unit claims, fault claims, fault
+        # probabilities, savings and money. Each sample must be caught by its language's list.
+        samples = {
+            "tr": ["15 kWh", "3 kW", "Arıza doğrulandı", "ARIZA DOĞRULANDI", "kesin arıza",
+                   "%90 arıza olasılığı", "tasarruf sağlar", "120 TL", "maliyeti düşer"],
+            "en": ["15 kWh", "3 kW", "Fault confirmed", "a 90% fault probability",
+                   "the likelihood of a fault", "savings", "$40", "lower cost"],
+        }
+        for language_code, phrases in samples.items():
+            terms = self.catalog["languages"][language_code]["forbidden_terms"]
+            for phrase in phrases:
+                with self.subTest(language=language_code, phrase=phrase):
+                    self.assertNotEqual(forbidden_terms_in(phrase, terms), [])
+
+    def test_synthetic_summaries_carry_the_label_and_observed_summaries_do_not(self):
+        for language_code in LANGUAGES:
+            language = self.catalog["languages"][language_code]
+            label = language["labels"]["synthetic"]
+            for kind, templates_by_origin in language["summary"].items():
+                with self.subTest(language=language_code, kind=kind):
+                    self.assertIn(label, templates_by_origin["synthetic"])
+                    self.assertNotIn(label, templates_by_origin["observed"])
+
+
+class FormattingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def test_turkish_formats(self):
+        formatting = self.catalog["languages"]["tr"]["formatting"]
+        self.assertEqual(format_value(0.41, "share", formatting), "%41")
+        self.assertEqual(format_value(0.58, "share", formatting), "%58")
+        self.assertEqual(format_value(0.1278, "share", formatting), "%12,78")
+        self.assertEqual(format_value(0.31, "signed_share", formatting), "+%31")
+        self.assertEqual(format_value(-0.05, "signed_share", formatting), "-%5")
+        self.assertEqual(format_value(3.2, "statistic", formatting), "3,2")
+        self.assertEqual(format_value(4, "count", formatting), "4")
+        self.assertEqual(format_value(90001, "identifier", formatting), "90001")
+        self.assertEqual(format_value("2018-07-07", "date", formatting), "7 Temmuz 2018")
+        self.assertEqual(format_value(None, "share", formatting), "hesaplanmadı")
+        self.assertEqual(formatting["unit_hours_label"], "kaynak birimi × saat")
+
+    def test_english_formats(self):
+        formatting = self.catalog["languages"]["en"]["formatting"]
+        self.assertEqual(format_value(0.41, "share", formatting), "41%")
+        self.assertEqual(format_value(0.58, "share", formatting), "58%")
+        self.assertEqual(format_value(0.1278, "share", formatting), "12.78%")
+        self.assertEqual(format_value(0.31, "signed_share", formatting), "+31%")
+        self.assertEqual(format_value(-0.05, "signed_share", formatting), "-5%")
+        self.assertEqual(format_value(3.2, "statistic", formatting), "3.2")
+        self.assertEqual(format_value(4, "count", formatting), "4")
+        self.assertEqual(format_value(90001, "identifier", formatting), "90001")
+        self.assertEqual(format_value("2018-07-07", "date", formatting), "7 July 2018")
+        self.assertEqual(format_value(None, "share", formatting), "not computed")
+        self.assertEqual(formatting["unit_hours_label"], "source unit × hours")
+
+    def test_every_reason_renders_a_number_and_a_null_value(self):
+        # Made-up sample values, one per value format; null must read as "not computed", never 0.
+        sample_values = {"share": 0.25, "signed_share": 0.1, "statistic": 2.5, "count": 3}
+        terms = all_forbidden_terms(self.catalog)
+        for language_code in LANGUAGES:
+            language = self.catalog["languages"][language_code]
+            formatting = language["formatting"]
+            for code, template in language["reasons"].items():
+                value_format = self.catalog["reason_value_formats"][code]
+                with self.subTest(language=language_code, reason=code):
+                    number_value = format_value(sample_values[value_format], value_format, formatting)
+                    with_number = fill(template, {"value": number_value})
+                    with_null = fill(template, {"value": format_value(None, value_format, formatting)})
+                    self.assertNotIn("{", with_number + with_null)
+                    self.assertIn(number_value, with_number)
+                    self.assertIn(formatting["null_text"], with_null)
+                    self.assertEqual(numbers_in(with_null), [])
+                    self.assertEqual(forbidden_terms_in(with_number + " " + with_null, terms), [])
+
+
+class FixtureRenderingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+        cls.cases = load_fixture_cases()
+
+    def case(self, case_id: str) -> dict:
+        return next(case for case in self.cases if case["case_id"] == case_id)
+
+    def test_fixture_cases_are_the_made_up_ones(self):
+        # The fixtures are fully synthetic (made-up households from 90001), never real data.
+        self.assertEqual(len(self.cases), 4)
+        for case in self.cases:
+            self.assertGreaterEqual(case["household_id"], 90001)
+
+    def test_every_fixture_case_renders_completely_in_both_languages(self):
+        terms = all_forbidden_terms(self.catalog)
+        for case in self.cases:
+            for language_code in LANGUAGES:
+                with self.subTest(case=case["case_id"], language=language_code):
+                    explanation = render_explanation(case, self.catalog, language_code)
+                    text = explanation_text(explanation)
+                    self.assertNotIn("{", text)
+                    self.assertNotIn("}", text)
+                    self.assertIsNone(re.search(r"\b(None|null|undefined|NaN)\b", text))
+                    self.assertEqual(forbidden_terms_in(text, terms), [])
+                    self.assertEqual(len(explanation["reasons"]), len(case["reasons"]))
+
+    def test_every_explanation_ends_with_the_human_decision_note(self):
+        for case in self.cases:
+            for language_code in LANGUAGES:
+                note = self.catalog["languages"][language_code]["human_decision_note"]
+                with self.subTest(case=case["case_id"], language=language_code):
+                    text = explanation_text(render_explanation(case, self.catalog, language_code))
+                    self.assertTrue(text.endswith(note))
+
+    def test_synthetic_cases_carry_the_synthetic_label(self):
+        for case in self.cases:
+            for language_code in LANGUAGES:
+                label = self.catalog["languages"][language_code]["labels"]["synthetic"]
+                with self.subTest(case=case["case_id"], language=language_code):
+                    summary = render_explanation(case, self.catalog, language_code)["summary"]
+                    if case["origin"] == "synthetic":
+                        self.assertIn(label, summary)
+                    else:
+                        self.assertNotIn(label, summary)
+
+    def test_numbers_and_dates_come_from_the_evidence(self):
+        # Hand-written expectations for the observed fixture case: onset 2018-07-03, rule met
+        # 2018-07-04, last day 2018-07-05, three flagged days; reasons z 2.6, upper-bound
+        # share 0.41, three consecutive days, excess share 0.18.
+        case = self.case("SW-HVAC-90003-20180703-ACU")
+        expected = {
+            "tr": {"dates": ["3 Temmuz 2018", "4 Temmuz 2018", "5 Temmuz 2018"],
+                   "reasons": [["2,6"], ["41"], ["3"], ["18"]], "shares": ["%41", "+%18"]},
+            "en": {"dates": ["3 July 2018", "4 July 2018", "5 July 2018"],
+                   "reasons": [["2.6"], ["41"], ["3"], ["18"]], "shares": ["41%", "+18%"]},
+        }
+        for language_code, expectation in expected.items():
+            explanation = render_explanation(case, self.catalog, language_code)
+            with self.subTest(language=language_code):
+                self.assertIn("90003", explanation["summary"])
+                for date_text in expectation["dates"]:
+                    self.assertIn(date_text, explanation["summary"])
+                reason_numbers = [numbers_in(sentence) for sentence in explanation["reasons"]]
+                self.assertEqual(reason_numbers, expectation["reasons"])
+                self.assertIn(expectation["shares"][0], explanation["reasons"][1])
+                self.assertIn(expectation["shares"][1], explanation["reasons"][3])
+
+    def test_synthetic_details_come_from_the_evidence(self):
+        # The synthetic fixture case SW-SYN-HVAC-90002-20180722-CHR was injected from
+        # 2018-07-18 for 14 days; the summary shows both values.
+        case = self.case("SW-SYN-HVAC-90002-20180722-CHR")
+        tr_summary = render_explanation(case, self.catalog, "tr")["summary"]
+        en_summary = render_explanation(case, self.catalog, "en")["summary"]
+        self.assertIn("18 Temmuz 2018", tr_summary)
+        self.assertIn("14", numbers_in(tr_summary))
+        self.assertIn("18 July 2018", en_summary)
+        self.assertIn("14", numbers_in(en_summary))
+
+
+if __name__ == "__main__":
+    unittest.main()
