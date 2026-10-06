@@ -11,6 +11,8 @@ analizler de buraya yazılır.
 
 ## 2026-10-06
 
+- Alarm bütçesi (Yusuf), dedektör sonuçları görülmeden: 21 hanede ayda en fazla 2 tüketim sapması
+  vakası; eşik Haziran'da seçilir, Temmuz'da değişmez ([decisions.md](decisions.md)).
 - Yusuf'un onayıyla push: `feat/ml-foundation`'daki 2 commit ve `feat/mvp`; taslak
   [PR #2](https://github.com/BerkeDurdu/SilentWatt/pull/2), taban PR #1. Push öncesi typecheck, build,
   80 ML testi, CLI ve pip check geçti; diff'te ham veri, artifact ve parola yok.

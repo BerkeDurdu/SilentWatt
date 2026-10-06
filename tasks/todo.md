@@ -194,13 +194,16 @@ veriden türetilir (Haziran'da eşik, Temmuz'da değerlendirme, PRD v1.1 değerl
       sentetik enjeksiyon, kanıt yazıcı ve doğrulayıcı (25 test).
 - [ ] `p1-v3` (Q-03, asimetrik CQR): önce `calibrate` ve `apply_calibration` için davranışı koruyan
       düzenleme, sonra önce yazılan testler ve değişiklik; config ve protokol `p1-v3`; P1 yeniden
-      koşusu; rapor, koşu kaydı, notebook 02'nin G bölümü ve kilidi.
+      koşusu; rapor, koşu kaydı, notebook 02'nin G bölümü ve kilidi. Notebook'un H bölümündeki eşik
+      seçimi önerisi alarm bütçesi kararına göre güncellenir.
 - [ ] ML hattı: `detection/pipeline.py`, ayrı dedektör config'i (ana config hash'i değişmesin),
       kaynaklı sentetik plan (`configs/ml/synthetic-mvp.json`), `detect` komutu. Önce yazılan test
       `tasks/paused/test_detection_pipeline.py`'de; ayarları ana config'te varsayıyor, ayrı
       config'e göre güncellenecek.
-- [ ] Eşik karşılaştırması (PRD v1.1 başlangıç değerleri, Haziran tabanlı, tarama): enjeksiyonsuz
-      Temmuz'daki vaka sayısı ile sentetik yakalama oranı birlikte; alarm bütçesi kararı (Yusuf).
+- [x] Alarm bütçesi (Yusuf, 6 Ekim, dedektör sonuçları görülmeden): 21 hanede ayda en fazla 2 tüketim
+      sapması vakası; akut ve kronik ayrı ayrı en fazla 1; veri sorunu vakaları bütçe dışında.
+- [ ] Eşik seçimi: Haziran'da bütçeyi aşmayan en hassas eşik; Temmuz'da eşik değişmez, değiştirilmemiş
+      Temmuz'daki vaka sayısı ve sentetik yakalama oranı raporlanır; PRD v1.1 başlangıç değerleri yan yana.
 - [ ] PRD v2.0 (sayılar `p1_report_tables.py` ve dedektör değerlendirmesinden).
 - [ ] Birleştirme, denetçi agent'ı (test dönemi, yasak ifade, eşik, testler), demo senaryosu, prova.
 - [ ] 30 Ekim'e: derin öğrenme, buzdolabı, kör test, 2361/3039 donma incelemesi (Q-01), hafta günü

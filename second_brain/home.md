@@ -64,7 +64,8 @@ C Yusuf Ziya Demirel (AI/ML). İki parça var: rol bazlı web konsolu (React + E
 2. `p1-v3` (asimetrik CQR, Q-03): önce davranışı koruyan düzenleme ve testler, sonra P1 koşusu.
 3. Dedektör hattı: ayrı dedektör config'i, kaynaklı sentetik plan, `detect` komutu; park edilen
    test `tasks/paused/` altında.
-4. Eşik karşılaştırması ve alarm bütçesi; gerçek kanıt dosyaları (Temmuz yeniden oynatma, sentetik).
+4. Eşik seçimi (alarm bütçesi: 21 hanede ayda en fazla 2 vaka, eşik Haziran'da); gerçek kanıt
+   dosyaları (Temmuz yeniden oynatma, sentetik).
 5. PRD v2.0 (sayılar [p1_report_tables.py](../docs/product/ekler/p1_report_tables.py) ile);
    ekiple birleştirme, demo senaryosu ve prova.
 6. Sonra (30 Ekim): derin öğrenme, buzdolabı, kör test, Q-01 donma incelemesi, hafta günü (Q-16),
