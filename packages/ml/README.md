@@ -27,7 +27,7 @@ silentwatt-ml baseline \
 
 The baseline learns target quantiles by outside-temperature bin and local hour, with temperature-only and global fallbacks. All tables use training data only. Observed hourly weather makes this a retrospective expected-consumption benchmark, not a future-weather forecast. No calibration or daily maintenance decision is performed.
 
-Evaluation defaults to `development`. Final test requires both `--evaluation-split test --allow-test`, after model/config freeze. The flag records intentional access; it is not an access-control system. The initial foundation run already inspected household 661's test metrics: that historical result is exploratory, not a pristine blind holdout.
+Evaluation defaults to `development`, and a development run drops test-period rows before any target value is read. Final test requires both `--evaluation-split test --allow-test`, after model/config freeze. The flag records intentional access; it is not an access-control system. The initial foundation run already inspected household 661's test metrics: that historical result is exploratory, not a pristine blind holdout.
 
 Every expected evaluation slot appears in `predictions.csv`. Missing/invalid targets, missing weather and temperatures outside the observed training range are explicit statuses. Unsupported predictions have no numeric quantile. Metrics use supported, valid rows only; always publish scored/expected counts and exclusion counts with coverage and width. Exclusion counts can overlap. Neither forecast error nor point coverage is an event-level detection metric.
 
@@ -40,6 +40,11 @@ The base lock still supports standalone audit/baseline. P1 comparison and the fu
 - Source CSV files are read-only.
 - `air1` is a conditional target pending provider metadata confirmation.
 - Source values remain `source_unit_unverified` until the power unit is confirmed.
+- Target dead band (D-04, decided 2026-10-06): `target_dead_band` in the config (0.01).
+  Readings with |air1| ≤ 0.01 are the off state and read as 0; readings below −0.01 are
+  invalid. Sensors rest at slightly different levels around zero, so the earlier rule
+  (every negative reading is invalid) selected households by sensor offset. The source
+  CSV is never changed.
 - Cohort candidates use valid training-period coverage and training-period exclusion channels only. Annual audit statistics are descriptive inventory. Candidates are not certified healthy or ready for deployment.
 - Generated results are artifacts, not product claims.
 
@@ -71,12 +76,18 @@ Outputs:
 
 - `report.json`: config/source/code/runtime provenance, cohort reasons, B0 tables,
   feature order, B1 settings, calibration profiles, household/month metrics,
-  paired development screening, and hashes of the other output files.
+  paired development screening, and hashes of the other output files. Since
+  p1-v2 every metric record also reports `upper_exceedance` and `lower_exceedance`
+  (share of calibrated slots above the upper / below the lower bound) and
+  `running_calibrated_coverage` over slots with target above
+  `p1.evaluation.running_threshold` (0.3): off slots on a zero lower bound flatter
+  the two-sided coverage, and a detector reads the upper side.
 - `predictions.csv`: all expected calibration/development slots for both models,
   raw ordered q05/q50/q95, calibrated lower/upper (null when pending), per-slot
   and daily eligibility/status. Calibration metrics are in-sample diagnostics.
 - `daily-quality.csv`: train/calibration/development local-day denominators,
-  missing/null/negative/invalid/weather/freeze/support counts and exclusion reasons.
+  missing/null/negative (below the dead band)/dead band/invalid/weather/freeze/support
+  counts and exclusion reasons. Dead band slots read as 0 and stay valid.
 - `B1-models.joblib`: locally fitted B1 estimators by household/quantile. These
   files are generated internally; no loader for untrusted model files is supplied.
 
@@ -92,7 +103,10 @@ not be described as identical to the old all-valid-slot baseline.
 Daily gates use the PRD's 95% joint coverage and DST-aware 92/96/100-slot days.
 Any temperature outside the fitted train range blocks that day. Exact positive
 runs of 16 slots trigger provisional freeze suspicion, using past values only;
-zero/off runs are exempt. This is a research policy, not a validated sensor-fault
-threshold. It can exclude legitimate low-power standby operation and substantially
-reduce training data. See the [frozen protocol](../../docs/architecture/p1-ml-protocol.md)
-and [measured P1 report](../../docs/project-status/p1-ml-results-2026-09-17.md).
+zero/off runs are exempt, and since p1-v2 off-state readings inside the dead band
+read as 0, so a sensor resting at +0.004 no longer trips the rule (household 6139:
+9 → 150 eligible train days). This is a research policy, not a validated sensor-fault
+threshold; constant standby readings above the dead band can still trip it (Q-01).
+See the [protocol](../../docs/architecture/p1-ml-protocol.md), the
+[p1-v1 report](../../docs/project-status/p1-ml-results-2026-09-17.md) and the
+[p1-v2 report](../../docs/project-status/p1-v2-results-2026-10-06.md).

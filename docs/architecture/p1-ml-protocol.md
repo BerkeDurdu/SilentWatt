@@ -2,13 +2,15 @@
 
 Status: conditional offline experiment, not G0/production approval. P0 was rechecked
 before implementation; its incorrect HTML success count was corrected. Source
-units, interval semantics, `air1` mapping, negative policy and final cohort approval
-remain open in the P0 decision log. Source values and cohort/split thresholds stay unchanged.
+units, interval semantics and `air1` mapping remain open in the P0 decision log. The
+negative policy and the cohort were decided on 2026-10-06 and define p1-v2 (see the
+section at the end). Source values and cohort/split thresholds stay unchanged.
 
 ## Predeclared protocol
 
 - Cohort: recompute existing train-only rules; never choose households by development
-  performance. Existing Austin candidates are expected to remain eight.
+  performance. Existing Austin candidates are expected to remain eight (p1-v1;
+  21 under the p1-v2 dead band).
 - B0: existing empirical temperature/hour quantiles and fallbacks. B1: per-household
   `HistGradientBoostingRegressor(loss="quantile")`, q05/q50/q95, 100 iterations,
   learning rate 0.1, 15 leaves, minimum leaf size 20, seed 42. Early stopping is
@@ -64,6 +66,28 @@ Use a fresh output directory; never overwrite sources. Synthetic tests cover
 future-target invariance, calibration isolation, rank edge cases, chronological
 freeze flags, DST, empty groups and deterministic output. Large artifacts stay
 outside Git; a compact development report is committed after the run.
+
+## p1-v2 (2026-10-06)
+
+p1-v2 keeps every rule above and adds two things. With `target_dead_band` set to 0,
+a p1-v2 run reproduces the p1-v1 development run of 2026-09-17 (run03) exactly.
+
+- **Target dead band (D-04, decided 2026-10-06).** Sensors rest at slightly different
+  levels around zero while the unit is off (−0.001 in one household, +0.004 in
+  another). Readings with |air1| ≤ `target_dead_band` (0.01) are the off state and
+  read as 0; readings below −0.01 stay invalid (`negative_target`); the source is never
+  changed. Daily quality reports `dead_band_slots`. Because the freeze rule follows
+  positive values only, off-state readings can no longer start a freeze run. The
+  cohort becomes 21 candidates instead of 8; the count follows from the rule and was
+  not a target. Evidence: `docs/product/ekler/review_dead_band_cohort.py`.
+- **Report metrics.** Every metric record also reports `upper_exceedance` and
+  `lower_exceedance` (share of calibrated slots above the upper / below the lower
+  bound) and `running_calibrated_coverage`, the coverage over slots with target above
+  `p1.evaluation.running_threshold` (0.3, the air1-active level of the 2026-09-27
+  HVAC review). Off slots that sit on a zero lower bound flatter the two-sided
+  coverage, and a detector reads the upper side. The screening rule above is unchanged.
+
+Development results: [P1 v2 report](../project-status/p1-v2-results-2026-10-06.md).
 
 Method references: [CQR paper](https://papers.neurips.cc/paper/8613-conformalized-quantile-regression.pdf),
 [sklearn HGB API](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html).
