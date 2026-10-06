@@ -147,24 +147,35 @@ def _run_household(config: ProjectConfig, paths: dict, household: int, raw: pd.D
 
 
 def run_comparison(config: ProjectConfig, data_dir: Path) -> ComparisonResult:
+    """P1: fit B0 and B1 on train, calibrate on June, compare on July (development) only."""
     if 'p1' not in config.raw:
         raise ValueError('P1 settings are required for comparison')
-    paths = require_files(data_dir, {k: config.files[k] for k in ('electric_15m', 'weather')})
+    paths = require_files(data_dir, {key: config.files[key] for key in ('electric_15m', 'weather')})
+
+    # 1. Cohort from train rows only; test rows never leave the loader.
     raw, cohort = _load_training_cohort(config, paths['electric_15m'])
-    candidates = [r['household_id'] for r in cohort if r['candidate']]
+    candidates = [record['household_id'] for record in cohort if record['candidate']]
     if not candidates:
         raise ValueError('No candidates under unchanged training cohort rules')
     _, weather = weather_frame(paths['weather'], config)
-    predictions, days, metadata, fitted = [], [], [], {}
+
+    # 2. Fit, calibrate and predict each candidate household.
+    predictions = []
+    days = []
+    metadata = []
+    fitted = {}
     for household in candidates:
         group = raw.loc[raw[config.columns['household_id']].eq(household)]
-        predicted, daily, meta, models = _run_household(config, paths, household, group, weather)
+        predicted, daily, household_metadata, models = _run_household(config, paths, household, group, weather)
         predictions.extend(predicted)
         days.append(daily)
-        metadata.append(meta)
+        metadata.append(household_metadata)
         fitted[household] = models
     predictions = pd.concat(predictions, ignore_index=True).sort_values(['household_id', 'model', 'split', 'ts_utc'])
+
+    # 3. Metrics per household and month, then the development-only screening.
     records = grouped_metrics(predictions)
+    comparison = comparison_summary(predictions, records, candidates)
     report = {
         'schema_version': 'p1-1.0', 'protocol': config.raw['p1'],
         'source_unit': 'source_unit_unverified', 'evaluation_split': 'development',
@@ -179,7 +190,7 @@ def run_comparison(config: ProjectConfig, data_dir: Path) -> ComparisonResult:
         'model_runtime': {name: version(name) for name in
                           ('scikit-learn', 'scipy', 'joblib', 'threadpoolctl', 'narwhals', 'cloudpickle')},
         'candidate_household_ids': candidates, 'cohort': cohort, 'households': metadata,
-        'metrics': records, 'comparison': comparison_summary(predictions, records, candidates),
+        'metrics': records, 'comparison': comparison,
         'limitations': [
             'Physical units, interval semantics and device mapping remain unverified.',
             'Cohort candidates are not certified healthy devices or final team-approved households.',
