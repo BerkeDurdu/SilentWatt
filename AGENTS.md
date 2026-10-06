@@ -32,6 +32,7 @@ These hold unless the project owner or the team decides otherwise. Open items an
 - The `ponytail` family kept under `.codex/skills/` is not used; this project prefers readable, explainable code over minimal code.
 - Use subagents only when work can be meaningfully isolated or parallelized.
 - Keep each subagent focused on one well-defined responsibility.
+- Give each subagent its success criteria, file scope and verification commands; a subagent that meets an inconsistency reports it instead of guessing.
 
 ### 3. Preserve Scope
 
@@ -44,6 +45,7 @@ These hold unless the project owner or the team decides otherwise. Open items an
 
 - Never mark work complete without evidence that it works.
 - Run the relevant tests, checks, builds, or data validations.
+- For detector, data-rule and metric code, write the test that defines success before the implementation.
 - For ML/data changes, check for leakage, reproducibility, and invalid assumptions.
 - Compare behavior before and after the change when relevant.
 - Report failed or unavailable verification honestly.
@@ -55,6 +57,7 @@ These hold unless the project owner or the team decides otherwise. Open items an
 - Keep the call flow easy to trace: do not add layers or helpers only to make code shorter, and do not merge distinct steps to save lines.
 - Code written before these rules is not refactored on its own. When a task changes an existing function, first bring that function to this standard in a separate behavior-preserving commit (tests pass, outputs unchanged), then make the functional change. Untouched code stays as it is.
 - After a code change, explain what changed, why, how the new code works step by step, and how it was verified.
+- After a change, list code that became unused and ask before removing it.
 - Fix root causes rather than masking symptoms.
 - Avoid temporary fixes unless explicitly justified and documented.
 - Do not introduce unnecessary abstractions or dependencies.
@@ -81,3 +84,4 @@ For substantial tasks:
 - Preserve reproducibility.
 - Keep changes scoped and reviewable.
 - Existing working behavior should not be changed without a reason.
+- When a request conflicts with an invariant, the evidence or an earlier decision, say so with the concrete consequence and an alternative before acting; the owner decides.
