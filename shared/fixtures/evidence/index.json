@@ -1,0 +1,184 @@
+{
+  "schema_version": "silentwatt.evidence/0.1",
+  "generated_at_utc": "2026-10-06T00:00:00Z",
+  "fixture": true,
+  "run": {
+    "run_id": "fixture-0.1",
+    "source_run": "fixture (made-up values)",
+    "dataset_id": "fixture",
+    "protocol_version": "p1-v2",
+    "model": "B0",
+    "replay_window": {
+      "split": "development",
+      "start_local_date": "2018-07-01",
+      "end_local_date": "2018-08-01"
+    },
+    "unit": "source_unit_unverified",
+    "households": 4,
+    "detector": {
+      "version": "detector-0.1",
+      "acute": {
+        "z_threshold": 2.0,
+        "exceedance_share_threshold": 0.2,
+        "consecutive_days": 2
+      },
+      "chronic": {
+        "k": 0.5,
+        "h": 5.0,
+        "positive_days": 3,
+        "window_days": 5
+      },
+      "data_issue": {
+        "consecutive_days": 2
+      },
+      "threshold_provenance": "fixture: illustrative values, not evaluated"
+    },
+    "synthetic_plan": {
+      "plan_id": "fixture",
+      "generator_version": "fixture",
+      "seed": 100,
+      "scenarios": [
+        {
+          "scenario": "step_increase",
+          "fault_kind": null,
+          "severity": 0.3,
+          "duration_days": 7
+        },
+        {
+          "scenario": "ramp_increase",
+          "fault_kind": null,
+          "severity": 0.2,
+          "duration_days": 14
+        },
+        {
+          "scenario": "data_fault",
+          "fault_kind": "outage",
+          "severity": null,
+          "duration_days": 3
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "clean_household_days": 40,
+    "false_cases_on_clean_data": 1,
+    "synthetic_cases": 3,
+    "synthetic_detected": 3,
+    "by_scenario": [
+      {
+        "scenario": "step_increase",
+        "fault_kind": null,
+        "severity": 0.3,
+        "duration_days": 7,
+        "injected": 1,
+        "detected": 1,
+        "median_delay_days": 1
+      },
+      {
+        "scenario": "ramp_increase",
+        "fault_kind": null,
+        "severity": 0.2,
+        "duration_days": 14,
+        "injected": 1,
+        "detected": 1,
+        "median_delay_days": 9
+      },
+      {
+        "scenario": "data_fault",
+        "fault_kind": "outage",
+        "severity": null,
+        "duration_days": 3,
+        "injected": 1,
+        "detected": 1,
+        "median_delay_days": 1
+      }
+    ],
+    "data_faults_caught_by_quality_gate": 1
+  },
+  "cases": [
+    {
+      "case_id": "SW-SYN-HVAC-90001-20180707-ACU",
+      "origin": "synthetic",
+      "household_id": 90001,
+      "family": "hvac",
+      "circuit": "air1",
+      "kind": "consumption_deviation",
+      "detectors": [
+        "acute"
+      ],
+      "onset_local_date": "2018-07-07",
+      "detected_local_date": "2018-07-08",
+      "last_local_date": "2018-07-10",
+      "flagged_days": 4,
+      "excess_share": 0.31,
+      "upper_exceedance_share": 0.41,
+      "rank": 1,
+      "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 1,
+      "recommendation_code": "HVAC_PERSISTENT_INCREASE"
+    },
+    {
+      "case_id": "SW-SYN-HVAC-90002-20180722-CHR",
+      "origin": "synthetic",
+      "household_id": 90002,
+      "family": "hvac",
+      "circuit": "air1",
+      "kind": "consumption_deviation",
+      "detectors": [
+        "chronic"
+      ],
+      "onset_local_date": "2018-07-22",
+      "detected_local_date": "2018-07-27",
+      "last_local_date": "2018-07-31",
+      "flagged_days": 10,
+      "excess_share": 0.12,
+      "upper_exceedance_share": 0.41,
+      "rank": 2,
+      "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 2,
+      "recommendation_code": "HVAC_PERSISTENT_INCREASE"
+    },
+    {
+      "case_id": "SW-HVAC-90003-20180703-ACU",
+      "origin": "observed",
+      "household_id": 90003,
+      "family": "hvac",
+      "circuit": "air1",
+      "kind": "consumption_deviation",
+      "detectors": [
+        "acute"
+      ],
+      "onset_local_date": "2018-07-03",
+      "detected_local_date": "2018-07-04",
+      "last_local_date": "2018-07-05",
+      "flagged_days": 3,
+      "excess_share": 0.18,
+      "upper_exceedance_share": 0.41,
+      "rank": 3,
+      "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 3,
+      "recommendation_code": "HVAC_PERSISTENT_INCREASE"
+    },
+    {
+      "case_id": "SW-SYN-HVAC-90004-20180724-DQ",
+      "origin": "synthetic",
+      "household_id": 90004,
+      "family": "hvac",
+      "circuit": "air1",
+      "kind": "data_issue",
+      "detectors": [
+        "data_quality"
+      ],
+      "onset_local_date": "2018-07-24",
+      "detected_local_date": "2018-07-25",
+      "last_local_date": "2018-07-26",
+      "flagged_days": 3,
+      "excess_share": null,
+      "upper_exceedance_share": null,
+      "rank": 4,
+      "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 3,
+      "recommendation_code": "DATA_SOURCE_CHECK"
+    }
+  ]
+}

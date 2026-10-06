@@ -174,3 +174,24 @@ uygulamasıyla 25 hanede slot slot aynı: 21 aday. Yeni metrikler geçici hesab�
 tekrarladı (B0 üst aşım %12,78, çalışırken kapsama %80,77). `git diff --check` temiz;
 bağlantı kontrolü temiz. Push yapılmadı. İlk deneme `wip/dead-band-first-pass` dalında
 (`dbf65bb`) arşivli; silinmesi kullanıcı kararı.
+
+# MVP (9 Ekim 2026) — uçtan uca HVAC dikey dilimi
+
+Dal: `feat/mvp`. Kararlar (5–6 Ekim): yalnız HVAC (`air1`), 21 hane, Temmuz yeniden oynatma ve
+sentetik vakalar (test ayları yok); açıklama önce şablon; konsol ve API'yi agent'lar yazar,
+Berke ve Muharrem PR'da inceler; push yok. PRD v1.1'in dedektör eşikleri ve sentetik ızgarası
+doğru kabul edilmez: yöntem iskeleti alınır, değerler veriden türetilir (Haziran'da eşik, Temmuz'da
+değerlendirme, PRD v1.1 değerleri yan yana raporlanır).
+
+- [x] Faz 0: kanıt sözleşmesi v0.1 (`docs/architecture/evidence-contract.md`, `shared/evidence.ts`),
+      tamamen sentetik örnek dosyalar ve üreticisi, açıklama arayüzü (`server/explain/index.ts`).
+- [ ] Web agent'ı (API + konsol, kendi worktree'sinde): kanıt dosyalarından vaka listesi ve detayı,
+      iş akışı, kWh/olasılık/İzmir dilinin kaldırılması, testler.
+- [ ] Açıklama agent'ı (`server/explain/`): şablon kütüphanesi, metin kalkanı, testler.
+- [ ] ML (ben): sözleşme doğrulayıcı (Python), günlük istatistikler, akut ve kronik dedektör, veri
+      sorunu kuralı, sentetik üretici (kaynaklı şiddet ızgarası), değerlendirme, kanıt yazıcı, CLI.
+- [ ] Eşik–yanlış alarm eğrisi (Haziran) ve alarm bütçesi kararı (Yusuf).
+- [ ] PRD v2.0 (sayılar `p1_report_tables.py` ve dedektör değerlendirmesinden).
+- [ ] Birleştirme, denetçi agent'ı (test dönemi, yasak ifade, eşik, testler), demo senaryosu, prova.
+- [ ] 30 Ekim'e: EDA notebook `02` (21 hane, p1-v2 artifact'larına kilitli), derin öğrenme, buzdolabı,
+      kör test, üst sınırın ayrı kalibrasyonu (Q-03), 2361/3039 donma incelemesi (Q-01).
