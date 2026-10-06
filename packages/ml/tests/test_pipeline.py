@@ -136,6 +136,18 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(after.metrics.mae_median, 999)
         self.assertEqual(after.metrics.interval_coverage, 0)
 
+    def test_development_baseline_never_reads_test_targets(self):
+        # Day four is the test split; its readings must not reach cleaning or quality counts.
+        self.electric.loc[288:290, "air1"] = -5.0
+        self.write_sources()
+        result = self.run_model()
+        self.assertEqual(result.metadata["quality"]["source_rows"], 288)
+        self.assertEqual(result.metadata["quality"]["invalid_or_missing_target_rows"], 0)
+        # An explicitly unlocked test run still reads the test day, invalid readings included.
+        unlocked = self.run_model(evaluation_split="test", allow_test=True)
+        self.assertEqual(unlocked.metadata["quality"]["source_rows"], 384)
+        self.assertEqual(unlocked.metadata["quality"]["invalid_or_missing_target_rows"], 3)
+
     def test_locked_test_requires_explicit_access(self):
         with self.assertRaisesRegex(ValueError, "Locked test"):
             self.run_model(evaluation_split="test")
