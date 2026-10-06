@@ -30,36 +30,41 @@ class ComparisonResult:
 
 
 def _load_training_cohort(config: ProjectConfig, path: Path) -> tuple[pd.DataFrame, list[dict]]:
-    cols = config.columns
-    usecols = list(dict.fromkeys([cols['household_id'], cols['timestamp_15m'], cols['target'],
-                                 *config.raw['cohort']['exclude_if_observed']]))
-    end = pd.Timestamp(config.raw['splits_local_date']['development'][1], tz=config.timezone)
+    """Rows up to the end of development and the train-only eligibility record per household."""
+    columns = config.columns
+    household_column = columns['household_id']
+    usecols = list(dict.fromkeys([household_column, columns['timestamp_15m'], columns['target'],
+                                  *config.raw['cohort']['exclude_if_observed']]))
+    development_end = pd.Timestamp(config.raw['splits_local_date']['development'][1], tz=config.timezone)
     chunks = []
     for chunk in iter_electric(path, usecols=usecols):
-        ts = electric_timestamps(chunk[cols['timestamp_15m']])
-        if ts.isna().any():
+        timestamps = electric_timestamps(chunk[columns['timestamp_15m']])
+        if timestamps.isna().any():
             raise ValueError('Invalid source timestamps; resolve source audit first')
         # Test readings are excluded before target cleaning, features, fitting or quality metrics.
-        chunk = chunk.loc[ts.lt(end)].copy()
-        chunk['_ts'] = ts.loc[chunk.index]
+        chunk = chunk.loc[timestamps.lt(development_end)].copy()
+        chunk['_ts'] = timestamps.loc[chunk.index]
         chunks.append(chunk)
     frame = pd.concat(chunks, ignore_index=True)
-    ids = pd.to_numeric(frame[cols['household_id']], errors='coerce')
-    if (~np.isfinite(ids) | ids.ne(ids.round())).any():
+
+    household_ids = pd.to_numeric(frame[household_column], errors='coerce')
+    if (~np.isfinite(household_ids) | household_ids.ne(household_ids.round())).any():
         raise ValueError('Invalid household identifiers')
     if frame['_ts'].ne(frame['_ts'].dt.floor('15min')).any():
         raise ValueError('Off-grid source timestamps; resolve source audit first')
-    frame['_target'] = valid_target(frame[cols['target']])
-    start, end = (pd.Timestamp(s, tz=config.timezone)
-                  for s in config.raw['splits_local_date']['train'])
-    expected = int((end - start).total_seconds() / 900)
+    frame['_target'] = valid_target(frame[columns['target']])
+
+    # Cohort eligibility uses train rows only; the denominator counts elapsed slots (DST-safe).
+    train_start = pd.Timestamp(config.raw['splits_local_date']['train'][0], tz=config.timezone)
+    train_end = pd.Timestamp(config.raw['splits_local_date']['train'][1], tz=config.timezone)
+    expected = int((train_end - train_start).total_seconds() / 900)
     records = []
-    for household, group in frame.groupby(cols['household_id'], sort=True):
-        train = group.loc[group['_ts'].ge(start) & group['_ts'].lt(end)]
+    for household, group in frame.groupby(household_column, sort=True):
+        train = group.loc[group['_ts'].ge(train_start) & group['_ts'].lt(train_end)]
         duplicates = train['_ts'].duplicated(keep=False)
         clean = train.loc[~duplicates & slot_mask(train['_ts'], config)]
-        records.append({'household_id': int(household),
-                        **training_cohort_record(clean, bool(duplicates.any()), config, expected)})
+        eligibility = training_cohort_record(clean, bool(duplicates.any()), config, expected)
+        records.append({'household_id': int(household), **eligibility})
     return frame, records
 
 

@@ -35,46 +35,66 @@ def _prepare_frame(
     *, raw: pd.DataFrame | None = None, weather: pd.DataFrame | None = None,
     end_before: pd.Timestamp | None = None,
 ) -> tuple[pd.DataFrame, dict]:
+    """One household on the full 15-minute UTC grid with target labels, weather and local time.
+
+    Rows from end_before onward are dropped before any target value is used, so callers keep
+    the test period out of every calculation.
+    """
     columns = config.columns
+    target_column = columns["target"]
+
+    # 1. Read the household's rows unless the caller already has them.
     if raw is None:
         raw = read_household_electric(
             paths["electric_15m"], household_column=columns["household_id"],
             household_id=household_id,
-            usecols=[columns["household_id"], columns["timestamp_15m"], columns["target"]],
+            usecols=[columns["household_id"], columns["timestamp_15m"], target_column],
         )
-    ts = electric_timestamps(raw[columns["timestamp_15m"]])
+    timestamps = electric_timestamps(raw[columns["timestamp_15m"]])
     if end_before is not None:
-        raw = raw.loc[ts.lt(end_before)]
-        ts = ts.loc[raw.index]
-    target = valid_target(raw[columns["target"]])
-    valid_slot = slot_mask(ts, config)
-    numeric = pd.to_numeric(raw[columns["target"]], errors="coerce")
+        raw = raw.loc[timestamps.lt(end_before)]
+        timestamps = timestamps.loc[raw.index]
+
+    # 2. Accepted target values and one quality label per reading.
+    target = valid_target(raw[target_column])
+    valid_slot = slot_mask(timestamps, config)
+    numeric = pd.to_numeric(raw[target_column], errors="coerce")
     measurement = pd.Series("ok", index=raw.index)
-    measurement.loc[raw[columns["target"]].isna()] = "null_target"
-    measurement.loc[raw[columns["target"]].notna() & ~np.isfinite(numeric)] = "invalid_target"
+    measurement.loc[raw[target_column].isna()] = "null_target"
+    measurement.loc[raw[target_column].notna() & ~np.isfinite(numeric)] = "invalid_target"
     measurement.loc[np.isfinite(numeric) & numeric.lt(0)] = "negative_target"
-    selected = pd.DataFrame({"ts_utc": ts[valid_slot], "target": target[valid_slot],
+
+    # 3. Keep rows on the analysis grid; duplicate keys must be resolved at the source.
+    selected = pd.DataFrame({"ts_utc": timestamps[valid_slot], "target": target[valid_slot],
                              "target_quality": measurement[valid_slot]})
     if selected["ts_utc"].duplicated().any():
         raise ValueError("Duplicate electricity timestamps: resolve source keys before modeling")
-    start, end = (pd.Timestamp(config.raw["analysis_window_utc"][key]) for key in ("start", "end"))
+
+    # 4. Place them on the full grid, so absent rows stay visible as "missing_row".
+    grid_start = pd.Timestamp(config.raw["analysis_window_utc"]["start"])
+    grid_end = pd.Timestamp(config.raw["analysis_window_utc"]["end"])
     if end_before is not None:
-        end = min(end, end_before).tz_convert(start.tz)
-    grid = pd.DataFrame({"ts_utc": pd.date_range(start, end, freq="15min", inclusive="left")})
+        grid_end = min(grid_end, end_before).tz_convert(grid_start.tz)
+    grid = pd.DataFrame({"ts_utc": pd.date_range(grid_start, grid_end, freq="15min", inclusive="left")})
     frame = grid.merge(selected, how="left", on="ts_utc", validate="one_to_one")
     frame["target_quality"] = frame["target_quality"].fillna("missing_row")
+
+    # 5. Hourly temperature: every slot takes the reading of its UTC hour.
     if weather is None:
         _, weather = weather_frame(paths["weather"], config)
     frame["weather_ts_utc"] = frame["ts_utc"].dt.floor("h")
     frame = frame.merge(weather, on="weather_ts_utc", how="left", validate="many_to_one")
-    local = frame["ts_utc"].dt.tz_convert(config.timezone)
-    frame["local_date"] = local.dt.date.astype(str)
-    frame["local_hour"] = local.dt.hour
-    width = float(config.raw["baseline"]["temperature_bin_c"])
-    frame["temperature_bin_c"] = np.floor(frame["temperature_c"] / width) * width
+
+    # 6. Local calendar features and the temperature bin of the empirical baseline.
+    local_time = frame["ts_utc"].dt.tz_convert(config.timezone)
+    frame["local_date"] = local_time.dt.date.astype(str)
+    frame["local_hour"] = local_time.dt.hour
+    bin_width = float(config.raw["baseline"]["temperature_bin_c"])
+    frame["temperature_bin_c"] = np.floor(frame["temperature_c"] / bin_width) * bin_width
+
     quality = {
         "source_rows": len(raw),
-        "invalid_timestamp_rows": int(ts.isna().sum()),
+        "invalid_timestamp_rows": int(timestamps.isna().sum()),
         "excluded_timestamp_rows": int((~valid_slot).sum()),
         "invalid_or_missing_target_rows": int(target.isna().sum()),
     }
