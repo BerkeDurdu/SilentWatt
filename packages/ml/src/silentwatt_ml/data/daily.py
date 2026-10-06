@@ -18,13 +18,20 @@ def freeze_flags(frame: pd.DataFrame, minimum_slots: int) -> pd.Series:
 
 def daily_quality(frame: pd.DataFrame, timezone: str, settings: dict,
                   temperature_range: tuple[float, float] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Frame must be a unique ordered UTC 15m grid, for one household only."""
+    """Slot validity and the local-day research gate for one household.
+
+    Frame must be a unique ordered UTC 15m grid, for one household only. A local day is
+    eligible when enough of its slots are valid, no freeze run is suspected (while freeze
+    blocking is on) and no slot lies outside the training temperature range.
+    """
     frame = frame.copy()
-    ts = frame['ts_utc']
-    if ts.isna().any() or ts.duplicated().any() or not ts.is_monotonic_increasing:
+    timestamps = frame['ts_utc']
+    if timestamps.isna().any() or timestamps.duplicated().any() or not timestamps.is_monotonic_increasing:
         raise ValueError('Daily quality requires valid unique ordered timestamps')
-    if ts.ne(ts.dt.floor('15min')).any():
+    if timestamps.ne(timestamps.dt.floor('15min')).any():
         raise ValueError('Daily quality requires a 15-minute grid')
+
+    # 1. Slot flags: freeze suspicion, temperature support, validity.
     frame['frozen_suspected'] = freeze_flags(frame, settings['frozen_run_slots'])
     weather_ok = np.isfinite(frame['temperature_c'])
     frame['out_of_support'] = False
@@ -34,11 +41,14 @@ def daily_quality(frame: pd.DataFrame, timezone: str, settings: dict,
     frame['slot_valid'] = (np.isfinite(frame['target']) & frame['target'].ge(0)
                            & weather_ok & ~excluded_freeze)
     frame['slot_supported'] = frame['slot_valid'] & ~frame['out_of_support']
+
+    # 2. One summary row per local day.
     rows = []
     for day, group in frame.groupby('local_date', sort=True):
-        start = pd.Timestamp(day, tz=timezone)
-        end = pd.Timestamp((start.date() + pd.Timedelta(days=1)).isoformat(), tz=timezone)
-        expected = int((end - start).total_seconds() / 900)
+        # Elapsed slots of the local day: 92 or 100 on DST change days, 96 otherwise.
+        day_start = pd.Timestamp(day, tz=timezone)
+        next_day_start = pd.Timestamp((day_start.date() + pd.Timedelta(days=1)).isoformat(), tz=timezone)
+        expected = int((next_day_start - day_start).total_seconds() / 900)
         missing_grid = expected - len(group)
         if missing_grid < 0:
             raise ValueError('Too many slots for local day')
@@ -52,21 +62,28 @@ def daily_quality(frame: pd.DataFrame, timezone: str, settings: dict,
             reasons.append('frozen_suspected')
         if unsupported:
             reasons.append('temperature_out_of_support')
+        labels = group['target_quality']
         rows.append({
-            'local_date': day, 'expected_slots': expected,
-            'missing_row_slots': int(group['target_quality'].eq('missing_row').sum()) + missing_grid,
-            'null_target_slots': int(group['target_quality'].eq('null_target').sum()),
-            'negative_target_slots': int(group['target_quality'].eq('negative_target').sum()),
-            'invalid_target_slots': int(group['target_quality'].eq('invalid_target').sum()),
+            'local_date': day,
+            'expected_slots': expected,
+            'missing_row_slots': int(labels.eq('missing_row').sum()) + missing_grid,
+            'null_target_slots': int(labels.eq('null_target').sum()),
+            'negative_target_slots': int(labels.eq('negative_target').sum()),
+            'invalid_target_slots': int(labels.eq('invalid_target').sum()),
             'missing_weather_slots': int((~np.isfinite(group['temperature_c'])).sum()),
-            'frozen_suspected_slots': frozen, 'out_of_support_slots': unsupported,
-            'valid_joint_slots': valid, 'supported_slots': int(group['slot_supported'].sum()),
-            'valid_joint_coverage': valid / expected, 'day_eligible': not reasons,
+            'frozen_suspected_slots': frozen,
+            'out_of_support_slots': unsupported,
+            'valid_joint_slots': valid,
+            'supported_slots': int(group['slot_supported'].sum()),
+            'valid_joint_coverage': valid / expected,
+            'day_eligible': not reasons,
             'reasons': '|'.join(reasons) if reasons else 'ok',
         })
     days = pd.DataFrame(rows)
     if days.empty:
         raise ValueError('Daily quality needs at least one local day')
+
+    # 3. A slot is eligible only on an eligible day and inside temperature support.
     frame = frame.merge(days[['local_date', 'day_eligible']], on='local_date', validate='many_to_one')
     frame['eligible'] = frame['day_eligible'] & frame['slot_supported']
     return frame, days
