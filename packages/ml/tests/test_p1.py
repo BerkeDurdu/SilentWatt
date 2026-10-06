@@ -135,7 +135,7 @@ class QualityCalibrationTests(unittest.TestCase):
                               'month': ['2018-06', '2018-07', '2018-07', '2018-07'],
                               'target': [1., 3., 3., 1.], 'q05': 0., 'q50': 1., 'q95': 2.,
                               'lower': 0., 'upper': 2., 'eligible': True, 'slot_supported': True})
-        records = {r['month']: r for r in grouped_metrics(frame) if r['population'] == 'daily_qualified'}
+        records = {r['month']: r for r in grouped_metrics(frame, 0.3) if r['population'] == 'daily_qualified'}
         self.assertEqual(records['2018-06']['calibrated_coverage'], 1.)
         self.assertAlmostEqual(records['2018-07']['calibrated_coverage'], 1 / 3)
         self.assertEqual(records['all']['calibrated_coverage'], .5)
@@ -143,11 +143,11 @@ class QualityCalibrationTests(unittest.TestCase):
     def test_empty_metrics_are_null_not_zero_success(self):
         frame = pd.DataFrame({'target': [1.], 'q05': [0.], 'q50': [1.], 'q95': [2.],
                               'lower': [np.nan], 'upper': [np.nan]})
-        result = metrics(frame, pd.Series([False]))
+        result = metrics(frame, pd.Series([False]), 0.3)
         self.assertIsNone(result['raw_coverage'])
         self.assertIsNone(result['mean_pinball'])
         self.assertEqual(result['status'], 'no_eligible_slots')
-        self.assertIsNone(metrics(frame, pd.Series([True]))['calibrated_coverage'])
+        self.assertIsNone(metrics(frame, pd.Series([True]), 0.3)['calibrated_coverage'])
 
 
 class ComparisonTests(unittest.TestCase):

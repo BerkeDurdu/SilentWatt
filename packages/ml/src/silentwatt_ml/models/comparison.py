@@ -174,8 +174,9 @@ def run_comparison(config: ProjectConfig, data_dir: Path) -> ComparisonResult:
     predictions = pd.concat(predictions, ignore_index=True).sort_values(['household_id', 'model', 'split', 'ts_utc'])
 
     # 3. Metrics per household and month, then the development-only screening.
-    records = grouped_metrics(predictions)
-    comparison = comparison_summary(predictions, records, candidates)
+    running_threshold = config.raw['p1']['evaluation']['running_threshold']
+    records = grouped_metrics(predictions, running_threshold)
+    comparison = comparison_summary(predictions, records, candidates, running_threshold)
     report = {
         'schema_version': 'p1-1.0', 'protocol': config.raw['p1'],
         'source_unit': 'source_unit_unverified', 'evaluation_split': 'development',

@@ -47,6 +47,9 @@
       "minimum_days": 14,
       "minimum_slots": 1000
     },
+    "evaluation": {
+      "running_threshold": 0.3
+    },
     "quantile_model": {
       "max_iter": 100,
       "max_leaf_nodes": 15,
