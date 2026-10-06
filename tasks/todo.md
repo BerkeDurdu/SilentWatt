@@ -144,3 +144,33 @@ aralığın %100'ü tolerans içinde; izlenen pay medyan 0,720; bayrak uyumu
 yok, `home.md` 80 satır, `git diff --check` temiz. Paket kodu, config, eşik, PRD,
 tarihli raporlar ve kök dosyalar değişmedi; test dönemi hiçbir kanal için
 okunmadı. Commit/push yapılmadı.
+
+# Ölü bant (D-04) ve 21 hane — 6 Ekim 2026
+
+Dal: `feat/mvp`. Kullanıcı kararı (6 Ekim): `air1` için ±0,01 simetrik ölü bant; 21 haneyle
+devam. Kullanıcı talimatı: takvim gerekçesiyle hiçbir kural atlanmaz; AGENTS.md §5 her değişen
+fonksiyona tam uygulanır. Test dönemi kapalı kalır.
+
+- [x] Kanıt: `review_dead_band_cohort.py` (yalnız train) — `b6e49b6`.
+- [x] Değişecek her fonksiyon önce davranışı koruyarak okunur hâle getirildi — `dd15f91`.
+- [x] Önce testler, sonra ölü bant: config `target_dead_band`, protokol `p1-v2`, etiketler,
+      günlük `dead_band_slots`, P0 betiğinin sıfır olmayan bandı reddetmesi — `89a4c67`.
+- [x] Bulunan eski sızıntı: `baseline` development koşusu test satırlarını okuyordu;
+      okunabilirlik commit'i ve testi önce yazılmış düzeltme — `52019c2`, `d7ae6ed`.
+- [x] Geçici hesaplanan metrikler pakete testleriyle: üst/alt sınır aşımı, çalışırken kapsama;
+      önce davranışı koruyan düzenleme — `3ee229f`, `f660801`.
+- [x] Belgeler: P1 protokolüne p1-v2 bölümü, paket README'si, tarihli rapor ve tablo betiği
+      (`p1_report_tables.py`) — `2033da4`. Notebook README'si (notebook P0 koduna bağlı).
+- [x] `second_brain`: kararlar, koşu kaydı, sözlük, veri ve ML haritası, notlar, günlük, durum.
+
+## Doğrulama / inceleme
+
+55 ML testi ve notebook testleri geçiyor (çıkış kodu 0). Yeni testler koddan önce yazıldı ve
+değişiklikten önce başarısız oldu (ölü bant: 12, metrikler: 7, sızıntı: 1). Okunabilirlik
+commit'lerinin her birinden önce ve sonra gerçek veriyle audit JSON'u, P0 diagnostikleri,
+hane 661 baseline'ı ve P1 çıktıları aynı; P1 17 Eylül run03 ile bayt bayt aynı. Ölü bant 0
+ile son kod run03'ü birebir veriyor. Ölü bant 0,01 ile paket audit'i kanıt betiğinin bağımsız
+uygulamasıyla 25 hanede slot slot aynı: 21 aday. Yeni metrikler geçici hesabı birebir
+tekrarladı (B0 üst aşım %12,78, çalışırken kapsama %80,77). `git diff --check` temiz;
+bağlantı kontrolü temiz. Push yapılmadı. İlk deneme `wip/dead-band-first-pass` dalında
+(`dbf65bb`) arşivli; silinmesi kullanıcı kararı.

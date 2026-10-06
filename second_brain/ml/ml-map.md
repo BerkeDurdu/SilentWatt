@@ -17,7 +17,7 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 |---|---|
 | Pipeline sınırı ve backend sözleşmesi | [ml-pipeline.md](../../docs/architecture/ml-pipeline.md) |
 | Önceden dondurulmuş P1 protokolü | [p1-ml-protocol.md](../../docs/architecture/p1-ml-protocol.md) |
-| P1 sonuçları (development) | [P1 raporu](../../docs/project-status/p1-ml-results-2026-09-17.md) |
+| P1 sonuçları (development) | [p1-v1 raporu](../../docs/project-status/p1-ml-results-2026-09-17.md) · [p1-v2 raporu](../../docs/project-status/p1-v2-results-2026-10-06.md) |
 | Komutlar ve çıktı biçimleri | [packages/ml/README.md](../../packages/ml/README.md) |
 | Ayarlar (`baseline`, `p1` blokları) | [configs/ml/austin-2018.json](../../configs/ml/austin-2018.json) |
 | Tahmin görevi, dönemler, konformal profil | PRD §7 |
@@ -38,7 +38,15 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 - **Değerlendirme:** yalnız Temmuz; iki model aynı slotlarda karşılaştırılır. Birincil
   ölçüt eşit hane ağırlıklı pinball; B1 seçim kuralı protokolde.
 
-## Sonuç (P1, 2026-09-17)
+## Sonuç (p1-v2, 2026-10-06)
+
+- 21 hane (ölü bant ±0,01). Karar `retain_B0`. Eşit hane pinball: B0 0,1771, B1 0,2353.
+- Kalibre kapsama B0 %86,25, B1 %83,68. **Üst sınır aşımı B0 %12,78, B1 %16,31** (hedef ≈ %5);
+  klima çalışırken kapsama B0 %80,77 (n = 25.403). Değerlendirilen pay %59,7.
+- Model davranışı 8 haneden 21 haneye neredeyse aynı: sorun cohort'ta değil, modelde ve
+  kalibrasyonda (Haziran → Temmuz kayması, Q-03).
+
+## Önceki sonuç (p1-v1, 2026-09-17)
 
 - Karar `retain_B0`. Eşit hane ağırlıklı pinball: B0 0,168172, B1 0,216709.
 - Kalibre kapsama: B0 %86,687, B1 %84,370; ikisi de %87–93 hedefinin altında (Q-03).
@@ -81,5 +89,4 @@ testi (`notebooks/test_support.py`) CI dışında (Q-07).
 ## Açık konular
 
 KPI durumu, Q-01 (donma kuralının eğitim verisine etkisi), Q-02 (kör test verisi),
-Q-03 (kapsama), A-04 (mevsim desteği), D-04 (negatif politikası eğitim popülasyonunu
-etkiliyor). Ayrıntı: [decisions.md](../decisions.md).
+Q-03 (kapsama ve üst sınır aşımı), A-04 (mevsim desteği). D-04 2026-10-06'da kapandı (ölü bant). Ayrıntı: [decisions.md](../decisions.md).

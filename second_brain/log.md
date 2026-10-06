@@ -1,13 +1,38 @@
 ---
 type: log
 area: process
-updated: 2026-09-26
+updated: 2026-10-06
 ---
 
 # Günlük
 
 En yeni kayıt üstte. Her kayıt 2–4 satır ve bağlantılardan oluşur. Commit'e dönüşmeyen
 analizler de buraya yazılır.
+
+## 2026-10-06
+
+- D-04 ve D-05 kapandı: ±0,01 ölü bant, 21 hane, P1 protokolü `p1-v2`. AGENTS.md §5 tam
+  uygulandı: önce davranışı koruyan okunabilirlik commit'leri, sonra testi önce yazılmış
+  değişiklik. Ölü bant 0 ile 17 Eylül run03 birebir çıkıyor ([p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md)).
+- Yeni testli metrikler: üst sınır aşımı B0 %12,78 (hedef ≈ %5), klima çalışırken kapsama %80,77.
+  `baseline` komutundaki test dönemi sızıntısı düzeltildi. Model davranışı cohort'tan bağımsız (Q-03).
+- `AGENTS.md`'ye dört kural (alt agent talimatı, önce test, kullanılmayan kod, itiraz). İlk
+  deneme `wip/dead-band-first-pass` dalında arşivli. Commit'ler `feat/mvp`'de; push yok.
+
+## 2026-10-05
+
+- Durum değerlendirmesi ve agent orkestrasyon planı. Kararlar: MVP yalnız HVAC, açıklama önce
+  şablonla, konsol/API'yi agent'lar yazar, `feat/mvp` dalı ([decisions.md](decisions.md)).
+- Kaynak dosyalar SHA-256 ile P0 kaydına karşı doğrulandı; repo kökündeki 2,8 GB kopya silindi.
+- Negatif ve donma kuralının cohort etkisi ölçüldü: ölü bantla 8 → 21 aday
+  ([kanıt betiği](../docs/product/ekler/review_dead_band_cohort.py)).
+
+## 2026-09-28
+
+- Eski metrikler paket kodu kullanılmadan yeniden hesaplandı: sayılar doğru, metrik seçimi
+  yanıltıcı (üst sınır aşımı %13–16, iki taraflı kapsama sıfırlarla şişiyor).
+- Yön kararları: önce ürün; derin öğrenme tezin çekirdeği; ajanlar demo; HVAC → buzdolabı →
+  GES. Staj 9 Ekim'de biter (çalışan MVP), teknik sunum 30 Ekim. PRD v2.0 kanıttan yazılacak.
 
 ## 2026-09-27
 

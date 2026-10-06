@@ -1,7 +1,7 @@
 ---
 type: guide
 area: process
-updated: 2026-09-27
+updated: 2026-10-06
 ---
 
 # Sözlük
@@ -20,16 +20,16 @@ PRD = [Teknik PRD v1.1](../docs/product/SilentWatt-Teknik-PRD-v1.1.md).
 | Kaynak birimi (source unit) | Kanıtlar kW cinsinden aralık ortalamasını gösteriyor (D-01 öneri hazır), ama ekip kararına kadar değerler kW/kWh diye sunulmaz. | D-01, [kaynak anlamı notu](data/source-semantics-evidence.md) |
 | Slot | 15 dakikalık zaman aralığı. Normal gün 96, ileri saate geçiş günü 92, geri saate geçiş günü 100 slot. Zaman damgası aralığın başı; değer, aralıktaki 1 dk değerlerin ortalaması (D-02 öneri hazır). | PRD §5.3, D-02 |
 | Beklenen slot (payda) | Takvimden hesaplanan slot sayısı; dosyadaki satır sayısı değil. Train: 14.492 / hane. | P0 §2 |
-| Geçerli slot | Dönem içinde, 15 dk ızgarasında, tekil anahtarlı, sonlu ve ≥ 0 hedef. | P0 §2 |
+| Geçerli slot | Dönem içinde, 15 dk ızgarasında, tekil anahtarlı, sonlu ve ≥ −0,01 hedef (ölü bant; 6 Ekim öncesi ≥ 0). | P0 §2, D-04 |
 | Veri kapsamı | Geçerli slot / beklenen slot. Bant kapsamasıyla karıştırılmamalı. | P0 §2 |
-| Cohort / teknik aday | Train kapsamı ≥ %95, `air2`/`airwindowunit1` gözlenmemiş, yinelenen anahtar yok. Sağlıklı cihaz anlamına gelmez. | P0 §2, D-05 |
+| Cohort / teknik aday | 21 hane (2026-10-06). Train kapsamı ≥ %95, `air2`/`airwindowunit1` gözlenmemiş, yinelenen anahtar yok. Sağlıklı cihaz anlamına gelmez. | P0 §2, D-05 |
 | Ek kanal kuralı | `air2` veya `airwindowunit1` train'de bir kez bile doluysa (sıfır dahil) hane dışlanır. | [config](../configs/ml/austin-2018.json) |
 | Dönemler (split) | Train Oca–May, calibration Haz, development Tem, test Ağu–Ara (kapalı). Sınırlar yerel tarihtir. | [config](../configs/ml/austin-2018.json) |
 | Günlük kalite kapısı | Günlük hedef+hava kapsamı ≥ %95, donma şüphesi yok, sıcaklık destek içinde. | Protokol |
-| Donma şüphesi | 16 ardışık özdeş pozitif değer (4 saat); 16. slottan itibaren işaretlenir; sıfırlar muaf. Doğrulanmış arıza değildir. | Protokol, Q-01 |
+| Donma şüphesi | 16 ardışık özdeş pozitif değer (4 saat); 16. slottan itibaren işaretlenir; sıfırlar ve ölü banttaki kapalı okumalar muaf. Doğrulanmış arıza değildir. | Protokol, Q-01 |
 | Sıcaklık desteği | Hanenin kalite sonrası train slotlarındaki sıcaklık min–max aralığı. | Protokol |
 | Destek dışı (out of support) | Sıcaklık bu aralığın dışında. Günün tek slotu bile öyleyse gün dışlanır. | Protokol, A-04 |
-| Ölü bant (deadband) | Öneri: mutlak değeri ε'dan küçük veya eşit okumalar "kapalı" sayılır. Henüz kural değil. | [not](data/negative-values-sensor-floor.md) |
+| Ölü bant (dead band) | Kural (D-04, 2026-10-06): \|air1\| ≤ 0,01 kapalı durumdur ve 0 okunur; air1 < −0,01 geçersizdir. Sensörler kapalıyken sıfırın çevresinde farklı seviyelerde durduğu için. Config: `target_dead_band`. | [not](data/negative-values-sensor-floor.md), [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
 | Ekipman ailesi | Aynı fiziksel davranışı paylaşan hedef kanal grubu: HVAC (`air1` + `furnace1`), buzdolabı, GES. Kapsam önerisi; henüz karar değil. | Q-13, [kapsam önerisi](product/scope-broadening-proposal.md) |
 | İzlenen pay | Devre toplamının hane tüketimine (`grid` + `solar`) oranı; train medyanı 0,720. | [kanal notu](data/channel-inventory-and-metadata.md) |
 | Taban yük | Evde sürekli çalışan yüklerin oluşturduğu en düşük tüketim seviyesi; gece tüketimiyle ölçülür. | Q-13 |
@@ -44,6 +44,8 @@ PRD = [Teknik PRD v1.1](../docs/product/SilentWatt-Teknik-PRD-v1.1.md).
 | Kuantil (q05, q50, q95) | Beklenen tüketimin %5, %50 ve %95 seviyeleri; q05–q95 tahmin bandını verir. | PRD §7.3 |
 | Pinball kaybı | Kuantil tahmin hatası; düşük daha iyi. Birincil ölçüt: eşit hane ağırlıklı ortalama. | P1 |
 | Bant kapsaması | Gerçek değerin banda düşme oranı (nominal %90, hedef %87–93). Olay yakalama oranı veya arıza olasılığı değildir. | KPI-02 |
+| Üst sınır aşımı | Gerçek değerin kalibre üst sınırın üstünde kaldığı slot payı; %90'lık bantta hedef ≈ %5. Dedektör "beklenenden fazla" sinyalini bu taraftan okur. p1-v2: B0 %12,78. | [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
+| Çalışırken kapsama | Bant kapsamasının yalnız klima çalışırken (air1 > 0,3) hesaplanmış hâli. Kapalı slotlar 0'daki alt sınıra oturup iki taraflı kapsamayı iyi gösterdiği için ayrıca raporlanır. | [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
 | CQR | Conformalized quantile regression. Bandı yalnız calibration (Haziran) hatalarından hesaplanan qhat kadar genişletir. | Protokol |
 | qhat | CQR'ın bant düzeltme payı; ≥ 0. | P1 |
 | `calibration_pending` | Hanede 14 uygun gün ve 1.000 slot yoksa kalibre sınırlar boş kalır. | Protokol |
