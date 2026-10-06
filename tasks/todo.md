@@ -192,6 +192,9 @@ veriden türetilir (Haziran'da eşik, Temmuz'da değerlendirme, PRD v1.1 değerl
       6 Ekim'de oturum kapanırken durduruldu, commit yoktu.
 - [x] ML çekirdeği (`09d5e98`): günlük istatistikler, akut ve kronik kurallar, veri sorunu kuralı,
       sentetik enjeksiyon, kanıt yazıcı ve doğrulayıcı (25 test).
+- [ ] `p1-v3` (Q-03, asimetrik CQR): önce `calibrate` ve `apply_calibration` için davranışı koruyan
+      düzenleme, sonra önce yazılan testler ve değişiklik; config ve protokol `p1-v3`; P1 yeniden
+      koşusu; rapor, koşu kaydı, notebook 02'nin G bölümü ve kilidi.
 - [ ] ML hattı: `detection/pipeline.py`, ayrı dedektör config'i (ana config hash'i değişmesin),
       kaynaklı sentetik plan (`configs/ml/synthetic-mvp.json`), `detect` komutu. Önce yazılan test
       `tasks/paused/test_detection_pipeline.py`'de; ayarları ana config'te varsayıyor, ayrı
@@ -200,8 +203,8 @@ veriden türetilir (Haziran'da eşik, Temmuz'da değerlendirme, PRD v1.1 değerl
       Temmuz'daki vaka sayısı ile sentetik yakalama oranı birlikte; alarm bütçesi kararı (Yusuf).
 - [ ] PRD v2.0 (sayılar `p1_report_tables.py` ve dedektör değerlendirmesinden).
 - [ ] Birleştirme, denetçi agent'ı (test dönemi, yasak ifade, eşik, testler), demo senaryosu, prova.
-- [ ] 30 Ekim'e: derin öğrenme, buzdolabı, kör test, 2361/3039 donma incelemesi (Q-01). EDA notebook
-      `02` öne alındı (aşağıdaki bölüm); Q-03'ün zamanı EDA sonrası kararda.
+- [ ] 30 Ekim'e: derin öğrenme, buzdolabı, kör test, 2361/3039 donma incelemesi (Q-01), hafta günü
+      (Q-16), kısmi gün (Q-18), mevsime duyarlı eğitim (Q-19). EDA notebook `02` öne alındı.
 
 # EDA notebook 02 — 21 hane (6–7 Ekim 2026)
 
@@ -222,9 +225,9 @@ yalnız P1 özetleri (günlük kalite, rapor metrikleri); test kapalı.
 - [x] Kayıtlar: `notebooks/README.md` (02 bölümü), `second_brain` (koşu kaydı: run04 ve EDA;
       günlük; kararlar: Q-03, A-04, Q-01, D-03 güncellendi, Q-15–Q-17 eklendi). Notebook dosyaları
       ve üretici betik (`notebooks/build_02_cohort_eda_21.py`) Q-09 kararına kadar commit edilmez.
-- [ ] Model tarafı kararlar (Yusuf/ekip), dedektörün gerçek veri koşusundan önce: üst sınırın ayrı
-      kalibrasyonu (Q-03), eğitimin Haziran'ı kapsaması (A-04), hafta günü özelliği (Q-16),
-      olağandışı train günleri (Q-17).
+- [x] Model tarafı kararlar (Yusuf, 6 Ekim): Q-03 evet (`p1-v3`), A-04 Haziran eğitime katılmaz,
+      Q-16 ertelendi, Q-17 çıkarılmaz; Q-15 önerisi Muharrem'in onayında. Takip: Q-18, Q-19 (30 Ekim).
+      Ölçüm betikleri `tasks/paused/` altında.
 
 ## Doğrulama / inceleme
 
