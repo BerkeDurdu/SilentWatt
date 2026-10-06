@@ -9,7 +9,16 @@ updated: 2026-09-26
 En yeni kayıt üstte. Her kayıt 2–4 satır ve bağlantılardan oluşur. Commit'e dönüşmeyen
 analizler de buraya yazılır.
 
-## 2026-09-26
+## 2026-09-27
+
+- Teknik sunum geri bildirimi ("yalnız klima arızasına odaklanmayın") üzerine kapsam
+  önerisi hazırlandı: HVAC, buzdolabı, GES (Q-13, [kapsam önerisi](product/scope-broadening-proposal.md)).
+- Birim ve aralık kanıtı (yalnız train): değerler kW aralık ortalamasıyla tutarlı, 15 dk
+  etiketi aralığın başı. D-01 ve D-02 öneri hazır, D-03 kanıt toplanıyor
+  ([kaynak anlamı notu](data/source-semantics-evidence.md)).
+- Dataport metadata dosyası `../dataset/` altına taşındı (hash aynı); bayrakların %98,2'si
+  veriyle uyumlu ([kanal notu](data/channel-inventory-and-metadata.md)). Dört inceleme
+  betiği `docs/product/ekler/` altında. Veri kullanımı kararı: tez, ticari olmayan kullanım.
 
 - Claude Code uygunluk değerlendirmesi: testler, typecheck ve bağlantılar temiz; 17 bulgu.
   Yüksek öncelikli dördü kapatıldı: `AGENTS.md`'ye "Session Start" ve §5 eski kod kuralı;

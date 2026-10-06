@@ -2,8 +2,8 @@
 type: map
 area: data
 status: aktif
-related: [D-01, D-02, D-03, D-04, D-05, A-03, A-04, Q-01]
-updated: 2026-09-22
+related: [D-01, D-02, D-03, D-04, D-05, A-03, A-04, Q-01, Q-13, Q-14]
+updated: 2026-09-27
 ---
 
 # Veri haritası
@@ -22,6 +22,7 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 | Günlük kalite politikası v1 | [P1 protokolü](../../docs/architecture/p1-ml-protocol.md) |
 | Bağımsız yeniden hesap ve grafikler | [Veri anlama notebook'u](../../notebooks/01_data_understanding.ipynb) · [README](../../notebooks/README.md) |
 | Tarihsel envanter (15 Eylül) | `docs/product/ekler/dataset-audit-2026-09-15.json`, [review_p0_cohort.py](../../docs/product/ekler/review_p0_cohort.py) |
+| Birim, aralık, HVAC ve metadata kontrolleri (27 Eylül, train) | [kaynak anlamı notu](source-semantics-evidence.md), [kanal notu](channel-inventory-and-metadata.md), `docs/product/ekler/review_*.py` |
 
 ## Kod
 
@@ -32,13 +33,14 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 | [audit.py](../../packages/ml/src/silentwatt_ml/data/audit.py) | Kaynak denetimi ve cohort kararı (`training_cohort_record`) |
 | [daily.py](../../packages/ml/src/silentwatt_ml/data/daily.py) | Günlük kalite kapıları (`daily_quality`) |
 
-## Kaynaklar (P0 §1, 2026-09-17)
+## Kaynaklar (P0 §1, 2026-09-17; metadata 2026-09-27)
 
 | Kaynak | Satır | Not |
 |---|---|---|
 | 15 dk elektrik | 873.286 | 25 hane; model girdisi |
-| 1 dk elektrik | 13.100.539 | 2,6 GB; şimdilik yalnız envanter |
+| 1 dk elektrik | 13.100.539 | 2,6 GB; envanter ve 1 dk/15 dk hizalama kontrolü (train) |
 | Saatlik hava (Open-Meteo) | 8.760 | °C; aynı UTC saatine eşlenir |
+| Dataport metadata | 2.072 hane | 130 sütun; `../dataset/metadata_pecanstreetdata.csv`; config'te yok, komutlar okumuyor |
 
 ## Uygulanan kurallar (özet)
 
@@ -60,13 +62,20 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 - 1 dk dosyası parça parça okunur; bütünüyle belleğe alınmaz.
 - Test dönemine ait hedefler analizde kullanılmaz. Notebook'taki katı okuyucular:
   [_support.py](../../notebooks/_support.py).
+- Metadata bayrağı "devre tanımlı" demektir; 2018'de veri olduğunu garanti etmez
+  (ör. 4031 `air1`, 5746).
+- `solar` ve `grid`'deki negatifler fiziksel (gece inverter tüketimi, şebekeye verme);
+  `air1` için konan negatif kuralı bu kanallara uygulanmaz.
 
 ## Açık konular
 
-D-01, D-02, D-03 (birim, interval, `air1` eşlemesi) · D-04 (negatifler) · D-05 (cohort onayı) ·
-A-03 (hava kaynağı) · A-04 (mevsim desteği) · Q-01 (donma / standby).
+D-01, D-02 (birim, interval; öneri hazır) · D-03 (`air1` eşlemesi; kanıt toplanıyor) ·
+D-04 (negatifler) · D-05 (cohort onayı) · A-03 (hava kaynağı) · A-04 (mevsim desteği) ·
+Q-01 (donma / standby) · Q-13 (kapsam) · Q-14 (test dönemi tüm kanallarda kapalı).
 Ayrıntı: [decisions.md](../decisions.md).
 
 ## Notlar
 
 - [Negatif air1 değerleri ve sensörün sıfır seviyesi](negative-values-sensor-floor.md)
+- [Kaynak anlamı: birim, 15 dk aralığı ve HVAC kanalları](source-semantics-evidence.md)
+- [Kanal envanteri ve metadata: kapsam girdileri](channel-inventory-and-metadata.md)

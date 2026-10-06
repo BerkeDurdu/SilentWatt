@@ -1,7 +1,7 @@
 ---
 type: guide
 area: process
-updated: 2026-09-22
+updated: 2026-09-27
 ---
 
 # Sözlük
@@ -17,8 +17,8 @@ PRD = [Teknik PRD v1.1](../docs/product/SilentWatt-Teknik-PRD-v1.1.md).
 | Terim | Anlamı | Kaynak |
 |---|---|---|
 | `air1` | Hedef kanal. Klima/soğutma devresi olduğu varsayılıyor; fiziksel eşleme doğrulanmadı. Ürün dili: "air1 kanal sapması". | D-03, PRD §3.1 |
-| Kaynak birimi (source unit) | Elektrik değerlerinin birimi doğrulanmadı; kW/kWh diye sunulmaz. | D-01 |
-| Slot | 15 dakikalık zaman aralığı. Normal gün 96, ileri saate geçiş günü 92, geri saate geçiş günü 100 slot. | PRD §5.3 |
+| Kaynak birimi (source unit) | Kanıtlar kW cinsinden aralık ortalamasını gösteriyor (D-01 öneri hazır), ama ekip kararına kadar değerler kW/kWh diye sunulmaz. | D-01, [kaynak anlamı notu](data/source-semantics-evidence.md) |
+| Slot | 15 dakikalık zaman aralığı. Normal gün 96, ileri saate geçiş günü 92, geri saate geçiş günü 100 slot. Zaman damgası aralığın başı; değer, aralıktaki 1 dk değerlerin ortalaması (D-02 öneri hazır). | PRD §5.3, D-02 |
 | Beklenen slot (payda) | Takvimden hesaplanan slot sayısı; dosyadaki satır sayısı değil. Train: 14.492 / hane. | P0 §2 |
 | Geçerli slot | Dönem içinde, 15 dk ızgarasında, tekil anahtarlı, sonlu ve ≥ 0 hedef. | P0 §2 |
 | Veri kapsamı | Geçerli slot / beklenen slot. Bant kapsamasıyla karıştırılmamalı. | P0 §2 |
@@ -30,6 +30,10 @@ PRD = [Teknik PRD v1.1](../docs/product/SilentWatt-Teknik-PRD-v1.1.md).
 | Sıcaklık desteği | Hanenin kalite sonrası train slotlarındaki sıcaklık min–max aralığı. | Protokol |
 | Destek dışı (out of support) | Sıcaklık bu aralığın dışında. Günün tek slotu bile öyleyse gün dışlanır. | Protokol, A-04 |
 | Ölü bant (deadband) | Öneri: mutlak değeri ε'dan küçük veya eşit okumalar "kapalı" sayılır. Henüz kural değil. | [not](data/negative-values-sensor-floor.md) |
+| Ekipman ailesi | Aynı fiziksel davranışı paylaşan hedef kanal grubu: HVAC (`air1` + `furnace1`), buzdolabı, GES. Kapsam önerisi; henüz karar değil. | Q-13, [kapsam önerisi](product/scope-broadening-proposal.md) |
+| İzlenen pay | Devre toplamının hane tüketimine (`grid` + `solar`) oranı; train medyanı 0,720. | [kanal notu](data/channel-inventory-and-metadata.md) |
+| Taban yük | Evde sürekli çalışan yüklerin oluşturduğu en düşük tüketim seviyesi; gece tüketimiyle ölçülür. | Q-13 |
+| Metadata bayrağı | Dataport metadata'sında hane için tanımlı devre ("yes"). 2018'de veri olduğunu garanti etmez. | [kanal notu](data/channel-inventory-and-metadata.md) |
 
 ## Model ve değerlendirme
 
