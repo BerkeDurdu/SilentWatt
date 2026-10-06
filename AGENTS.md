@@ -15,6 +15,7 @@ These hold unless the project owner or the team decides otherwise. Open items an
 - Source CSVs under `../dataset/` are read-only, every run writes to a fresh `artifacts/` directory, and neither raw data nor artifacts are committed.
 - Config thresholds and data transformations do not change without a team decision. Generic skill advice (imputation, clipping, arbitrary de-duplication, DQS scores) is not applied here.
 - Open data decisions (D-01…D-05, Q-01) are not closed by an assumption written into code.
+- Documents under `docs/archive/` are superseded and are never used as a reference for requirements, thresholds, metrics or decisions. Until PRD v2.0 replaces it, the targets, detector thresholds and synthetic grid of PRD v1.1 are unverified hypotheses, not specifications.
 
 ## Workflow
 

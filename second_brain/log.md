@@ -18,6 +18,8 @@ analizler de buraya yazılır.
   `baseline` komutundaki test dönemi sızıntısı düzeltildi. Model davranışı cohort'tan bağımsız (Q-03).
 - `AGENTS.md`'ye dört kural (alt agent talimatı, önce test, kullanılmayan kod, itiraz). İlk
   deneme `wip/dead-band-first-pass` dalında arşivli. Commit'ler `feat/mvp`'de; push yok.
+- Kanıt sözleşmesi v0.1 ve örnek dosyalar; web ve açıklama agent'ları kendi worktree'lerinde başladı.
+  Eski PRD'ler `docs/archive/` altında; v1.1'e uyarı, AGENTS.md'ye arşiv kuralı ([arşiv](../docs/archive/README.md)).
 
 ## 2026-10-05
 
