@@ -180,3 +180,8 @@ def _check_p1(p1: dict) -> None:
         raise ValueError("learning_rate must be finite and positive")
     if type(model["random_state"]) is not int or not 0 <= model["random_state"] < 2**32:
         raise ValueError("random_state must be an unsigned 32-bit integer")
+    # Report metric: coverage while the unit runs counts slots whose target is above this value.
+    running_threshold = p1["evaluation"]["running_threshold"]
+    is_number = isinstance(running_threshold, (int, float)) and not isinstance(running_threshold, bool)
+    if not is_number or not math.isfinite(running_threshold) or running_threshold <= 0:
+        raise ValueError("running_threshold must be a finite positive number")

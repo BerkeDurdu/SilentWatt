@@ -7,8 +7,12 @@ import pandas as pd
 from silentwatt_ml.models.baseline import pinball_loss
 
 
-def metrics(frame: pd.DataFrame, mask: pd.Series) -> dict:
-    """Point and interval metrics on the masked slots; raw quantiles and CQR bounds stay apart."""
+def metrics(frame: pd.DataFrame, mask: pd.Series, running_threshold: float) -> dict:
+    """Point and interval metrics on the masked slots; raw quantiles and CQR bounds stay apart.
+
+    running_threshold: slots whose target is above it count as "unit running" for the
+    coverage-while-running metric.
+    """
     scored = frame.loc[mask]
     result = {
         'expected_slots': len(frame),
@@ -21,6 +25,10 @@ def metrics(frame: pd.DataFrame, mask: pd.Series) -> dict:
         'calibrated_slots': 0,
         'calibrated_coverage': None,
         'calibrated_width': None,
+        'upper_exceedance': None,
+        'lower_exceedance': None,
+        'running_slots': 0,
+        'running_calibrated_coverage': None,
     }
     if scored.empty:
         result['status'] = 'no_eligible_slots'
@@ -48,10 +56,21 @@ def metrics(frame: pd.DataFrame, mask: pd.Series) -> dict:
         inside_calibrated = calibrated['target'].between(calibrated['lower'], calibrated['upper'])
         result['calibrated_coverage'] = float(inside_calibrated.mean())
         result['calibrated_width'] = float((calibrated['upper'] - calibrated['lower']).mean())
+        # Each side of the band on its own: a detector reads "above the upper bound" as
+        # excess use, so this share is the false-signal rate of a single slot.
+        result['upper_exceedance'] = float((calibrated['target'] > calibrated['upper']).mean())
+        result['lower_exceedance'] = float((calibrated['target'] < calibrated['lower']).mean())
+        # Off slots sit on a lower bound of 0 and flatter the overall coverage,
+        # so coverage is also reported for the slots where the unit runs.
+        running = calibrated.loc[calibrated['target'] > running_threshold]
+        result['running_slots'] = len(running)
+        if len(running):
+            inside_while_running = running['target'].between(running['lower'], running['upper'])
+            result['running_calibrated_coverage'] = float(inside_while_running.mean())
     return result
 
 
-def grouped_metrics(predictions: pd.DataFrame) -> list[dict]:
+def grouped_metrics(predictions: pd.DataFrame, running_threshold: float) -> list[dict]:
     """Metrics per household, model and split, for the whole split and for each month.
 
     Two populations: daily-qualified slots (the comparison population) and all
@@ -66,12 +85,13 @@ def grouped_metrics(predictions: pd.DataFrame) -> list[dict]:
             for population, mask in populations:
                 record = {'household_id': int(household), 'model': model,
                           'split': split, 'month': month, 'population': population}
-                record.update(metrics(frame, mask))
+                record.update(metrics(frame, mask, running_threshold))
                 records.append(record)
     return records
 
 
-def comparison_summary(predictions: pd.DataFrame, records: list[dict], candidate_ids: list[int]) -> dict:
+def comparison_summary(predictions: pd.DataFrame, records: list[dict], candidate_ids: list[int],
+                       running_threshold: float) -> dict:
     """Development-only screening of B1 against B0 on identical slot populations."""
     development = predictions.loc[predictions['split'].eq('development')]
     summaries = {}
@@ -84,7 +104,7 @@ def comparison_summary(predictions: pd.DataFrame, records: list[dict], candidate
         macro_pinball = None
         if scored_records:
             macro_pinball = float(np.mean([r['mean_pinball'] for r in scored_records]))
-        summaries[model] = {'pooled': metrics(frame, frame['eligible']),
+        summaries[model] = {'pooled': metrics(frame, frame['eligible'], running_threshold),
                             'households_with_scores': len(scored_records),
                             'households_fully_calibrated': fully_calibrated,
                             'macro_mean_pinball': macro_pinball}
