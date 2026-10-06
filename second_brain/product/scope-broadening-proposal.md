@@ -21,7 +21,8 @@ Berke Durdu (A), Muharrem Dokgöz (B), Yusuf Ziya Demirel (C) · **Önerilen gö
   ailesinin veriye göre seçileceğini söylemişti. Sunum sonrası alınan geri bildirim
   (Yusuf'un aktarımı, 2026-09-27): yalnız klima arızasına odaklanılmamalı.
 - PRD v1.1 ilk sürümü tek klima kanalına (`air1`) daraltıyor (PRD §0.1, §3.1). Mevcut
-  kurallarla 8 aday hane kalıyor ve PRD'nin en az 10 hane hedefi karşılanmıyor (D-05).
+  kurallarla 8 aday hane kalıyordu ve PRD'nin en az 10 hane hedefi karşılanmıyordu (D-05). 2026-10-06'da
+  ölü bant kararıyla (D-04) aday sayısı 21 oldu.
 - Veri daha geniş bir kapsamı destekliyor: train döneminde 9 kanal en az 20 hanede var
   ([kanal envanteri ve metadata](../data/channel-inventory-and-metadata.md)).
 

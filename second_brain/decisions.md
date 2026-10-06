@@ -1,7 +1,7 @@
 ---
 type: map
 area: process
-updated: 2026-09-27
+updated: 2026-10-06
 ---
 
 # Kararlar ve açık sorular
@@ -24,8 +24,8 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | D-01 | Güç birimi (W, kW, enerji?) | öneri hazır | B+C | A-01, R-04 | `source_unit_unverified`; kW/kWh yok | P0 §5 · [kaynak anlamı notu](data/source-semantics-evidence.md): kW aralık ortalaması (GES kapasitesiyle oran, cihaz büyüklükleri); resmî sözlük okunmadı |
 | D-02 | 15 dk değerin anlamı ve zaman etiketi | öneri hazır | B+C | A-01, R-04 | Aynı UTC saatine hava eşlemesi | P0 §5 · [kaynak anlamı notu](data/source-semantics-evidence.md): [t, t+15) içindeki 1 dk ortalaması, etiket aralık başı (25 hane, 6 kanal, train) |
 | D-03 | `air1` hangi devreyi ölçüyor? | kanıt toplanıyor | B+C | A-02 | "air1 kanal sapması" dili | P0 §5 · [kaynak anlamı notu](data/source-semantics-evidence.md): `air1` kompresör, `furnace1` iç ünite fanı gibi davranıyor; 9278 muhtemelen ısı pompası |
-| D-04 | Negatif değerler: gürültü mü, geçersiz mi? | kanıt toplanıyor | B+C | A-05, DQ-06, C-02 | Negatif = geçersiz; ham veri korunur | P0 §5 · [negatif değerler notu](data/negative-values-sensor-floor.md) · `solar`/`grid` negatifleri fiziksel, kural kanal bazında olmalı: [kanal notu](data/channel-inventory-and-metadata.md) |
-| D-05 | 8 teknik adayın cohort onayı | ekip kararında | B+C | A-10, C-01 | Aynı 8 aday ve kurallar | P0 §2, §5 · notebook D |
+| D-04 | Negatif değerler: gürültü mü, geçersiz mi? | kapandı | B+C | A-05, DQ-06, C-02 | ±0,01 simetrik ölü bant: \|air1\| ≤ 0,01 kapalı sayılır ve 0 okunur; air1 < −0,01 geçersiz; ham veri korunur (config `target_dead_band`, P1 protokolü `p1-v2`, `89a4c67`) | Karar: Yusuf, 2026-10-06; Muharrem'e bildirilecek · [negatif değerler notu](data/negative-values-sensor-floor.md) · [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) · kural yalnız hedef kanal için; `solar`/`grid` negatifleri fiziksel ([kanal notu](data/channel-inventory-and-metadata.md)) |
+| D-05 | Cohort onayı | kapandı | B+C | A-10, C-01 | 21 hane: yalnız train, %95 kapsam, ek soğutma kanalı yok, ölü bant kuralı. Sayı kuralın sonucudur, hedef değildir | Karar: Yusuf, 2026-10-06; Muharrem'e bildirilecek · P0 v2 audit (`artifacts/p0-2026-10-06/final/`) · [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) · dışarıda: 4031 (air1 verisi yok), 5746, 7951, 9922 (ek soğutma kanalı) · önceki 8 aday P0 §2 |
 
 ## Değişiklik önerileri (P0 §6, hiçbiri uygulanmadı)
 
@@ -52,9 +52,9 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 
 | ID | Soru | Durum | Sahip | Eşleşen | Kanıt / not |
 |---|---|---|---|---|---|
-| Q-01 | Donma kuralı standby / sabit düşük okumayı da eliyor mu? | kanıt toplanıyor | B+C | DQ-07, A-05 | 6139: 151 → 9 train günü; ilk işaret 0,004 (notebook F); 6139'da hiç tam sıfır yok ([not](data/negative-values-sensor-floor.md)) · P1 açık karar 2 |
+| Q-01 | Donma kuralı standby / sabit düşük okumayı da eliyor mu? | kanıt toplanıyor | B+C | DQ-07, A-05 | Ölü bantla kapalı okumalar donma başlatmıyor: 6139 9 → 150, 7800 46 → 149 uygun train günü (2026-10-06). 2361 (78 gün) ve 3039 (50 gün) 0,01'in üstündeki sabit okumalar yüzünden hâlâ donma şüphesinde; 1 dk veriyle incelenecek · [not](data/negative-values-sensor-floor.md) |
 | Q-02 | Nihai kör değerlendirme için görülmemiş veri | açık | B+C | KPI-01…09 | 661 testi 16 Eylül'de açıldı ([foundation-review](../docs/architecture/foundation-review.md), risk 1) · P1 açık karar 4 |
-| Q-03 | Kalibre kapsama %87'nin altında (B0 %86,687, B1 %84,370) | açık | C | KPI-02 | P1 açık karar 3 |
+| Q-03 | Kalibre kapsama %87'nin altında; üst sınır çok sık aşılıyor | açık | C | KPI-02 | p1-v2 (21 hane): kalibre kapsama B0 %86,25, B1 %83,68; üst sınır aşımı B0 %12,78, B1 %16,31 (hedef ≈ %5); klima çalışırken kapsama B0 %80,77. Haziran'da qhat≈0 olan hanelerde de Temmuz'da aşım var: mevsim kayması. Öneri: üst sınırı ayrı kalibre etmek (PRD v2.0) · [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
 | Q-04 | ML kanıt JSON'u ile API arasındaki sözleşme | açık | B (anlam: C) | R-10 | `shared/types.ts` yalnız demo sözleşmesi ([ml-pipeline](../docs/architecture/ml-pipeline.md)) |
 | Q-13 | Kapsamı `air1` dışındaki ekipman ailelerine genişletmek (HVAC, buzdolabı, GES; tüm ev bağlam) | öneri hazır | A+B+C (öneri: C) | PRD §0.1, §3.1, D-05 | Teknik sunum geri bildirimi (Yusuf'un aktarımı, 2026-09-27) · [kapsam önerisi](product/scope-broadening-proposal.md) · önerilen görüşme 1–2 Ekim |
 | Q-14 | Test dönemi (Ağu–Ara) tüm kanallar için kapalı mı kalsın? | öneri hazır | Yusuf (C) | Q-02, AGENTS.md değişmezleri | Öneri: evet. Değer analizleri Oca–Tem, eşikler yalnız train, kanal varlığı gibi envanter tüm yıldan. Yeni ailelerin test dönemine yalnız envanter düzeyinde bakıldı |
@@ -76,7 +76,7 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 
 | Kapı | Durum | Eksik / not |
 |---|---|---|
-| G0 Veri hazır | açık | Birim ve interval (D-01, D-02: öneri hazır 2026-09-27, ekip kararı bekleniyor), nihai cohort (D-05). Var olanlar: kaynak hash'leri (P0), split'ler (config), hane bazında sıcaklık desteği (P1). |
+| G0 Veri hazır | açık | Negatifler (D-04) ve cohort (D-05) 2026-10-06'da kapandı: 21 hane. Birim ve interval (D-01, D-02) öneri hazır, ekip kararı bekleniyor. Var olanlar: kaynak hash'leri (P0, 2026-10-05'te yeniden doğrulandı), split'ler (config), hane bazında sıcaklık desteği (P1). |
 | G1 Analitik hazır | açık | B0/B1 ve CQR yalnız development taramasında; dedektörler yok; KPI'lar test döneminde ölçülmedi. |
 | G2 Ürün akışı | başlamadı | Konsol örnek veriyle çalışıyor; ML bağlantısı yok (Q-04). |
 | G3 İşletim | başlamadı | Dağıtım, E2E, yedek/geri dönüş yok. |
@@ -86,8 +86,8 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 
 | KPI | Hedef (PRD §15.2) | Development sonucu (P1) |
 |---|---|---|
-| KPI-01 | B1 pinball < B0 | Sağlanmadı: eşit hane pinball B1 0,216709 > B0 0,168172 → B0 korunur |
-| KPI-02 | Kalibre kapsama %87–93 | Sağlanmadı: B0 %86,687, B1 %84,370 (Q-03) |
+| KPI-01 | B1 pinball < B0 | Sağlanmadı: eşit hane pinball B1 0,2353 > B0 0,1771 (p1-v2, 21 hane) → B0 korunur. p1-v1 (8 hane): B1 0,216709 > B0 0,168172 |
+| KPI-02 | Kalibre kapsama %87–93 | Sağlanmadı: B0 %86,25, B1 %83,68 (p1-v2). Üst sınır aşımı B0 %12,78, B1 %16,31 (testli metrik, `f660801`) (Q-03) · [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
 | KPI-03 | Genişlik ≤ 1,10 × B0 | Kapsama koşulu sağlanmadığı için değerlendirilemez |
 | KPI-04…09 | Olay yakalama, gecikme, alarm yükü, veri hatası, izlenebilirlik, karar akışı | Ölçülmedi (dedektör, benchmark, API yok) |
 
@@ -98,9 +98,9 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | 2026-09-16 | Mevcut Express + React korunur; ikinci FastAPI servisi yok; `apps/`, `services/` yalnız gerçek ihtiyaçta | [ml-pipeline](../docs/architecture/ml-pipeline.md), PRD §6.1 |
 | 2026-09-16 | Aday seçimi yalnız train döneminin geçerli kapsamıyla; yıllık liste yalnız envanter | [foundation-review](../docs/architecture/foundation-review.md), PRD §5.3 |
 | 2026-09-16 | Varsayılan değerlendirme development; test yalnız açık izinle; `compare` komutunda test seçeneği yok | [ML README](../packages/ml/README.md), P1 |
-| 2026-09-17 | Negatifler onaya kadar geçersiz/eksik sayılır; ham veri korunur (geçici) | P0 §5 (D-04) |
+| 2026-09-17 | Negatifler onaya kadar geçersiz/eksik sayılır; ham veri korunur (geçici). **2026-10-06'da ölü bant kuralıyla değişti (D-04)** | P0 §5 (D-04) |
 | 2026-09-17 | Eşikler hedef sayıya (10 hane) veya test sonucuna göre seçilmez | P0 §4, §6 |
-| 2026-09-17 | P1 protokolü önceden donduruldu (`p1-v1`): günlük kalite v1, CQR, B0/B1 ayarları | [P1 protokolü](../docs/architecture/p1-ml-protocol.md) |
+| 2026-09-17 | P1 protokolü önceden donduruldu (`p1-v1`): günlük kalite v1, CQR, B0/B1 ayarları. 2026-10-06'dan beri `p1-v2`: ölü bant ve tek taraflı rapor metrikleri eklendi; ölü bant 0 ile `p1-v1` sonuçları birebir çıkıyor | [P1 protokolü](../docs/architecture/p1-ml-protocol.md) · [koşu kaydı](ml/experiment-log.md) |
 | 2026-09-17 | Development taramasında B0 korunur; B1'in bu ayarı üstün ilan edilmez (kuantil boosting ailesi reddedilmedi) | P1 |
 | 2026-09-22 | Bilgi tabanı `second_brain/`; vault kökü = repo kökü; göreli Markdown bağlantılar | [README](README.md) |
 | 2026-09-22 | `ponytail` kullanılmaz; kodda okunabilirlik ve sunumda anlatılabilirlik öncelikli | [AGENTS.md](../AGENTS.md) §5 |
@@ -113,6 +113,16 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | 2026-09-26 | Q-04 ve dedektör işi için aday skill'ler incelendi; projeye yeni skill eklenmedi | [log.md](log.md) |
 | 2026-09-27 | Veri kullanımı: Pecan Street'in ücretsiz verisi üniversite destekli araştırmacılara ticari olmayan kullanım için açık. Proje ticari gelir hedeflemiyor ve Yusuf'un lisans bitirme tezi için de geliştiriliyor; kullanım bu koşula uygun (Yusuf). Tezde ve sunumlarda Pecan Street'e atıf yapılır; ham veri herkese açık paylaşılmaz | [Pecan Street 2018 duyurusu](https://www.pecanstreet.org/2018/03/press-release-pecan-street-releases-powerful-residential-electricity-dataset-with-potential-to-revolutionize-electricity-management/) · [AGENTS.md](../AGENTS.md) |
 | 2026-09-27 | Dataport metadata dosyası (`metadata_pecanstreetdata.csv`, 2.072 hane) diğer kaynaklarla birlikte `../dataset/` altında tutulur; repoya girmez (SHA-256 taşımadan önce ve sonra aynı) | [data/README.md](../data/README.md) · [kanal notu](data/channel-inventory-and-metadata.md) |
+| 2026-09-28 | Yön: önce ürün ve yarışma, tez bunun üstüne kurulur. Derin öğrenme tezin çekirdeği: ML modelleriyle aynı protokolde karşılaştırılır, sonuç ne olursa raporlanır, ürün en iyi modeli kullanır. Ajan katmanı ve saha geri bildirim döngüsü demo olarak kurulur: LLM kanıttan açıklar, karar insanda. Kapsam sırası HVAC → buzdolabı → GES, tüm ev bağlam (Yusuf) | sohbet, 2026-09-28 · Q-13 |
+| 2026-09-28 | Takvim: staj 9 Ekim'de biter, sunumda çalışan bir MVP istenir; teknik çalışmalar 30 Ekim'de sunulur. PRD v1.1'in metriklerine güvenilmez; yeni PRD v2.0 kanıttan yazılır (Yusuf) | sohbet, 2026-09-28 |
+| 2026-10-05 | 9 Ekim MVP'si yalnız HVAC (`air1`). Vaka açıklamaları önce şablonla; LLM aynı arayüze sonra bağlanır. Konsol ve API'yi agent'lar yazar, Berke ve Muharrem PR üzerinden inceler. İş `feat/mvp` dalında; push yok (Yusuf) | sohbet, 2026-10-05 |
+| 2026-10-05 | Repo kökündeki kaynak CSV kopyaları silindi: orijinallerle bayt bayt aynıydı, SHA-256 P0 kaydıyla aynı. Tek veri kaynağı `../dataset/` (Yusuf) | [log.md](log.md) |
+| 2026-10-06 | `AGENTS.md`'ye dört kural: alt agent talimatı (başarı ölçütü, dosya alanı, doğrulama); dedektör, veri kuralı ve metrik kodunda önce test; kullanılmaz hâle gelen kodu listeleyip sormak; değişmez, kanıt ya da kararla çelişen isteği uygulamadan önce söylemek. Dolaşan "Karpathy" prompt'u olduğu gibi eklenmedi; `CLAUDE.md` oluşturulmaz | [AGENTS.md](../AGENTS.md) · `5f40c37` |
+| 2026-10-06 | Takvim gerekçesiyle kural atlanmaz: AGENTS.md §5 (önce davranışı koruyan okunabilirlik commit'i, sonra işlevsel değişiklik) her değişen fonksiyona tam uygulanır (Yusuf) | sohbet, 2026-10-06 · `dd15f91`, `52019c2`, `3ee229f` |
+| 2026-10-06 | Hedef ölü bandı ±0,01 ve 21 hanelik cohort uygulanıyor (D-04, D-05; P1 protokolü `p1-v2`) | `89a4c67` · [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
+| 2026-10-06 | P1 raporu bandın iki yanını ayrı ölçer: üst/alt sınır aşımı ve klima çalışırken kapsama (çalışma eşiği 0,3: 27 Eylül HVAC incelemesindeki "air1 aktif" seviyesi). Tarama kuralı değişmedi | `f660801` · [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
+| 2026-10-06 | `baseline` komutunun development koşusu test dönemi satırlarını okumaz (eski sızıntı düzeltildi) | `d7ae6ed` |
+| 2026-10-06 | Sprint boyunca `git add`, `commit`, `switch`, `merge` için yerel izin kuralları (`.claude/settings.local.json`); commit'ler `feat/mvp`'ye adım adım; push izni yok (Yusuf) | `/permissions` |
 
 ## Kanıtı olan riskler (tam liste: PRD §19.1)
 

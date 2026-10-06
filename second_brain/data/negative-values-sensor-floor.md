@@ -1,12 +1,21 @@
 ---
 type: note
 area: data
-status: aktif
+status: karar verildi
 related: [D-04, A-05, C-02, DQ-06, Q-01]
-updated: 2026-09-22
+updated: 2026-10-06
 ---
 
 # Negatif air1 değerleri ve sensörün sıfır seviyesi
+
+> **Karar (D-04, 2026-10-06):** ±0,01 simetrik ölü bant uygulanıyor: `|air1| ≤ 0,01` kapalı durumdur
+> ve 0 okunur, `air1 < −0,01` geçersizdir (config `target_dead_band`, P1 protokolü `p1-v2`). ε hane
+> bazında değil, tüm haneler için 0,01 seçildi: kapalıyken okumalar haneler arasında −0,007 ile
+> +0,011 arasında; 0,01 ölçüm adımının 10 katı ve çalışma seviyesinin yaklaşık %0,5'i. Sonuç: 21 aday
+> (önce 8), 3.001 uygun train günü (önce 790); 6139'un donma sorunu çözüldü. 2361 ve 3039'da kalan
+> donma günleri Q-01'de. Kanıt: [review_dead_band_cohort.py](../../docs/product/ekler/review_dead_band_cohort.py),
+> sonuç: [p1-v2 raporu](../../docs/project-status/p1-v2-results-2026-10-06.md). Aşağıdaki metin kararın
+> öncesindeki incelemedir.
 
 ## Soru
 

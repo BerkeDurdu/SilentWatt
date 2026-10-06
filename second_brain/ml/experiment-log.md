@@ -3,7 +3,7 @@ type: log
 area: ml
 status: aktif
 related: [Q-02]
-updated: 2026-09-27
+updated: 2026-10-06
 ---
 
 # Koşu kaydı
@@ -17,6 +17,13 @@ kullanılmaz.
 
 | Tarih | Dizin (`artifacts/…`) | Komut | Dönem | Amaç | Sonuç | Kanıt | Test gördü mü? |
 |---|---|---|---|---|---|---|---|
+| 2026-10-06 | `p1-2026-10-06/development-run03/` | `compare` (p1-v2, ölü bant 0,01, tek taraflı metrikler; `f660801`) | train → calibration → development | 21 haneyle B0/B1 ve yeni metrikler | B0 korunur. Üst sınır aşımı B0 %12,78, B1 %16,31; klima çalışırken kapsama B0 %80,77, B1 %76,11; değerlendirilen pay %59,7; 21/21 hane kalibre. Tahminler run02 ile aynı | [p1-v2 raporu](../../docs/project-status/p1-v2-results-2026-10-06.md) | Hayır |
+| 2026-10-06 | `p1-2026-10-06/development-run02/` | `compare` (ölü bant 0,01, `89a4c67`) | train → calibration → development | Son kodla 21 hane | İlk deneme (run01) ile tahmin, günlük kalite (yeni sütun hariç), metrik ve qhat aynı | report.json | Hayır |
+| 2026-10-06 | `p0-2026-10-06/final/data-audit.json` | `audit` (ölü bant 0,01) | envanter + train | D-04/D-05: yeni kuralla cohort | 21 aday; 25 hanede geçerli train slotları kanıt betiğiyle birebir | [p1-v2 raporu](../../docs/project-status/p1-v2-results-2026-10-06.md) | Hayır |
+| 2026-10-06 | `p1-2026-10-06/regression-dead-band-0-final/` | `compare` (geçici config: ölü bant 0) | train → calibration → development | Kod değişikliğinin yalnız ölü bandı eklediğini doğrulamak | 17 Eylül run03 ile tahmin, günlük kalite (yeni sütun hariç, o sütun hep 0), metrik ve 16 qhat birebir | report.json | Hayır |
+| 2026-10-06 | `refactor-check-2026-10-06/` | `audit`, P0 betiği, `baseline` 661, `compare` | envanter + train; development | AGENTS.md §5 okunabilirlik commit'lerinin davranışı koruduğunu göstermek | Önce/sonra audit JSON'u, P0 diagnostikleri, baseline 661, P1 çıktıları aynı; P1 run03 ile bayt bayt aynı. `baseline-661-test-period-fix`: development metrikleri aynı, kalite özeti artık test satırı saymıyor | — | Kısmen: düzeltmeden önceki `baseline` koşuları kalite sayımlarında test satırlarını ayrıştırdı (`d7ae6ed` ile düzeltildi); metrik veya karar için kullanılmadı |
+| 2026-10-06 | `p0-2026-10-06/data-audit.json`, `p1-2026-10-06/development-run01/`, `p1-2026-10-06/regression-dead-band-0/` | ilk deneme (`wip/dead-band-first-pass` dalı) | envanter + train; development | Ölü bantın ilk uygulaması | Son kodun sonuçlarıyla aynı; yalnız yeni sütun ve metrik alanları yok. Arşiv | — | Hayır |
+| 2026-10-05 | `data-review-2026-10-05/dead-band-cohort.json` | [review_dead_band_cohort.py](../../docs/product/ekler/review_dead_band_cohort.py) | train | D-04/Q-01: negatif ve donma kuralının cohort'a etkisi | Mevcut kural P0 slotlarını ve P1 günlerini birebir tekrarladı; ölü bant 0,01 → 21 aday, 3.001 uygun train günü (önce 790) | betik | Hayır |
 | 2026-09-27 | `data-review-2026-09-27/unit-magnitudes.json` | [review_unit_magnitudes.py](../../docs/product/ekler/review_unit_magnitudes.py) | train | D-01: birim | Kanal büyüklükleri kW ile tutarlı; GES tepe üretimi / metadata kapasitesi medyan 0,750 (18 hane) | [kaynak anlamı notu](../data/source-semantics-evidence.md) | Hayır |
 | 2026-09-27 | `data-review-2026-09-27/resolution-alignment.json` | [review_resolution_alignment.py](../../docs/product/ekler/review_resolution_alignment.py) | train | D-02: 1 dk / 15 dk hizalama | Etiket aralığın başı: 25 hane, 6 kanal, 1.768.207 aralığın %100'ü tolerans içinde; diğer iki hipotez tutmuyor | [kaynak anlamı notu](../data/source-semantics-evidence.md) | Hayır |
 | 2026-09-27 | `data-review-2026-09-27/hvac-and-energy-balance.json` | [review_hvac_and_energy_balance.py](../../docs/product/ekler/review_hvac_and_energy_balance.py) | train | D-03 ve kapsam girdileri | `furnace1` kompresörle birlikte çalışıyor (medyan 1,000); izlenen pay medyan 0,720; 9278 muhtemelen ısı pompası | [kanal notu](../data/channel-inventory-and-metadata.md) | Hayır |

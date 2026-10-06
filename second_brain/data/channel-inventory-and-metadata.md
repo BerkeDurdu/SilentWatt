@@ -67,8 +67,8 @@ yüzdeliği 3,212.
 - İzlenen pay medyan ~%72: tüketimin yaklaşık dörtte biri devre düzeyinde görünmüyor.
   Tüm ev ve taban yük analizi bu payı kapsar.
 - `solar`'daki negatifler büyük olasılıkla gece inverter bekleme tüketimi, `grid`'dekiler
-  şebekeye verilen elektrik. Yani "negatif = geçersiz" kuralı (D-04) kanal bazında
-  olmalı; `air1` için konan kural bu kanallara genellenemez.
+  şebekeye verilen elektrik. D-04'te kararlaştırılan ölü bant (2026-10-06) yalnız hedef
+  kanal içindir; kural kanal bazında olmalı ve bu kanallara genellenemez.
 - Metadata bayrakları "devre tanımlı" demek; 2018'de veri olduğunu garanti etmez.
   Kapsam için veri varlığı esas alınmalı. GES kapasitesi, bina alanı ve yapım yılı
   normalleştirme ve gruplama için kullanılabilir.

@@ -3,7 +3,7 @@ type: map
 area: data
 status: aktif
 related: [D-01, D-02, D-03, D-04, D-05, A-03, A-04, Q-01, Q-13, Q-14]
-updated: 2026-09-27
+updated: 2026-10-06
 ---
 
 # Veri haritası
@@ -29,9 +29,9 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 | Modül | Sorumluluk |
 |---|---|
 | [readers.py](../../packages/ml/src/silentwatt_ml/data/readers.py) | CSV okuma, hash, parça parça tarama |
-| [quality.py](../../packages/ml/src/silentwatt_ml/data/quality.py) | Zaman damgası, ızgara maskesi, geçerli hedef (`valid_target`), hava çerçevesi |
+| [quality.py](../../packages/ml/src/silentwatt_ml/data/quality.py) | Zaman damgası, ızgara maskesi, geçerli hedef ve ölü bant (`valid_target`), hava çerçevesi |
 | [audit.py](../../packages/ml/src/silentwatt_ml/data/audit.py) | Kaynak denetimi ve cohort kararı (`training_cohort_record`) |
-| [daily.py](../../packages/ml/src/silentwatt_ml/data/daily.py) | Günlük kalite kapıları (`daily_quality`) |
+| [daily.py](../../packages/ml/src/silentwatt_ml/data/daily.py) | Günlük kalite kapıları ve günlük sayaçlar, ölü bant dahil (`daily_quality`) |
 
 ## Kaynaklar (P0 §1, 2026-09-17; metadata 2026-09-27)
 
@@ -65,12 +65,14 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 - Metadata bayrağı "devre tanımlı" demektir; 2018'de veri olduğunu garanti etmez
   (ör. 4031 `air1`, 5746).
 - `solar` ve `grid`'deki negatifler fiziksel (gece inverter tüketimi, şebekeye verme);
-  `air1` için konan negatif kuralı bu kanallara uygulanmaz.
+  `air1` için kararlaştırılan ölü bant (D-04, ±0,01) bu kanallara uygulanmaz.
+- Cohort 2026-10-06'dan beri 21 hane: ölü bant, sensörü sıfırın biraz altında duran 13 haneyi
+  kapsam eşiğinden geçirdi ([p1-v2 raporu](../../docs/project-status/p1-v2-results-2026-10-06.md)).
 
 ## Açık konular
 
 D-01, D-02 (birim, interval; öneri hazır) · D-03 (`air1` eşlemesi; kanıt toplanıyor) ·
-D-04 (negatifler) · D-05 (cohort onayı) · A-03 (hava kaynağı) · A-04 (mevsim desteği) ·
+D-04 ve D-05 2026-10-06'da kapandı (ölü bant, 21 hane) · A-03 (hava kaynağı) · A-04 (mevsim desteği) ·
 Q-01 (donma / standby) · Q-13 (kapsam) · Q-14 (test dönemi tüm kanallarda kapalı).
 Ayrıntı: [decisions.md](../decisions.md).
 
