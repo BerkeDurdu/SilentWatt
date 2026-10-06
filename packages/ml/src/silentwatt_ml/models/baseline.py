@@ -157,33 +157,44 @@ def predict_empirical(evaluation: pd.DataFrame, model: dict) -> pd.DataFrame:
     return predicted
 
 
+def _rows_in_split(frame: pd.DataFrame, config: ProjectConfig, name: str) -> pd.DataFrame:
+    """Rows whose local date falls inside the named split."""
+    split_start, split_end = config.raw["splits_local_date"][name]
+    in_split = frame["local_date"].ge(split_start) & frame["local_date"].lt(split_end)
+    return frame.loc[in_split].copy()
+
+
 def run_baseline(
     config: ProjectConfig, data_dir: Path, household_id: int,
     *, evaluation_split: str = "development", allow_test: bool = False,
 ) -> BaselineResult:
+    """Exploratory empirical baseline for one household, scored on development by default."""
     if evaluation_split not in {"development", "test"}:
         raise ValueError("Evaluation must use development or explicitly unlocked test")
     if evaluation_split == "test" and not allow_test:
         raise ValueError("Locked test requires allow_test=True after experiment freeze")
     paths = require_files(data_dir, {key: config.files[key] for key in ("electric_15m", "weather")})
     frame, quality = _prepare_frame(config, paths, household_id)
-    splits = config.raw["splits_local_date"]
-    def split(name):
-        lo, hi = splits[name]
-        return frame.loc[frame["local_date"].ge(lo) & frame["local_date"].lt(hi)].copy()
-    train = split("train").dropna(subset=["target", "temperature_c"])
-    evaluation = split(evaluation_split)
+
+    # 1. Fit on train rows with a valid target and temperature; predict the evaluation split.
+    train = _rows_in_split(frame, config, "train").dropna(subset=["target", "temperature_c"])
+    evaluation = _rows_in_split(frame, config, evaluation_split)
     if train.empty or evaluation.empty:
         raise ValueError("Train or evaluation split has no usable rows")
     model = fit_empirical(train, config.raw["baseline"])
     predicted = predict_empirical(evaluation, model)
+
+    # 2. Score only supported slots with a valid target; excluded counts are reported too.
     unsupported = predicted["prediction_status"].eq("temperature_out_of_support")
     predicted["measurement_status"] = np.where(predicted["target"].notna(), "ok", "missing_or_invalid_target")
     predicted["scored"] = predicted["prediction_status"].eq("ok") & predicted["target"].notna()
     scored = predicted.loc[predicted["scored"]]
     if scored.empty:
         raise ValueError("No supported evaluation rows with valid targets; metrics are undefined")
-    actual, q05, q50, q95 = (scored[column].to_numpy() for column in ("target", "q05", "q50", "q95"))
+    actual = scored["target"].to_numpy()
+    q05 = scored["q05"].to_numpy()
+    q50 = scored["q50"].to_numpy()
+    q95 = scored["q95"].to_numpy()
     metrics = BaselineMetrics(
         household_id=household_id, target=config.columns["target"],
         train_rows=len(train), evaluation_split=evaluation_split,
