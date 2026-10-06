@@ -174,7 +174,12 @@ def run_baseline(
     if evaluation_split == "test" and not allow_test:
         raise ValueError("Locked test requires allow_test=True after experiment freeze")
     paths = require_files(data_dir, {key: config.files[key] for key in ("electric_15m", "weather")})
-    frame, quality = _prepare_frame(config, paths, household_id)
+    # A development run drops test-period rows before any target value is read; only an
+    # explicitly unlocked test run reads them (AGENTS.md: the test split is closed).
+    end_before = None
+    if evaluation_split == "development":
+        end_before = pd.Timestamp(config.raw["splits_local_date"]["development"][1], tz=config.timezone)
+    frame, quality = _prepare_frame(config, paths, household_id, end_before=end_before)
 
     # 1. Fit on train rows with a valid target and temperature; predict the evaluation split.
     train = _rows_in_split(frame, config, "train").dropna(subset=["target", "temperature_c"])
