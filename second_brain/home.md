@@ -59,6 +59,8 @@ C Yusuf Ziya Demirel (AI/ML). İki parça var: rol bazlı web konsolu (React + E
 
 ## Sıradaki işler (MVP, 9 Ekim)
 
+0. **Sonraki oturumun ilk işi:** `tasks/todo.md` "Agent orkestrasyonu — 1. dalga": Yusuf'un 7 kararı,
+   Agent 2'nin reviewer'ı ve birleştirmesi. Açıklama kataloğu ve `p1-v3` 7 Ekim'de birleştirildi.
 1. Berke ve Muharrem'e devir notu: konsol/API, kanıt sözleşmesi v0.1, Q-15 önerisi; D-04, D-05
    ve Q-17 bildirimi.
 2. `p1-v3` (asimetrik CQR, Q-03): önce davranışı koruyan düzenleme ve testler, sonra P1 koşusu.

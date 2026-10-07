@@ -11,6 +11,8 @@ analizler de buraya yazılır.
 
 ## 2026-10-07
 
+- Oturum sonu: dedektör hattı (Agent 2) dalında bitti; reviewer durduruldu ve yeniden çalışacak.
+  Yusuf'un 7 kararı bekliyor (`tasks/todo.md`). `feat/mvp` yerelde, push edilmedi.
 - p1-v3 (Q-03) birleştirildi: reviewer onayı ve küçük düzeltmeler (adlandırma, PRD v2.0 notu,
   ifade). 133 test geçiyor. Ana config artık `p1-v3`; notebook 02'nin kilidi run04'e bağlı kaldı
   ve yeniden kilitlenecek. Agent 2'nin dedektör hattı reviewer'da.

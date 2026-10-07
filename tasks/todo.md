@@ -232,6 +232,16 @@ okumaz; gerekçe ve öneri kodları v0.1'de dondurulur.
       (`detect`), dedektör testleri, `packages/ml/README.md`, yeni dedektör tasarım belgesi. Ölçüt:
       park edilen test ayrı config'e uyarlanıp geçer; run04 üzerinde uçtan uca deneme koşusu; eşik
       ızgarası önerisi Yusuf'un onayına (resmî seçim 2. dalgada p1-v3 üzerinde).
+      Durum (7 Ekim): 14 commit dalında (`worktree-agent-a45223e274b9dab5b`), agent raporuna göre
+      124 test geçiyor; p1-v2 deneme koşusu `artifacts/detector-dev-2026-10-06/run03/`. Reviewer
+      oturum kapanırken durduruldu; sonraki oturumda yeniden başlatılır, sonra birleştirme.
+- [ ] Yusuf'un kararını bekleyen 7 konu (öneriler parantez içinde): (1) Temmuz'da mevsim
+      kayması, 10 hanede 12 vaka (MVP'de olduğu gibi raporla, sınırlama; mevsime duyarlı referans
+      30 Ekim); (2) eşik ızgarası ve yapı ayarları (onay; en hassas uca z 1,0 / pay 0,05 ekle);
+      (3) ani sıçrama kalite kapısında yok (sınırlama); (4) kronik vakayı kapatma kuralı (30 Ekim);
+      (5) demo sentetik haneleri yalnız vakası olmayan hanelerden (sunum kuralı olarak belgelenir);
+      (6) DAYS_NOT_SCORED vaka başlangıcı–son gün arasında; (7) açıklamalarda yalın "arıza"/"fault"
+      yasağı (kabul).
 - [x] Agent 3 · Açıklama kataloğu (Q-15). Skill: `tdd-guide`. Alan: yeni katalog belgesi, yeni
       `shared/explanation-catalog.json`, yeni katalog testi. Ölçüt: 8 gerekçe ve 2 öneri kodu TR/EN;
       örnek vakalar yer tutucu açığı ve yasak ifade olmadan üretilir. Reviewer: "değişiklik gerekli"
