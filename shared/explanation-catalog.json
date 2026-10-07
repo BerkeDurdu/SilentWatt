@@ -104,7 +104,7 @@
         "always": [
           "Değerler doğrulanmamış kaynak birimindedir; bu yüzden fiziksel bir enerji birimiyle gösterilmez.",
           "Model referansı ve tahmin aralığı, hanenin geçmiş verisinden sıcaklık ve saate göre öğrenilmiş beklentilerdir; cihazın sağlıklı çalıştığını gösteren sınırlar değildir.",
-          "Değerlendirilemeyen günler (eğitimde görülmemiş sıcaklık, eksik ya da donmuş veri) ne normal ne de sapmalı sayılır.",
+          "Değerlendirilemeyen günler (örneğin eğitimde görülmemiş sıcaklık, eksik veri ya da donma şüphesi) ne normal ne de sapmalı sayılır.",
           "Dedektör eşikleri gerçek saha sonuçlarıyla doğrulanmadı; doğru ve yanlış uyarı oranları henüz bilinmiyor.",
           "Vaka geçmiş verinin yeniden oynatılmasından üretildi; canlı bir izleme sonucu değildir."
         ],
@@ -169,15 +169,15 @@
         "DAILY_EXCESS_Z": "The largest daily z on the flagged days is {value}; it shows how large the daily difference between observed consumption and the model reference is compared with the differences on June days.",
         "UPPER_BOUND_EXCEEDANCE": "On the flagged days, the share of valid quarter-hour readings above the upper bound of the model's prediction interval is {value}.",
         "CONSECUTIVE_FLAGGED_DAYS": "The number of consecutive days that met the detector condition is {value}.",
-        "PERSISTENT_CUSUM": "The highest value the persistence statistic (cumulative sum, CUSUM) reached during the case is {value}; it grows as days with higher than expected consumption accumulate.",
+        "PERSISTENT_CUSUM": "The highest value the persistence statistic (cumulative sum, CUSUM) reached during the case is {value}; it grows as days with higher-than-expected consumption accumulate.",
         "EXCESS_OVER_REFERENCE": "Over the flagged days, the difference between observed consumption and the model reference (the expected consumption for the temperature and time of day) is {value}.",
         "DAYS_NOT_SCORED": "The number of days in the case window that could not be assessed is {value}; these days (for example because of a temperature not seen in training or missing data) count as neither normal nor deviating.",
         "MISSING_READINGS": "On the case days, the share of expected quarter-hour readings without a valid value is {value}.",
-        "FROZEN_READINGS": "The number of quarter-hour readings in suspected freeze runs (the same value repeated for a long time) is {value}."
+        "FROZEN_READINGS": "The number of quarter-hour readings marked as a suspected freeze (the same value repeated for a long time) is {value}."
       },
       "recommendations": {
         "HVAC_PERSISTENT_INCREASE": {
-          "first_check": "Check the thermostat settings and usage changes; if there is no explanation, plan a technician inspection.",
+          "first_check": "Check thermostat settings and usage changes; if there is no explanation, plan a technician inspection.",
           "steps": [
             "Check whether a change in the thermostat setting or the usage pattern was recorded on the case dates.",
             "In the chart, look at the hours where the deviation concentrates and at the highest temperatures of the days.",
@@ -197,7 +197,7 @@
         "always": [
           "Values are in an unverified source unit, so they are not shown in a physical energy unit.",
           "The model reference and the prediction interval are expectations learned from the household's past data for the temperature and time of day; they are not limits that show the device works properly.",
-          "Days that could not be assessed (a temperature not seen in training, missing or frozen data) count as neither normal nor deviating.",
+          "Days that could not be assessed (for example a temperature not seen in training, missing data or a suspected freeze) count as neither normal nor deviating.",
           "The detector thresholds have not been validated against real field outcomes; the rates of correct and false alerts are not yet known.",
           "The case comes from a replay of past data; it is not a live monitoring result."
         ],

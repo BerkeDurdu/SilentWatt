@@ -27,6 +27,7 @@ from silentwatt_ml.detection.evidence import LIBRARY_VERSION, REASON_CODES, RECO
 REPOSITORY = Path(__file__).resolve().parents[3]
 CATALOG_PATH = REPOSITORY / "shared" / "explanation-catalog.json"
 EVIDENCE_TYPES_PATH = REPOSITORY / "shared" / "evidence.ts"
+EVIDENCE_CONTRACT_PATH = REPOSITORY / "docs" / "architecture" / "evidence-contract.md"
 FIXTURE_CASES_DIRECTORY = REPOSITORY / "shared" / "fixtures" / "evidence" / "cases"
 
 CATALOG_VERSION = "exp-0.1"
@@ -131,6 +132,15 @@ def typescript_interface_fields(interface_name: str) -> set[str]:
         if field is not None:
             fields.add(field.group(1))
     return fields
+
+
+def contract_first_check(code: str) -> str:
+    """The first check of a recommendation code, from the code list in evidence-contract.md."""
+    source = EVIDENCE_CONTRACT_PATH.read_text(encoding="utf-8")
+    row = re.search(rf"^\| `{code}` \| (.+?) \|\s*$", source, re.MULTILINE)
+    if row is None:
+        raise AssertionError(f"recommendation code {code} not found in {EVIDENCE_CONTRACT_PATH}")
+    return row.group(1).strip()
 
 
 # --- Forbidden wording -------------------------------------------------------------------
@@ -406,6 +416,14 @@ class CatalogCoverageTests(unittest.TestCase):
                     self.assertGreater(len(recommendations[code]["steps"]), 0, code)
                     for step in recommendations[code]["steps"]:
                         self.assertTrue(step.strip(), code)
+
+    def test_english_first_checks_are_the_contract_texts(self):
+        # The contract's code list gives each recommendation's first check. The catalog adds
+        # only the closing period, so the two cannot drift apart unnoticed.
+        recommendations = self.catalog["languages"]["en"]["recommendations"]
+        for code in sorted(typescript_union_members("RecommendationCode")):
+            with self.subTest(code=code):
+                self.assertEqual(recommendations[code]["first_check"], contract_first_check(code) + ".")
 
     def test_every_case_kind_and_origin_has_a_summary_in_both_languages(self):
         kinds = typescript_union_members("EvidenceKind")
