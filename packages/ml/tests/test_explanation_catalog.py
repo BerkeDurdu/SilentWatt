@@ -473,6 +473,17 @@ class CatalogCoverageTests(unittest.TestCase):
                     for step in recommendations[code]["steps"]:
                         self.assertTrue(step.strip(), code)
 
+    def test_both_languages_have_the_same_number_of_steps_and_limitations(self):
+        turkish = self.catalog["languages"]["tr"]
+        english = self.catalog["languages"]["en"]
+        for code in sorted(turkish["recommendations"]):
+            with self.subTest(recommendation=code):
+                self.assertEqual(len(turkish["recommendations"][code]["steps"]),
+                                 len(english["recommendations"][code]["steps"]))
+        for group in sorted(turkish["limitations"]):
+            with self.subTest(limitations=group):
+                self.assertEqual(len(turkish["limitations"][group]), len(english["limitations"][group]))
+
     def test_english_first_checks_are_the_contract_texts(self):
         # The contract's code list gives each recommendation's first check. The catalog adds
         # only the closing period, so the two cannot drift apart unnoticed.
@@ -528,6 +539,7 @@ class TemplateRuleTests(unittest.TestCase):
                     self.assertEqual(source[:2], ["case", "synthetic"])
                     self.assertIn(source[2], synthetic_fields)
                 else:
+                    self.assertEqual(len(source), 2)
                     self.assertEqual(source[0], "case")
                     self.assertIn(source[1], case_fields)
                 self.assertIn(placeholder["format"], self.catalog["formats"])
@@ -567,6 +579,13 @@ class TemplateRuleTests(unittest.TestCase):
                 with self.subTest(language=language_code, text=text):
                     self.assertEqual(PLACEHOLDER_PATTERN.findall(text), [])
 
+    def test_no_turkish_suffix_is_attached_to_a_placeholder(self):
+        # A suffix needs vowel harmony with the value ("%41'lik" but "%40'lık"), which is not
+        # known in advance, so a Turkish placeholder is followed by a space or punctuation.
+        for location, text in language_texts(self.catalog["languages"]["tr"]):
+            with self.subTest(location=location):
+                self.assertIsNone(re.search(r"\}[\w'’]", text), text)
+
     def test_static_text_has_no_number_of_its_own(self):
         for language_code in LANGUAGES:
             for location, text in language_texts(self.catalog["languages"][language_code]):
@@ -596,13 +615,13 @@ class TemplateRuleTests(unittest.TestCase):
                         self.assertNotEqual(forbidden_terms_in(phrase, categories[category]), [])
                         self.assertEqual(forbidden_terms_in(phrase, other_terms), [])
 
-    def test_synthetic_summaries_carry_the_label_and_observed_summaries_do_not(self):
+    def test_synthetic_summaries_start_with_the_label_and_observed_summaries_do_not_carry_it(self):
         for language_code in LANGUAGES:
             language = self.catalog["languages"][language_code]
             label = language["labels"]["synthetic"]
             for kind, templates_by_origin in language["summary"].items():
                 with self.subTest(language=language_code, kind=kind):
-                    self.assertIn(label, templates_by_origin["synthetic"])
+                    self.assertTrue(templates_by_origin["synthetic"].startswith(label))
                     self.assertNotIn(label, templates_by_origin["observed"])
 
 
@@ -812,7 +831,7 @@ class FixtureRenderingTests(unittest.TestCase):
                 with self.subTest(case=case["case_id"], language=language_code):
                     summary = render_explanation(case, self.catalog, language_code)["summary"]
                     if case["origin"] == "synthetic":
-                        self.assertIn(label, summary)
+                        self.assertTrue(summary.startswith(label))
                     else:
                         self.assertNotIn(label, summary)
 
