@@ -49,6 +49,29 @@ APPROVED_HUMAN_DECISION_NOTES = {
     "tr": "Bu bir inceleme önerisidir; karar ekibindir.",
     "en": "This is an inspection recommendation; the decision rests with the team.",
 }
+# Contract rules 1 and 2 and the MVP wording rules, one category each.
+FORBIDDEN_TERM_CATEGORIES = ("unit", "fault", "probability", "savings", "money")
+# Phrases that must be caught, by language and category. Each phrase holds wording of one
+# category only, so it tests that category's terms on their own.
+FORBIDDEN_SAMPLES = {
+    "tr": {
+        "unit": ["15 kWh", "3 kW", "toplam 2 kilovatsaat", "1200 watt"],
+        "fault": ["Arıza doğrulandı", "ARIZA DOĞRULANDI", "kesin arıza", "cihaz arızalı"],
+        "probability": ["%90 olasılıkla", "olası bir sorun", "muhtemelen", "ihtimali yüksek"],
+        "savings": ["tasarruf sağlar", "tasarrufu artar"],
+        "money": ["120 TL", "₺120", "US$40", "40 USD", "30 EUR", "5 lira", "10 dolar",
+                  "maliyeti düşer", "faturaya yansır", "ücreti"],
+    },
+    "en": {
+        "unit": ["15 kWh", "3 kW", "1200 watts", "2 kilowatt-hours"],
+        "fault": ["Fault confirmed", "a faulty unit"],
+        "probability": ["a 90% probability", "probably", "a probable cause", "the likelihood", "likely",
+                        "unlikely", "a good chance"],
+        "savings": ["savings", "it saves energy"],
+        "money": ["$40", "US$40", "40 USD", "30 EUR", "40 dollars", "money", "lower cost", "the bill",
+                  "the price"],
+    },
+}
 
 
 def load_catalog() -> dict:
@@ -156,26 +179,48 @@ def fold_for_matching(text: str) -> str:
     return lowered.replace("ı", "i")
 
 
-def forbidden_terms_in(text: str, terms: list[str]) -> list[str]:
-    """The terms that occur in text where a word starts (not directly after a letter).
+def is_sign(term: str) -> bool:
+    """True for a term without letters or digits, such as "$" or "₺"."""
+    for character in term:
+        if character.isalnum():
+            return False
+    return True
 
-    A term may continue into a longer word, so "tasarruf" also catches "tasarrufu" and "kW"
-    catches "kWh" and "5kW", while the "kw" inside "backward" is not a match.
+
+def forbidden_terms_in(text: str, terms: list[str]) -> list[str]:
+    """The terms that occur in text.
+
+    A word term must start a word (not directly after a letter) and may continue into a
+    longer word: "tasarruf" also catches "tasarrufu", "kW" catches "kWh" and "5kW", while the
+    "kw" inside "backward" is not a match. A sign term such as "$" or "₺" matches anywhere,
+    so "US$40" is caught as well.
     """
     folded_text = fold_for_matching(text)
     not_after_a_letter = r"(?<![^\W\d_])"
     found = []
     for term in terms:
-        if re.search(not_after_a_letter + re.escape(fold_for_matching(term)), folded_text):
+        folded_term = fold_for_matching(term)
+        if is_sign(folded_term):
+            occurs = folded_term in folded_text
+        else:
+            occurs = re.search(not_after_a_letter + re.escape(folded_term), folded_text) is not None
+        if occurs:
             found.append(term)
     return found
 
 
 def all_forbidden_terms(catalog: dict) -> list[str]:
-    """The terms of both languages: a Turkish text must not carry English unit words either."""
+    """The terms of every category in both languages, each once.
+
+    A Turkish text must not carry English unit words either, so every text is checked against
+    the terms of both languages.
+    """
     terms = []
     for language_code in LANGUAGES:
-        terms += catalog["languages"][language_code]["forbidden_terms"]
+        for category_terms in catalog["languages"][language_code]["forbidden_terms"].values():
+            for term in category_terms:
+                if term not in terms:
+                    terms.append(term)
     return terms
 
 
@@ -356,6 +401,17 @@ class ForbiddenTermMatcherTests(unittest.TestCase):
         self.assertEqual(forbidden_terms_in("a backward step", ["kW"]), [])
         self.assertEqual(forbidden_terms_in("veri kesintisi", ["kesin arıza"]), [])
 
+    def test_a_currency_sign_matches_anywhere(self):
+        # In "US$40" the sign follows a letter, so a word-start rule alone would miss it; the
+        # match must not depend on the digit after it either.
+        self.assertEqual(forbidden_terms_in("US$40", ["$"]), ["$"])
+        self.assertEqual(forbidden_terms_in("paid in US$", ["$"]), ["$"])
+        self.assertEqual(forbidden_terms_in("toplam₺", ["₺"]), ["₺"])
+
+    def test_combined_term_list_has_each_term_once(self):
+        terms = all_forbidden_terms(load_catalog())
+        self.assertEqual(len(terms), len(set(terms)))
+
 
 class HumanDecisionNoteTests(unittest.TestCase):
     """Contract rule 6: the product recommends an inspection; people decide."""
@@ -439,6 +495,7 @@ class CatalogCoverageTests(unittest.TestCase):
 
     def test_limitations_note_label_and_forbidden_terms_exist_in_both_languages(self):
         kinds = typescript_union_members("EvidenceKind")
+        self.assertEqual(set(self.catalog["forbidden_term_categories"]), set(FORBIDDEN_TERM_CATEGORIES))
         for language_code in LANGUAGES:
             language = self.catalog["languages"][language_code]
             with self.subTest(language=language_code):
@@ -447,7 +504,9 @@ class CatalogCoverageTests(unittest.TestCase):
                 self.assertGreater(len(language["limitations"]["synthetic"]), 0)
                 self.assertTrue(language["human_decision_note"].strip())
                 self.assertTrue(language["labels"]["synthetic"].strip())
-                self.assertGreater(len(language["forbidden_terms"]), 0)
+                self.assertEqual(set(language["forbidden_terms"]), set(FORBIDDEN_TERM_CATEGORIES))
+                for category in FORBIDDEN_TERM_CATEGORIES:
+                    self.assertGreater(len(language["forbidden_terms"][category]), 0, category)
 
 
 class TemplateRuleTests(unittest.TestCase):
@@ -522,20 +581,20 @@ class TemplateRuleTests(unittest.TestCase):
                 with self.subTest(language=language_code, location=location):
                     self.assertEqual(forbidden_terms_in(text, terms), [], text)
 
-    def test_forbidden_terms_cover_the_contract_wording_rules(self):
-        # Contract rules 1 and 2 and the MVP wording rules: unit claims, fault claims, fault
-        # probabilities, savings and money. Each sample must be caught by its language's list.
-        samples = {
-            "tr": ["15 kWh", "3 kW", "Arıza doğrulandı", "ARIZA DOĞRULANDI", "kesin arıza",
-                   "%90 arıza olasılığı", "tasarruf sağlar", "120 TL", "maliyeti düşer"],
-            "en": ["15 kWh", "3 kW", "Fault confirmed", "a 90% fault probability",
-                   "the likelihood of a fault", "savings", "$40", "lower cost"],
-        }
-        for language_code, phrases in samples.items():
-            terms = self.catalog["languages"][language_code]["forbidden_terms"]
-            for phrase in phrases:
-                with self.subTest(language=language_code, phrase=phrase):
-                    self.assertNotEqual(forbidden_terms_in(phrase, terms), [])
+    def test_each_category_catches_its_samples_on_its_own(self):
+        # A sample must be caught by the terms of its own category and by no other category,
+        # so "%90 olasılıkla" tests the probability terms and not the fault terms.
+        for language_code, samples_by_category in FORBIDDEN_SAMPLES.items():
+            categories = self.catalog["languages"][language_code]["forbidden_terms"]
+            for category, phrases in samples_by_category.items():
+                other_terms = []
+                for other_category, terms in categories.items():
+                    if other_category != category:
+                        other_terms += terms
+                for phrase in phrases:
+                    with self.subTest(language=language_code, category=category, phrase=phrase):
+                        self.assertNotEqual(forbidden_terms_in(phrase, categories[category]), [])
+                        self.assertEqual(forbidden_terms_in(phrase, other_terms), [])
 
     def test_synthetic_summaries_carry_the_label_and_observed_summaries_do_not(self):
         for language_code in LANGUAGES:

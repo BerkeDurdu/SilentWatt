@@ -49,7 +49,14 @@
     "MISSING_READINGS": "share",
     "FROZEN_READINGS": "count"
   },
-  "forbidden_terms_matching": "Every explanation text is checked against the terms of both languages. Matching ignores case and treats the Turkish letters ı/I and i/İ as one letter. A term matches where a word starts (not directly after a letter) and may continue into a longer word: 'tasarruf' also matches 'tasarrufu', 'kW' matches 'kWh' and '5kW', while the 'kw' inside 'backward' does not match.",
+  "forbidden_terms_matching": "Every explanation text is checked against the terms of every category in both languages. Matching ignores case and treats the Turkish letters ı/I and i/İ as one letter. A word term (one with a letter or digit) matches where a word starts (not directly after a letter) and may continue into a longer word: 'tasarruf' also matches 'tasarrufu', 'kW' matches 'kWh' and '5kW', while the 'kw' inside 'backward' does not match. A sign term ($, €, £, ₺) matches anywhere, so 'US$40' is caught. A term list cannot catch an invented physical cause or a number written in words; an LLM provider needs another guard.",
+  "forbidden_term_categories": {
+    "unit": "physical unit claims (contract rule 1)",
+    "fault": "fault claims and diagnosis (contract rule 2)",
+    "probability": "probability or likelihood wording (contract rule 2)",
+    "savings": "savings claims (contract rule 1)",
+    "money": "money, currency and cost (contract rule 1)"
+  },
   "languages": {
     "tr": {
       "formatting": {
@@ -120,29 +127,13 @@
         ]
       },
       "human_decision_note": "Bu bir inceleme önerisidir; karar ekibindir.",
-      "forbidden_terms": [
-        "kW",
-        "kilovat",
-        "kilowatt",
-        "arıza doğrulandı",
-        "kesin arıza",
-        "arıza",
-        "olasılık",
-        "olasılığı",
-        "ihtimal",
-        "tasarruf",
-        "TL",
-        "₺",
-        "lira",
-        "dolar",
-        "$",
-        "€",
-        "avro",
-        "euro",
-        "maliyet",
-        "fatura",
-        "ücret"
-      ]
+      "forbidden_terms": {
+        "unit": ["kW", "kilovat", "kilowatt", "watt"],
+        "fault": ["arıza doğrulandı", "kesin arıza", "arıza"],
+        "probability": ["olası", "ihtimal", "muhtemel"],
+        "savings": ["tasarruf"],
+        "money": ["TL", "₺", "lira", "dolar", "USD", "$", "avro", "euro", "EUR", "€", "£", "maliyet", "fatura", "ücret"]
+      }
     },
     "en": {
       "formatting": {
@@ -213,28 +204,13 @@
         ]
       },
       "human_decision_note": "This is an inspection recommendation; the decision rests with the team.",
-      "forbidden_terms": [
-        "kW",
-        "kilowatt",
-        "fault confirmed",
-        "fault",
-        "probability",
-        "probable",
-        "probably",
-        "likelihood",
-        "saving",
-        "money",
-        "cost",
-        "bill",
-        "price",
-        "dollar",
-        "euro",
-        "$",
-        "€",
-        "₺",
-        "lira",
-        "TL"
-      ]
+      "forbidden_terms": {
+        "unit": ["kW", "kilowatt", "watt"],
+        "fault": ["fault confirmed", "fault"],
+        "probability": ["probability", "probable", "probably", "likelihood", "likely", "unlikely", "chance"],
+        "savings": ["saving", "save"],
+        "money": ["money", "cost", "bill", "price", "dollar", "USD", "euro", "EUR", "$", "€", "£", "₺", "lira", "TL"]
+      }
     }
   }
 }
