@@ -18,6 +18,12 @@ import json
 from pathlib import Path
 
 MODELS = ("B0", "B1")
+SCREENING_LABELS = {
+    "all_households_calibrated": "Bütün haneler kalibre",
+    "macro_pinball_improved": "B1 eşit hane pinball'ı B0'dan iyi",
+    "coverage_in_exploratory_band": "B1 kalibre kapsaması %87–93 aralığında",
+    "width_within_110pct_b0": "B1 bant genişliği ≤ 1,10 × B0",
+}
 
 
 def turkish_number(value: float | None, digits: int = 4) -> str:
@@ -67,14 +73,8 @@ def pooled_table(report: dict) -> list[str]:
 
 def screening_table(report: dict) -> list[str]:
     screening = report["comparison"]["screening"]
-    labels = {
-        "all_households_calibrated": "Bütün haneler kalibre",
-        "macro_pinball_improved": "B1 eşit hane pinball'ı B0'dan iyi",
-        "coverage_in_exploratory_band": "B1 kalibre kapsaması %87–93 aralığında",
-        "width_within_110pct_b0": "B1 bant genişliği ≤ 1,10 × B0",
-    }
     lines = ["| Tarama koşulu | Sonuç |", "| --- | --- |"]
-    for key, label in labels.items():
+    for key, label in SCREENING_LABELS.items():
         lines.append(f"| {label} | {'evet' if screening[key] else 'hayır'} |")
     lines.append(f"| **Öneri** | **{report['comparison']['recommendation']}** |")
     return lines
@@ -87,9 +87,13 @@ def household_table(report: dict) -> list[str]:
         if (record["split"] == "development" and record["month"] == "all"
                 and record["population"] == "daily_qualified"):
             records[(record["household_id"], record["model"])] = record
-    training_days = {h["household_id"]: h["training_days"] for h in report["households"]}
-    qhat = {(h["household_id"], name): h["calibration"][name]["qhat"]
-            for h in report["households"] for name in MODELS}
+    training_days = {}
+    qhat = {}
+    for household_record in report["households"]:
+        household = household_record["household_id"]
+        training_days[household] = household_record["training_days"]
+        for name in MODELS:
+            qhat[(household, name)] = household_record["calibration"][name]["qhat"]
     lines = ["| Hane | Uygun train günü | Değerlendirilen slot | Pinball B0 | Pinball B1 | "
              "Kalibre kapsama B0 | Üst aşım B0 | Çalışırken kapsama B0 | qhat B0 | qhat B1 |",
              "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
