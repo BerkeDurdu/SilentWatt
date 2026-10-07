@@ -33,7 +33,7 @@ class QualityCalibrationTests(unittest.TestCase):
     def test_cqr_finite_sample_rank_and_pending_boundary(self):
         frame = pd.DataFrame({'target': np.arange(9.), 'q05': 0., 'q50': 0., 'q95': 0.,
                               'eligible': True, 'local_date': '2018-06-01'})
-        settings = {'alpha': .1, 'minimum_days': 1, 'minimum_slots': 1}
+        settings = {'method': 'symmetric', 'alpha': .1, 'minimum_days': 1, 'minimum_slots': 1}
         profile = calibrate(frame, settings)
         self.assertEqual(profile['rank'], 9)
         self.assertEqual(profile['qhat'], 8.)
@@ -49,7 +49,7 @@ class QualityCalibrationTests(unittest.TestCase):
             ordered_quantiles(np.array([[0., np.inf, 1.]]))
         frame = pd.DataFrame({'target': [1.] * 20, 'q05': 0., 'q50': 1., 'q95': 2.,
                               'eligible': True, 'local_date': '2018-06-01'})
-        profile = calibrate(frame, {'alpha': .1, 'minimum_days': 1, 'minimum_slots': 1})
+        profile = calibrate(frame, {'method': 'symmetric', 'alpha': .1, 'minimum_days': 1, 'minimum_slots': 1})
         self.assertEqual(profile['qhat'], 0.)
         after = apply_calibration(frame, profile)
         self.assertTrue(after['lower'].eq(frame['q05']).all())
@@ -228,6 +228,42 @@ class ComparisonTests(unittest.TestCase):
         pd.testing.assert_frame_equal(before.predictions[['q05', 'q50', 'q95']],
                                       after.predictions[['q05', 'q50', 'q95']])
         self.assertNotEqual(before.report['households'][0]['calibration'], after.report['households'][0]['calibration'])
+
+    def test_report_records_the_calibration_method_and_both_corrections(self):
+        result = self.run_comparison()
+        self.assertEqual(result.report['protocol']['protocol_version'], 'p1-v3')
+        self.assertEqual(result.report['protocol']['calibration']['method'], 'asymmetric')
+        for household in result.report['households']:
+            for model in ('B0', 'B1'):
+                profile = household['calibration'][model]
+                self.assertEqual(profile['method'], 'asymmetric')
+                self.assertEqual(profile['status'], 'calibrated')
+                self.assertIsNone(profile['qhat'])
+                # The predictions carry exactly the band built from the two recorded corrections.
+                rows = result.predictions.loc[result.predictions['household_id'].eq(household['household_id'])
+                                              & result.predictions['model'].eq(model)]
+                expected_lower = (rows['q05'] - profile['qhat_lower']).clip(lower=0)
+                expected_upper = rows['q95'] + profile['qhat_upper']
+                np.testing.assert_array_equal(rows['lower'].to_numpy(), expected_lower.to_numpy())
+                np.testing.assert_array_equal(rows['upper'].to_numpy(), expected_upper.to_numpy())
+
+    def test_calibration_method_changes_only_the_bounds(self):
+        asymmetric = self.run_comparison()
+        self.raw['p1']['calibration']['method'] = 'symmetric'
+        self.write()
+        symmetric = self.run_comparison()
+        # Same output columns; only lower and upper may differ (the detector reads these files).
+        columns = list(asymmetric.predictions.columns)
+        self.assertEqual(columns, list(symmetric.predictions.columns))
+        unchanged = [column for column in columns if column not in ('lower', 'upper')]
+        pd.testing.assert_frame_equal(asymmetric.predictions[unchanged], symmetric.predictions[unchanged])
+        pd.testing.assert_frame_equal(asymmetric.daily, symmetric.daily)
+        for household in symmetric.report['households']:
+            for model in ('B0', 'B1'):
+                profile = household['calibration'][model]
+                self.assertEqual(profile['method'], 'symmetric')
+                self.assertEqual(profile['qhat_lower'], profile['qhat'])
+                self.assertEqual(profile['qhat_upper'], profile['qhat'])
 
     def test_pending_profiles_keep_households_and_null_bounds(self):
         self.raw['p1']['calibration']['minimum_days'] = 3

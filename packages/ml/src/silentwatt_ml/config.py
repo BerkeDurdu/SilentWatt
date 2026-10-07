@@ -152,12 +152,15 @@ def _check_cohort(cohort: dict) -> None:
 
 def _check_p1(p1: dict) -> None:
     """P1 protocol: version, daily quality gates, calibration and quantile model settings."""
-    # p1-v2 adds the target dead band; p1-v1 results stay reproducible from their own commit.
-    if p1["protocol_version"] != "p1-v2":
+    # p1-v3 calibrates the two sides of the band separately (Q-03). Earlier protocols stay
+    # reproducible from their own commits; method "symmetric" reproduces p1-v2 results.
+    if p1["protocol_version"] != "p1-v3":
         raise ValueError("Unsupported P1 protocol_version")
     quality = p1["daily_quality"]
     calibration = p1["calibration"]
     model = p1["quantile_model"]
+    if calibration["method"] not in ("symmetric", "asymmetric"):
+        raise ValueError("P1 calibration method must be 'symmetric' or 'asymmetric'")
     if not 0 < quality["minimum_coverage"] <= 1:
         raise ValueError("Daily minimum_coverage must be in (0, 1]")
     if type(quality["block_frozen_days"]) is not bool:

@@ -3,8 +3,9 @@
 Status: conditional offline experiment, not G0/production approval. P0 was rechecked
 before implementation; its incorrect HTML success count was corrected. Source
 units, interval semantics and `air1` mapping remain open in the P0 decision log. The
-negative policy and the cohort were decided on 2026-10-06 and define p1-v2 (see the
-section at the end). Source values and cohort/split thresholds stay unchanged.
+negative policy and the cohort were decided on 2026-10-06 and define p1-v2; the
+asymmetric calibration decided the same day (Q-03) defines p1-v3 (see the sections at
+the end). Source values and cohort/split thresholds stay unchanged.
 
 ## Predeclared protocol
 
@@ -20,7 +21,8 @@ section at the end). Source values and cohort/split thresholds stay unchanged.
   transforms. B0's existing standalone command is preserved.
 - Clip raw quantiles to nonnegative values and sort them before calibration and
   evaluation. CQR scores come exclusively from calibration (June), using
-  `ceil((n+1)*(1-alpha))`, alpha 0.1, qhat floored at zero. At least 14 accepted
+  `ceil((n+1)*(1-alpha))` (p1-v3: each side separately at alpha/2, see below),
+  alpha 0.1, qhat floored at zero. At least 14 accepted
   local days and 1,000 valid supported slots are required; otherwise
   `calibration_pending` with null calibrated bounds. No cross-household borrowing.
 - Report calibration fit diagnostics separately; their in-sample coverage is not
@@ -88,6 +90,41 @@ a p1-v2 run reproduces the p1-v1 development run of 2026-09-17 (run03) exactly.
   coverage, and a detector reads the upper side. The screening rule above is unchanged.
 
 Development results: [P1 v2 report](../project-status/p1-v2-results-2026-10-06.md).
+
+## p1-v3 (2026-10-06)
+
+p1-v3 keeps every rule of p1-v2 and changes how the June calibration builds the band
+(decision Q-03, Yusuf, 2026-10-06). With `p1.calibration.method` set to `symmetric`, a
+p1-v3 run reproduces the p1-v2 development run (run04) exactly: `predictions.csv`,
+`daily-quality.csv` and the B1 models byte for byte, and `report.json` apart from the
+protocol version, the config and package hashes and the new calibration fields.
+
+- **Why.** Many June readings are 0 and sit on a lower bound of 0, so the single symmetric
+  score `max(q05 − y, y − q95)` spends almost the whole 10% miss budget on the upper side.
+  Under p1-v2, B0's June upper exceedance was 8.1% and its lower exceedance 1.6%
+  (slot-pooled over the 21 households) instead of about 5% each. A detector reads "more
+  than expected" from the upper bound, so this inflates false signals.
+- **Asymmetric CQR** (Romano, Patterson and Candès 2019). The lower and the upper side are
+  calibrated separately on the same eligible June slots, each at level 1 − alpha/2:
+  `rank = ceil((n+1)*(1-alpha/2))`, `qhat_lower = max(0, rank-th smallest of q05 − y)`,
+  `qhat_upper = max(0, rank-th smallest of y − q95)`; then `lower = max(0, q05 − qhat_lower)`
+  and `upper = q95 + qhat_upper`. alpha stays 0.1, so each side may miss 5% of June. The
+  clamp at 0 (no band shrinkage), the 14-day / 1,000-slot minimums, the
+  `calibration_pending` state and the ban on cross-household borrowing are unchanged. Each
+  side needs `rank ≤ n`, at least 19 slots instead of 9; the 1,000-slot minimum dominates.
+- **Config.** `p1.calibration.method` is required: `asymmetric` (the main config, p1-v3) or
+  `symmetric`, which exists only to reproduce p1-v2 with the same code through a temporary
+  config. The config check accepts `protocol_version` `p1-v3` only.
+- **Report.** Each per-household calibration profile records `method`, `rank` (per side
+  under `asymmetric`), `qhat_lower` and `qhat_upper` (the corrections the bounds use) and
+  `qhat`: the single symmetric correction, equal to both sides under `symmetric` and null
+  under `asymmetric`. `alpha` stays the total miss budget. `predictions.csv` and
+  `daily-quality.csv` keep their columns and meaning; only the `lower`/`upper` values change.
+- **Unchanged.** Training, raw quantiles, daily quality, cohort, metrics and the screening
+  rule. The rule still starts from raw-quantile pinball, which calibration does not touch;
+  its coverage and width conditions see the new bands.
+- **Not solved.** Seasonal shift: B0's raw q95 is exceeded far more often than 5% in June
+  and in July (Q-19). A band calibrated on June cannot anticipate July.
 
 Method references: [CQR paper](https://papers.neurips.cc/paper/8613-conformalized-quantile-regression.pdf),
 [sklearn HGB API](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html).
