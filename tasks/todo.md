@@ -220,12 +220,13 @@ değiştirmez; tutarsızlığı raporlar. Ortam: `PYTHONPATH=<worktree>/packages
 yeni dizinde. Arayüz: P1 çıktı sütunları değişmez; dedektör rapordaki kalibrasyon alanlarını
 okumaz; gerekçe ve öneri kodları v0.1'de dondurulur.
 
-- [ ] Agent 1 · Kalibrasyon (`p1-v3`, Q-03). Skill: `tdd-guide`, `senior-data-scientist`,
+- [x] Agent 1 · Kalibrasyon (`p1-v3`, Q-03). Skill: `tdd-guide`, `senior-data-scientist`,
       `code-reviewer`. Alan: `models/calibration.py`, `models/comparison.py`, `config.py` (P1
       kontrolü), ana config'in `p1` bloğu, `test_config.py`, `test_p1.py`, yeni kalibrasyon testi,
       `p1-ml-protocol.md`, `p1_report_tables.py`, p1-v3 raporu. Ölçüt: simetrik geçici config run04'ü
       bayt bayt verir; asimetrik koşu keşif ölçümünü birebir verir (Temmuz B0 üst aşım %8,20,
-      kapsama %90,34).
+      kapsama %90,34). Reviewer: onay, küçük düzeltmeler (ana oturumda yapıldı); birleştirildi.
+      Tek fark (çalışırken kapsama %87,12 / %87,13) keşif betiğinin CSV okumasından.
 - [ ] Agent 2 · Dedektör hattı. Skill: `tdd-guide`, `senior-ml-engineer`, `senior-data-scientist`,
       `code-reviewer`. Alan: `detection/`, yeni dedektör ve sentetik plan config'leri, `cli.py`
       (`detect`), dedektör testleri, `packages/ml/README.md`, yeni dedektör tasarım belgesi. Ölçüt:

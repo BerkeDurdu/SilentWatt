@@ -58,13 +58,15 @@ def calibrate(predictions: pd.DataFrame, settings: dict) -> dict:
 
     slot_count = len(calibration_slots)
     day_count = int(calibration_slots['local_date'].nunique())
-    # The asymmetric sides split the miss budget alpha: each side may miss alpha / 2.
+    # Level of the conformal score quantile. Symmetric: one score for both sides at 1 - alpha.
+    # Asymmetric: each side has its own score and may miss alpha / 2, so each side's quantile
+    # level is 1 - alpha / 2; the band as a whole still targets 1 - alpha coverage.
     if method == 'symmetric':
-        coverage_level = 1 - settings['alpha']
+        score_quantile_level = 1 - settings['alpha']
     else:
-        coverage_level = 1 - settings['alpha'] / 2
-    # Finite-sample conformal rank: (n + 1) instead of n keeps the coverage level for a new slot.
-    rank = math.ceil((slot_count + 1) * coverage_level)
+        score_quantile_level = 1 - settings['alpha'] / 2
+    # Finite-sample conformal rank: (n + 1) instead of n keeps the level for a new slot.
+    rank = math.ceil((slot_count + 1) * score_quantile_level)
     profile = {'status': 'calibration_pending', 'method': method, 'slots': slot_count, 'days': day_count,
                'alpha': settings['alpha'], 'rank': rank,
                'qhat': None, 'qhat_lower': None, 'qhat_upper': None}

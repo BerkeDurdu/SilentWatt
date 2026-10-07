@@ -103,7 +103,8 @@ protocol version, the config and package hashes and the new calibration fields.
   score `max(q05 − y, y − q95)` spends almost the whole 10% miss budget on the upper side.
   Under p1-v2, B0's June upper exceedance was 8.1% and its lower exceedance 1.6%
   (slot-pooled over the 21 households) instead of about 5% each. A detector reads "more
-  than expected" from the upper bound, so this inflates false signals.
+  than expected" from the upper bound, so this inflates upper-side signals on households
+  treated as normal.
 - **Asymmetric CQR** (Romano, Patterson and Candès 2019). The lower and the upper side are
   calibrated separately on the same eligible June slots, each at level 1 − alpha/2:
   `rank = ceil((n+1)*(1-alpha/2))`, `qhat_lower = max(0, rank-th smallest of q05 − y)`,

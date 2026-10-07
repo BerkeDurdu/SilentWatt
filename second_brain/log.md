@@ -11,6 +11,9 @@ analizler de buraya yazılır.
 
 ## 2026-10-07
 
+- p1-v3 (Q-03) birleştirildi: reviewer onayı ve küçük düzeltmeler (adlandırma, PRD v2.0 notu,
+  ifade). 133 test geçiyor. Ana config artık `p1-v3`; notebook 02'nin kilidi run04'e bağlı kaldı
+  ve yeniden kilitlenecek. Agent 2'nin dedektör hattı reviewer'da.
 - 1. dalga: üç agent kendi worktree'lerinde. Agent aracı worktree'leri `main`'den açtı; agent'lar
   dallarını `9cf56e1`'e ileri sardı. Gece oturum limiti doldu, agent'lar durdu; commit'ler korundu,
   sabah kaldıkları yerden devam ettiler. Bundan sonra aynı anda en fazla iki agent.
