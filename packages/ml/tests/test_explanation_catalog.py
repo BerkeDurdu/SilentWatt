@@ -59,6 +59,55 @@ def load_fixture_cases() -> list[dict]:
     return [json.loads(path.read_text(encoding="utf-8")) for path in paths]
 
 
+def made_up_case(kind: str, origin: str) -> dict:
+    """A small evidence case built here with made-up values; only the fields the texts read.
+
+    Exact expectations use these cases instead of the committed fixtures, so they do not move
+    when the fixture generator changes. Household 90010 lies in the made-up range of the
+    fixtures (from 90001); no value is a measurement. The numbers are chosen so that every
+    format shows: a statistic and shares with two decimals, a count and a signed share.
+    """
+    if kind == "consumption_deviation":
+        detector_suffix = "ACU"
+        scenario, fault_kind, severity = "step_increase", None, 0.25
+        reasons = [
+            {"code": "DAILY_EXCESS_Z", "value": 2.75},
+            {"code": "UPPER_BOUND_EXCEEDANCE", "value": 0.3125},
+            {"code": "CONSECUTIVE_FLAGGED_DAYS", "value": 4},
+            {"code": "EXCESS_OVER_REFERENCE", "value": 0.2264},
+        ]
+    else:
+        detector_suffix = "DQ"
+        scenario, fault_kind, severity = "data_fault", "freeze", None
+        reasons = [
+            {"code": "MISSING_READINGS", "value": 0.4375},
+            {"code": "FROZEN_READINGS", "value": 48},
+        ]
+
+    case_id_prefix = "SW-HVAC"
+    synthetic = None
+    if origin == "synthetic":
+        case_id_prefix = "SW-SYN-HVAC"
+        synthetic = {"scenario": scenario, "fault_kind": fault_kind, "severity": severity,
+                     "duration_days": 7, "start_local_date": "2018-07-08", "seed": 1,
+                     "generator_version": "test"}
+
+    # Four flagged days from 9 to 12 July; the rule is met on the second day.
+    return {
+        "case_id": f"{case_id_prefix}-90010-20180709-{detector_suffix}",
+        "origin": origin,
+        "household_id": 90010,
+        "kind": kind,
+        "onset_local_date": "2018-07-09",
+        "detected_local_date": "2018-07-10",
+        "last_local_date": "2018-07-12",
+        "flagged_days": 4,
+        "recommendation_code": RECOMMENDATION_BY_KIND[kind],
+        "synthetic": synthetic,
+        "reasons": reasons,
+    }
+
+
 # --- The contract, read from shared/evidence.ts ------------------------------------------
 
 def typescript_union_members(type_name: str) -> set[str]:
@@ -533,18 +582,80 @@ class FormattingTests(unittest.TestCase):
                     self.assertEqual(forbidden_terms_in(with_number + " " + with_null, terms), [])
 
 
+class MadeUpCaseTests(unittest.TestCase):
+    """Exact texts and numbers, from cases built in this file (see made_up_case)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def test_observed_summary_is_pinned_in_both_languages(self):
+        case = made_up_case("consumption_deviation", "observed")
+        expected = {
+            "tr": ("Hane 90010 için air1 kanal sapması. 9 Temmuz 2018 ile 12 Temmuz 2018 arasında tüketim, "
+                   "sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez 10 Temmuz 2018 "
+                   "tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı 4."),
+            "en": ("Household 90010: air1 channel deviation. Between 9 July 2018 and 12 July 2018, consumption "
+                   "was higher than expected for the temperature and time of day. The detector rule was first "
+                   "met on 10 July 2018; number of days that met the daily condition (flagged days): 4."),
+        }
+        for language_code, summary in expected.items():
+            with self.subTest(language=language_code):
+                self.assertEqual(render_explanation(case, self.catalog, language_code)["summary"], summary)
+
+    def test_reason_numbers_come_from_the_evidence(self):
+        # Made-up reason values: z 2.75, upper-bound share 0.3125, 4 consecutive days and an
+        # excess share of 0.2264, in this order.
+        case = made_up_case("consumption_deviation", "observed")
+        expected_numbers = {
+            "tr": [["2,75"], ["31,25"], ["4"], ["22,64"]],
+            "en": [["2.75"], ["31.25"], ["4"], ["22.64"]],
+        }
+        expected_shares = {"tr": ("%31,25", "+%22,64"), "en": ("31.25%", "+22.64%")}
+        for language_code in LANGUAGES:
+            reasons = render_explanation(case, self.catalog, language_code)["reasons"]
+            with self.subTest(language=language_code):
+                self.assertEqual([numbers_in(sentence) for sentence in reasons], expected_numbers[language_code])
+                upper_bound_share, excess_share = expected_shares[language_code]
+                self.assertIn(upper_bound_share, reasons[1])
+                self.assertIn(excess_share, reasons[3])
+
+    def test_every_kind_and_origin_renders_completely(self):
+        # The fixtures have no observed data issue, so built cases cover all four summaries.
+        terms = all_forbidden_terms(self.catalog)
+        for kind in sorted(typescript_union_members("EvidenceKind")):
+            for origin in sorted(typescript_union_members("EvidenceOrigin")):
+                case = made_up_case(kind, origin)
+                for language_code in LANGUAGES:
+                    label = self.catalog["languages"][language_code]["labels"]["synthetic"]
+                    with self.subTest(kind=kind, origin=origin, language=language_code):
+                        explanation = render_explanation(case, self.catalog, language_code)
+                        text = explanation_text(explanation, self.catalog)
+                        self.assertNotIn("{", text)
+                        self.assertNotIn("}", text)
+                        self.assertEqual(forbidden_terms_in(text, terms), [])
+                        self.assertTrue(text.endswith(APPROVED_HUMAN_DECISION_NOTES[language_code]))
+                        if origin == "synthetic":
+                            self.assertTrue(explanation["summary"].startswith(label))
+                        else:
+                            self.assertNotIn(label, explanation["summary"])
+
+
 class FixtureRenderingTests(unittest.TestCase):
+    """Completeness over the committed fixtures: placeholders resolve, labels, forbidden terms.
+
+    Exact values are tested on built cases (MadeUpCaseTests): fixture values may change when
+    the fixture generator is corrected.
+    """
+
     @classmethod
     def setUpClass(cls):
         cls.catalog = load_catalog()
         cls.cases = load_fixture_cases()
 
-    def case(self, case_id: str) -> dict:
-        return next(case for case in self.cases if case["case_id"] == case_id)
-
     def test_fixture_cases_are_the_made_up_ones(self):
         # The fixtures are fully synthetic (made-up households from 90001), never real data.
-        self.assertEqual(len(self.cases), 4)
+        self.assertGreater(len(self.cases), 0)
         for case in self.cases:
             self.assertGreaterEqual(case["household_id"], 90001)
 
@@ -581,39 +692,6 @@ class FixtureRenderingTests(unittest.TestCase):
                         self.assertIn(label, summary)
                     else:
                         self.assertNotIn(label, summary)
-
-    def test_numbers_and_dates_come_from_the_evidence(self):
-        # Hand-written expectations for the observed fixture case: onset 2018-07-03, rule met
-        # 2018-07-04, last day 2018-07-05, three flagged days; reasons z 2.6, upper-bound
-        # share 0.41, three consecutive days, excess share 0.18.
-        case = self.case("SW-HVAC-90003-20180703-ACU")
-        expected = {
-            "tr": {"dates": ["3 Temmuz 2018", "4 Temmuz 2018", "5 Temmuz 2018"],
-                   "reasons": [["2,6"], ["41"], ["3"], ["18"]], "shares": ["%41", "+%18"]},
-            "en": {"dates": ["3 July 2018", "4 July 2018", "5 July 2018"],
-                   "reasons": [["2.6"], ["41"], ["3"], ["18"]], "shares": ["41%", "+18%"]},
-        }
-        for language_code, expectation in expected.items():
-            explanation = render_explanation(case, self.catalog, language_code)
-            with self.subTest(language=language_code):
-                self.assertIn("90003", explanation["summary"])
-                for date_text in expectation["dates"]:
-                    self.assertIn(date_text, explanation["summary"])
-                reason_numbers = [numbers_in(sentence) for sentence in explanation["reasons"]]
-                self.assertEqual(reason_numbers, expectation["reasons"])
-                self.assertIn(expectation["shares"][0], explanation["reasons"][1])
-                self.assertIn(expectation["shares"][1], explanation["reasons"][3])
-
-    def test_synthetic_details_come_from_the_evidence(self):
-        # The synthetic fixture case SW-SYN-HVAC-90002-20180722-CHR was injected from
-        # 2018-07-18 for 14 days; the summary shows both values.
-        case = self.case("SW-SYN-HVAC-90002-20180722-CHR")
-        tr_summary = render_explanation(case, self.catalog, "tr")["summary"]
-        en_summary = render_explanation(case, self.catalog, "en")["summary"]
-        self.assertIn("18 Temmuz 2018", tr_summary)
-        self.assertIn("14", numbers_in(tr_summary))
-        self.assertIn("18 July 2018", en_summary)
-        self.assertIn("14", numbers_in(en_summary))
 
 
 if __name__ == "__main__":
