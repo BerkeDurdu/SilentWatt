@@ -9,6 +9,16 @@ updated: 2026-10-06
 En yeni kayıt üstte. Her kayıt 2–4 satır ve bağlantılardan oluşur. Commit'e dönüşmeyen
 analizler de buraya yazılır.
 
+## 2026-10-07
+
+- 1. dalga: üç agent kendi worktree'lerinde. Agent aracı worktree'leri `main`'den açtı; agent'lar
+  dallarını `9cf56e1`'e ileri sardı. Gece oturum limiti doldu, agent'lar durdu; commit'ler korundu,
+  sabah kaldıkları yerden devam ettiler. Bundan sonra aynı anda en fazla iki agent.
+- Açıklama kataloğu exp-0.1 (Q-15) reviewer düzeltmeleriyle birleştirildi (`2dd1ff6`); sözleşmeden
+  bağlantı verildi. Reviewer örnek kanıt dosyalarında dört tutarsız gerekçe değeri buldu.
+- p1-v3 resmî koşusu (Agent 1): Temmuz B0 üst sınır aşımı %8,20, kapsama %90,34, klima çalışırken
+  kapsama %87,12; simetrik kontrol koşusu run04'ü bayt bayt verdi. Rapor adımı sürüyor.
+
 ## 2026-10-06
 
 - Alarm bütçesi (Yusuf), dedektör sonuçları görülmeden: 21 hanede ayda en fazla 2 tüketim sapması

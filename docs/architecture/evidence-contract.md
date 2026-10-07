@@ -108,7 +108,7 @@ Detail fields (case file only):
 | `synthetic` | object or `null` | `{scenario, fault_kind, severity, duration_days, start_local_date, seed, generator_version}`; `null` for observed cases |
 | `daily` | array of daily evidence | Every July day of the household, so the console can show the month |
 | `series` | array of series points | 15-minute points from three days before onset to one day after the last flagged day, inside July |
-| `reasons` | array of `{code, value}` | Why the case exists; texts come from the explanation library |
+| `reasons` | array of `{code, value}` | Why the case exists; texts come from the [explanation catalog](explanation-catalog.md) |
 | `recommendation` | `{code, library_version}` | Inspection recommendation |
 
 Daily evidence:
@@ -165,6 +165,10 @@ The default provider is a template that only uses fields of the evidence; an LLM
 be plugged in later behind the same interface. Every explanation passes a guard: no
 forbidden wording (rule 1–2), every number comes from the evidence, and the human-decision
 sentence is present. A failed guard falls back to the template.
+
+Texts (Turkish and English templates, limitations, human-decision note, forbidden terms):
+[`shared/explanation-catalog.json`](../../shared/explanation-catalog.json), described in
+[explanation-catalog.md](explanation-catalog.md).
 
 ## Versioning
 

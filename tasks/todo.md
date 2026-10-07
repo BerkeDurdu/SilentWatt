@@ -231,9 +231,15 @@ okumaz; gerekçe ve öneri kodları v0.1'de dondurulur.
       (`detect`), dedektör testleri, `packages/ml/README.md`, yeni dedektör tasarım belgesi. Ölçüt:
       park edilen test ayrı config'e uyarlanıp geçer; run04 üzerinde uçtan uca deneme koşusu; eşik
       ızgarası önerisi Yusuf'un onayına (resmî seçim 2. dalgada p1-v3 üzerinde).
-- [ ] Agent 3 · Açıklama kataloğu (Q-15). Skill: `tdd-guide`. Alan: yeni katalog belgesi, yeni
+- [x] Agent 3 · Açıklama kataloğu (Q-15). Skill: `tdd-guide`. Alan: yeni katalog belgesi, yeni
       `shared/explanation-catalog.json`, yeni katalog testi. Ölçüt: 8 gerekçe ve 2 öneri kodu TR/EN;
-      örnek vakalar yer tutucu açığı ve yasak ifade olmadan üretilir.
+      örnek vakalar yer tutucu açığı ve yasak ifade olmadan üretilir. Reviewer: "değişiklik gerekli"
+      (kural 6 testi, sentetik ifade, yasak terimler, test boşlukları); düzeltildi, `2dd1ff6` ile
+      birleştirildi. 116 test, typecheck ve build geçti.
+- [ ] Örnek kanıt dosyaları: üretici gerekçe değerlerini elle yazıyor; dört değer kendi günlük
+      satırlarıyla çelişiyor (90002 DAYS_NOT_SCORED ve CUSUM, 90003 z, 90004 eksik okuma payı).
+      Değerler paketin kanıt yazıcısıyla hesaplanacak (önce test); ardından katalog belgesindeki
+      90002 örneği yeniden üretilir.
 - [ ] Reviewer: her teslimden sonra (`code-reviewer`, `tdd-guide`; bağımlılık değişirse
       `dependency-auditor`). Bulguları düzeltmez, raporlar.
 
