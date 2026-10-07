@@ -11,7 +11,7 @@ Status: draft (Q-15), awaiting the backend owner's review.
 
 | File | What it holds |
 | --- | --- |
-| [`shared/explanation-catalog.json`](../../shared/explanation-catalog.json) | The catalog: templates, formatting rules, limitations, human-decision note, forbidden terms |
+| [`shared/explanation-catalog.json`](../../shared/explanation-catalog.json) | The catalog: templates, assembly order, formatting rules, limitations, human-decision note, forbidden terms |
 | [`packages/ml/tests/test_explanation_catalog.py`](../../packages/ml/tests/test_explanation_catalog.py) | Content tests (stdlib `unittest`) |
 | [evidence-contract.md](evidence-contract.md) | The evidence the templates bind to (rules 1–6, fields, codes) |
 
@@ -39,14 +39,18 @@ the catalog. The content rules below stay with C.
 
 ## How an explanation is assembled
 
-The parts map one to one onto the `Explanation` shape in `server/explain/index.ts`. The same
-order is written in the catalog under `assembly`.
+The parts map one to one onto the `Explanation` shape in `server/explain/index.ts`. Their order
+is the catalog's `assembly` list. Each entry names an `Explanation` field (`field`) and where
+its text comes from (`source`). The test renderer reads this order from the catalog instead of
+fixing it in code. A test requires `humanDecisionNote` to be the last entry and every part to
+appear exactly once (rule 6).
 
-| Explanation field | Catalog entry | Evidence it reads |
+| `assembly` field | Catalog entry | Evidence it reads |
 | --- | --- | --- |
 | `summary` | `languages.<lang>.summary[kind][origin]` | `kind`, `origin` and the case placeholders |
 | `reasons` | `languages.<lang>.reasons[code]`, one sentence per evidence reason, in evidence order | `reasons[].code`, `reasons[].value` |
-| `recommendation.firstCheck`, `recommendation.steps` | `languages.<lang>.recommendations[recommendation_code]` | `recommendation_code` |
+| `recommendation.firstCheck` | `languages.<lang>.recommendations[recommendation_code].first_check` | `recommendation_code` |
+| `recommendation.steps` | `languages.<lang>.recommendations[recommendation_code].steps` | `recommendation_code` |
 | `limitations` | `limitations.always`, then `limitations[kind]`, then `limitations.synthetic` for synthetic cases | `kind`, `origin` |
 | `humanDecisionNote` | `languages.<lang>.human_decision_note` | none; always present and always the last text |
 
@@ -82,22 +86,25 @@ Value meanings are those of the contract; the format turns the value into text.
 | `DAILY_EXCESS_Z` | largest daily z among flagged days | statistic | the largest daily z, and that z compares the daily difference from the model reference with June days |
 | `UPPER_BOUND_EXCEEDANCE` | share of valid slots above the upper bound on flagged days | share | the share of valid quarter-hour readings above the upper bound of the prediction interval |
 | `CONSECUTIVE_FLAGGED_DAYS` | number of consecutive flagged days | count | the number of consecutive days that met the detector condition |
-| `PERSISTENT_CUSUM` | largest chronic statistic | statistic | the highest value of the persistence statistic (CUSUM), which grows as higher-than-expected days accumulate |
+| `PERSISTENT_CUSUM` | largest chronic statistic | statistic | the highest value of the persistence statistic (CUSUM), which grows as days with higher-than-expected consumption accumulate |
 | `EXCESS_OVER_REFERENCE` | excess share over the model reference | signed_share | the difference between observed consumption and the model reference over the flagged days |
 | `DAYS_NOT_SCORED` | days in the case window that could not be scored | count | how many days could not be assessed, and that they count as neither normal nor deviating |
 | `MISSING_READINGS` | share of expected slots without a valid reading | share | the share of expected quarter-hour readings without a valid value |
-| `FROZEN_READINGS` | slots in suspected freeze runs | count | the number of quarter-hour readings in suspected freeze runs |
+| `FROZEN_READINGS` | slots in suspected freeze runs | count | the number of quarter-hour readings marked as a suspected freeze |
 
 ## Recommendation codes (library `rec-0.1`)
 
 | Code | First check (en) | Steps |
 | --- | --- | --- |
-| `HVAC_PERSISTENT_INCREASE` | Check the thermostat settings and usage changes; if there is no explanation, plan a technician inspection. | look for a recorded setting or usage change; look at the hours of the deviation and the daily highest temperatures in the chart; if nothing explains it, plan a technician inspection and record the outcome on the case |
+| `HVAC_PERSISTENT_INCREASE` | Check thermostat settings and usage changes; if there is no explanation, plan a technician inspection. | look for a recorded setting or usage change; look at the hours of the deviation and the daily highest temperatures in the chart; if nothing explains it, plan a technician inspection and record the outcome on the case |
 | `DATA_SOURCE_CHECK` | Inspect the measurement and data source; this is not a device signal. | check for an interruption of the measurement hardware or data transfer; check for readings stuck at one value; if it continues, report it to whoever is responsible for the data source and do not interpret consumption on these days |
 
-The first checks repeat the contract's code list word for word. The steps are written for the
-maintenance team: they contain no electrical panel instruction (PRD v1.1 §13.2) and name no
-physical cause (§9.5).
+The English first checks are the texts of the contract's code list with a closing period added.
+A test reads the code list in `evidence-contract.md` and compares them. The Turkish first checks
+say the same in Turkish. The steps are written for the maintenance team. They contain no
+electrical panel instruction (PRD v1.1 §13.2) and name no physical cause (§9.5). For a synthetic
+case the steps are not carried out: a synthetic limitation says that no technician is planned
+and no inspection outcome is recorded.
 
 ## Formatting rules
 
@@ -134,35 +141,53 @@ Why:
 - **Product language.** The texts say "air1 kanal sapması" / "air1 channel deviation" and
   "inceleme önerisi" / "inspection recommendation", and they end with "Bu bir inceleme
   önerisidir; karar ekibindir." / "This is an inspection recommendation; the decision rests
-  with the team." (rule 6). The Turkish is plain and calm. There is no diagnosis, only what was
-  measured and what to check.
-- **No fault talk (rule 2).** The texts never use "arıza" or "fault". The forbidden list holds
-  the contract's examples ("arıza doğrulandı", "fault confirmed", "kesin arıza") and also the
-  bare words "arıza" and "fault". So "%90 arızalı" or "filtre arızası kesin" (PRD v1.1 §13.2)
-  cannot slip through either. Probability words ("olasılık", "ihtimal", "probability",
-  "likelihood") are forbidden too.
-- **No unit, savings or money claims (rule 1).** The list forbids "kW" (which also catches
-  kWh), "kilovat", "kilowatt", "tasarruf", "saving", and currency words and signs ("TL", "₺",
-  "$", "€", "maliyet", "fatura", "cost", "bill", "price", ...).
+  with the team." (rule 6). The test pins both note texts. The Turkish is plain and calm. There
+  is no diagnosis, only what was measured and what to check.
+- **Forbidden terms by category.** `forbidden_terms` groups the terms of each language into
+  five categories, one per wording rule:
+
+  | Category | Rule | Turkish terms | English terms |
+  | --- | --- | --- | --- |
+  | `unit` | 1 | kW (also catches kWh), kilovat, kilowatt, watt | kW, kilowatt, watt |
+  | `fault` | 2 | arıza doğrulandı, kesin arıza, arıza | fault confirmed, fault |
+  | `probability` | 2 | olası, ihtimal, muhtemel | probability, probable, probably, likelihood, likely, unlikely, chance |
+  | `savings` | 1 | tasarruf | saving, save |
+  | `money` | 1 | TL, ₺, lira, dolar, USD, $, avro, euro, EUR, €, £, maliyet, fatura, ücret | money, cost, bill, price, dollar, USD, euro, EUR, $, €, £, ₺, lira, TL |
+
+  The texts never use "arıza" or "fault", so the bare words are forbidden. That also stops "%90
+  arızalı" and "filtre arızası kesin" (PRD v1.1 §13.2). Stems cover their longer forms: "olası"
+  catches "olasılık" and "olasılıkla", "muhtemel" catches "muhtemelen", "fault" catches
+  "faulty". The test gives each category its own sample phrases, such as "%90 olasılıkla" and
+  "a 90% probability". Each phrase must be caught by its own category and by no other, so every
+  category is tested on its own.
 - **How a forbidden term matches.** Matching ignores case and treats Turkish ı/I and i/İ as one
-  letter, so "ARIZA DOĞRULANDI" is caught. A term matches where a word starts and may continue
-  into a longer word: "tasarruf" catches "tasarrufu", "kW" catches "kWh" and "5kW", but "kw"
-  inside "backward" is not a match. Every text is checked against the terms of both languages,
-  so a Turkish text cannot carry "kWh" either.
+  letter, so "ARIZA DOĞRULANDI" is caught. A word term matches where a word starts and may
+  continue into a longer word: "tasarruf" catches "tasarrufu", "kW" catches "kWh" and "5kW",
+  but "kw" inside "backward" is not a match. A sign term ($, €, £, ₺) matches anywhere, so
+  "US$40" is caught even though the sign follows a letter. Every text is checked against the
+  terms of both languages, so a Turkish text cannot carry "kWh" either.
+- **Terms deliberately not listed.** "para" would match "parametre", and bare "W" or "Wh" would
+  match "when" or "which". A word list always has such limits; see "Guard notes".
 - **Every number comes from the evidence.** Static text contains no digit except the channel
   name `air1`. That is why the texts say "çeyrek saatlik" / "quarter-hour" rather than "15
   dakikalık". It is also why detector thresholds never appear: they are in `index.json`
   (`run.detector`), not in the case file that `explainCase` receives.
 - **Synthetic cases stay labelled (rule 3).** Synthetic summaries start with "Sentetik deney." /
   "Synthetic experiment.". They end with a sentence saying the case is not a real event and
-  when and for how long the scenario was applied (`synthetic.start_local_date`,
-  `synthetic.duration_days`). Synthetic cases also get the limitation that they are not counted
-  in real case statistics. Observed summaries never contain the label.
-- **Turkish suffixes.** No suffix is attached to a placeholder ("{value}'lik" would need vowel
-  harmony with a number that is unknown in advance). Values stand alone: "payı %41", "7 günlük"
-  (the suffix is on "gün").
-- **English plurals.** Counts are written as "number of ... is N" or "a N-day scenario", so
-  "1 days" can never appear.
+  when the scenario was added and for how many days (`synthetic.start_local_date`,
+  `synthetic.duration_days`). That sentence does not call the data measured, because the
+  committed fixtures are made up throughout. Synthetic cases get two more limitations:
+  - they are not counted in real case statistics;
+  - they are for demonstration only: no technician is planned and no inspection outcome is
+    recorded.
+
+  Observed summaries never contain the label.
+- **Turkish suffixes.** No suffix is attached to a placeholder, because "{value}'lik" would need
+  vowel harmony with a number that is unknown in advance. Values stand alone: "payı %41", "7
+  günlük" (the suffix is on "gün"). A test rejects any Turkish placeholder followed by a letter
+  or an apostrophe.
+- **English plurals and articles.** Counts are written as "number of ... is N" or as a label in
+  brackets ("scenario length in days: N"). So neither "1 days" nor "a 8-day" can appear.
 - **Data issues are not device signals.** A data issue summary says that consumption could not
   be assessed. The limitation says it tells nothing about the device. The deviation wording
   ("air1 kanal sapması") is not used for data issues.
@@ -171,17 +196,24 @@ Why:
 
 The guard is the backend owner's code. The catalog gives it what to check:
 
-1. No term of either language's `forbidden_terms` occurs, using the matching rule in
-   `forbidden_terms_matching`.
+1. No term of either language's `forbidden_terms` (any category) occurs, using the matching rule
+   in `forbidden_terms_matching`.
 2. Every number in the text equals an evidence value written with the catalog's formats. In
    template texts this holds by construction; it matters for a later LLM provider.
-3. `human_decision_note` is present and is the last text.
+3. `human_decision_note` is present and is the last text, following `assembly`.
 4. If any check fails, fall back to the template text (contract, "Explanation interface").
+
+A term list only catches the words it contains. It cannot catch an invented physical cause (a
+component or a mechanism named as the reason). It also cannot catch a number written in words
+("ninety percent", "doksan"), which also escapes check 2. The template provider cannot produce
+either, because its texts are fixed and tested. An LLM provider can, so it needs another guard
+before its text reaches users.
 
 ## Examples rendered from the fixtures
 
 These are generated from the committed fixtures (made-up households 90001–90004) with
-catalog exp-0.1. The tests render all four cases in both languages.
+catalog exp-0.1. Parts appear in `assembly` order. The fixtures are rendered in the tests for
+completeness; exact values are tested on cases built in the test file.
 
 ### `SW-HVAC-90003-20180703-ACU` (observed, acute)
 
@@ -202,7 +234,7 @@ Evidence: onset 2018-07-03, rule met 2018-07-04, last day 2018-07-05, 3 flagged 
 | | Bir açıklama bulunmazsa teknisyen incelemesi planlayın ve inceleme sonucunu vakaya kaydedin. |
 | limitations | Değerler doğrulanmamış kaynak birimindedir; bu yüzden fiziksel bir enerji birimiyle gösterilmez. |
 | | Model referansı ve tahmin aralığı, hanenin geçmiş verisinden sıcaklık ve saate göre öğrenilmiş beklentilerdir; cihazın sağlıklı çalıştığını gösteren sınırlar değildir. |
-| | Değerlendirilemeyen günler (eğitimde görülmemiş sıcaklık, eksik ya da donmuş veri) ne normal ne de sapmalı sayılır. |
+| | Değerlendirilemeyen günler (örneğin eğitimde görülmemiş sıcaklık, eksik veri ya da donma şüphesi) ne normal ne de sapmalı sayılır. |
 | | Dedektör eşikleri gerçek saha sonuçlarıyla doğrulanmadı; doğru ve yanlış uyarı oranları henüz bilinmiyor. |
 | | Vaka geçmiş verinin yeniden oynatılmasından üretildi; canlı bir izleme sonucu değildir. |
 | | Sapmanın nedeni (kullanım, ayar, hava koşulları ya da cihaz) veriden belirlenemez; bu açıklama bir teşhis değildir. |
@@ -215,13 +247,13 @@ Evidence: onset 2018-07-03, rule met 2018-07-04, last day 2018-07-05, 3 flagged 
 | | On the flagged days, the share of valid quarter-hour readings above the upper bound of the model's prediction interval is 41%. |
 | | The number of consecutive days that met the detector condition is 3. |
 | | Over the flagged days, the difference between observed consumption and the model reference (the expected consumption for the temperature and time of day) is +18%. |
-| firstCheck | Check the thermostat settings and usage changes; if there is no explanation, plan a technician inspection. |
+| firstCheck | Check thermostat settings and usage changes; if there is no explanation, plan a technician inspection. |
 | steps | Check whether a change in the thermostat setting or the usage pattern was recorded on the case dates. |
 | | In the chart, look at the hours where the deviation concentrates and at the highest temperatures of the days. |
 | | If no explanation is found, plan a technician inspection and record its outcome on the case. |
 | limitations | Values are in an unverified source unit, so they are not shown in a physical energy unit. |
 | | The model reference and the prediction interval are expectations learned from the household's past data for the temperature and time of day; they are not limits that show the device works properly. |
-| | Days that could not be assessed (a temperature not seen in training, missing or frozen data) count as neither normal nor deviating. |
+| | Days that could not be assessed (for example a temperature not seen in training, missing data or a suspected freeze) count as neither normal nor deviating. |
 | | The detector thresholds have not been validated against real field outcomes; the rates of correct and false alerts are not yet known. |
 | | The case comes from a replay of past data; it is not a live monitoring result. |
 | | The cause of the deviation (usage, settings, weather or the device) cannot be determined from the data; this explanation is not a diagnosis. |
@@ -235,7 +267,7 @@ met 2018-07-25, last day 2018-07-26; reason `MISSING_READINGS` 0.58; recommendat
 
 | Field | Türkçe |
 | --- | --- |
-| summary | Sentetik deney. Hane 90004 için air1 kanalında veri sorunu. 24 Temmuz 2018 ile 26 Temmuz 2018 arasında ölçümler günlük veri kalitesi kontrolünden geçemedi; bu günlerde tüketim değerlendirilemedi. Veri sorunu kuralı ilk kez 25 Temmuz 2018 tarihinde karşılandı; kontrolden geçemeyen gün sayısı 3. Bu vaka gerçek bir olay değildir: ölçülmüş air1 verisine 24 Temmuz 2018 tarihinden başlayarak 3 günlük bir senaryo uygulandı. |
+| summary | Sentetik deney. Hane 90004 için air1 kanalında veri sorunu. 24 Temmuz 2018 ile 26 Temmuz 2018 arasında ölçümler günlük veri kalitesi kontrolünden geçemedi; bu günlerde tüketim değerlendirilemedi. Veri sorunu kuralı ilk kez 25 Temmuz 2018 tarihinde karşılandı; kontrolden geçemeyen gün sayısı 3. Bu vaka gerçek bir olay değildir: 24 Temmuz 2018 tarihinden başlayarak air1 verisine 3 günlük bir senaryo eklendi. |
 | reasons | Vaka günlerinde beklenen çeyrek saatlik ölçümlerden geçerli değeri olmayanların payı %58. |
 | firstCheck | Ölçüm ve veri kaynağını inceleyin; bu bir cihaz sinyali değildir. |
 | steps | Vaka günlerinde ölçüm donanımında ya da veri aktarımında bir kesinti olup olmadığını kontrol edin. |
@@ -243,11 +275,12 @@ met 2018-07-25, last day 2018-07-26; reason `MISSING_READINGS` 0.58; recommendat
 | | Sorun sürerse veri kaynağının sorumlusuna bildirin; veri düzelmeden bu günlerin tüketimini yorumlamayın. |
 | limitations (after the five always-limitations) | Veri sorunu ölçümle ya da veri aktarımıyla ilgilidir; cihazın durumu hakkında bilgi vermez. |
 | | Sentetik vakalar dedektörü sınamak için üretilir; gerçek vaka sayılarına ve istatistiklerine katılmaz. |
+| | Sentetik bir vaka yalnız gösterim amaçlıdır; teknisyen planlanmaz ve inceleme sonucu kaydedilmez. |
 | humanDecisionNote | Bu bir inceleme önerisidir; karar ekibindir. |
 
 | Field | English |
 | --- | --- |
-| summary | Synthetic experiment. Household 90004: data issue on the air1 channel. Between 24 July 2018 and 26 July 2018, the readings did not pass the daily data quality check, so consumption could not be assessed on these days. The data issue rule was first met on 25 July 2018; number of days that failed the check: 3. This case is not a real event: a 3-day scenario was applied to measured air1 data starting on 24 July 2018. |
+| summary | Synthetic experiment. Household 90004: data issue on the air1 channel. Between 24 July 2018 and 26 July 2018, the readings did not pass the daily data quality check, so consumption could not be assessed on these days. The data issue rule was first met on 25 July 2018; number of days that failed the check: 3. This case is not a real event: starting on 24 July 2018, a scenario was added to the air1 data (scenario length in days: 3). |
 | reasons | On the case days, the share of expected quarter-hour readings without a valid value is 58%. |
 | firstCheck | Inspect the measurement and data source; this is not a device signal. |
 | steps | Check whether the measurement hardware or the data transfer was interrupted on the case days. |
@@ -255,18 +288,21 @@ met 2018-07-25, last day 2018-07-26; reason `MISSING_READINGS` 0.58; recommendat
 | | If the problem continues, report it to whoever is responsible for the data source; do not interpret consumption on these days until the data is fixed. |
 | limitations (after the five always-limitations) | A data issue concerns the measurement or the data transfer; it says nothing about the condition of the device. |
 | | Synthetic cases are generated to test the detector; they are not counted in real case numbers or statistics. |
+| | A synthetic case is for demonstration only; no technician is planned and no inspection outcome is recorded. |
 | humanDecisionNote | This is an inspection recommendation; the decision rests with the team. |
 
 ### `SW-SYN-HVAC-90002-20180722-CHR` (synthetic, chronic): summary and reasons
 
-Evidence: synthetic `ramp_increase` from 2018-07-18 for 14 days; onset 2018-07-22, rule met
-2018-07-27, last day 2018-07-31, 10 flagged days; reasons `PERSISTENT_CUSUM` 6.1,
-`UPPER_BOUND_EXCEEDANCE` 0.41, `EXCESS_OVER_REFERENCE` 0.12, `DAYS_NOT_SCORED` 3.
+Evidence (current fixture): synthetic `ramp_increase` from 2018-07-18 for 14 days; onset
+2018-07-22, rule met 2018-07-27, last day 2018-07-31, 10 flagged days; reasons
+`PERSISTENT_CUSUM` 6.1, `UPPER_BOUND_EXCEEDANCE` 0.41, `EXCESS_OVER_REFERENCE` 0.12,
+`DAYS_NOT_SCORED` 3. The `DAYS_NOT_SCORED` value disagrees with the fixture's own daily rows
+(see "Known gaps", point 4).
 
 | Field | Türkçe | English |
 | --- | --- | --- |
-| summary | Sentetik deney. Hane 90002 için air1 kanal sapması. 22 Temmuz 2018 ile 31 Temmuz 2018 arasında tüketim, sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez 27 Temmuz 2018 tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı 10. Bu vaka gerçek bir olay değildir: ölçülmüş air1 verisine 18 Temmuz 2018 tarihinden başlayarak 14 günlük bir senaryo uygulandı. | Synthetic experiment. Household 90002: air1 channel deviation. Between 22 July 2018 and 31 July 2018, consumption was higher than expected for the temperature and time of day. The detector rule was first met on 27 July 2018; number of days that met the daily condition (flagged days): 10. This case is not a real event: a 14-day scenario was applied to measured air1 data starting on 18 July 2018. |
-| reasons | Kalıcılık göstergesinin (birikimli toplam, CUSUM) vaka boyunca ulaştığı en yüksek değer 6,1; bu gösterge, beklenenden yüksek tüketimli günler biriktikçe büyür. | The highest value the persistence statistic (cumulative sum, CUSUM) reached during the case is 6.1; it grows as days with higher than expected consumption accumulate. |
+| summary | Sentetik deney. Hane 90002 için air1 kanal sapması. 22 Temmuz 2018 ile 31 Temmuz 2018 arasında tüketim, sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez 27 Temmuz 2018 tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı 10. Bu vaka gerçek bir olay değildir: 18 Temmuz 2018 tarihinden başlayarak air1 verisine 14 günlük bir senaryo eklendi. | Synthetic experiment. Household 90002: air1 channel deviation. Between 22 July 2018 and 31 July 2018, consumption was higher than expected for the temperature and time of day. The detector rule was first met on 27 July 2018; number of days that met the daily condition (flagged days): 10. This case is not a real event: starting on 18 July 2018, a scenario was added to the air1 data (scenario length in days: 14). |
+| reasons | Kalıcılık göstergesinin (birikimli toplam, CUSUM) vaka boyunca ulaştığı en yüksek değer 6,1; bu gösterge, beklenenden yüksek tüketimli günler biriktikçe büyür. | The highest value the persistence statistic (cumulative sum, CUSUM) reached during the case is 6.1; it grows as days with higher-than-expected consumption accumulate. |
 | | İşaretli günlerde modelin tahmin aralığının üst sınırını aşan geçerli çeyrek saatlik ölçümlerin payı %41. | On the flagged days, the share of valid quarter-hour readings above the upper bound of the model's prediction interval is 41%. |
 | | İşaretli günlerin toplamında gözlenen tüketimin model referansına (sıcaklık ve saate göre beklenen tüketim) göre farkı +%12. | Over the flagged days, the difference between observed consumption and the model reference (the expected consumption for the temperature and time of day) is +12%. |
 | | Vaka penceresinde değerlendirilemeyen gün sayısı 3; bu günler (örneğin eğitimde görülmemiş bir sıcaklık ya da eksik veri yüzünden) ne normal ne de sapmalı sayıldı. | The number of days in the case window that could not be assessed is 3; these days (for example because of a temperature not seen in training or missing data) count as neither normal nor deviating. |
@@ -280,18 +316,26 @@ PYTHONPATH=packages/ml/src python -m unittest discover -s packages/ml/tests -p '
 The tests read the code lists from `shared/evidence.ts` and from
 `silentwatt_ml.detection.evidence`, and check that both list the same codes. They then check:
 
-- every code, kind and origin has texts in both languages;
-- placeholders name contract fields;
-- static text has no digits;
-- no forbidden term appears in any text;
-- the four fixture cases render with no unresolved placeholder and end with the
-  human-decision note;
-- synthetic cases carry the label;
-- the formatted numbers and dates match the evidence (hand-written expectations).
+- **Coverage:** every code, kind and origin has texts in both languages, and both languages
+  have the same number of steps and limitations.
+- **First checks:** the English first checks equal the contract's code list plus a closing
+  period.
+- **Placeholders:** they name contract fields, no Turkish placeholder carries a suffix, and
+  static text has no digits.
+- **Forbidden terms:** none appears in any text, and each category catches its own sample
+  phrases and no other category's.
+- **Human-decision note:** it is the approved text and the last `assembly` step, and every
+  rendered explanation ends with it exactly once.
+- **Synthetic cases:** summaries start with the label and end with the scenario sentence, and
+  the demonstration-only limitation is present.
+- **Exact values:** numbers, dates and one full summary per language are checked on cases built
+  in the test, with hand-written expectations.
+- **All kinds and origins:** every kind × origin is rendered, including the observed data issue
+  that no fixture has.
+- **Fixtures:** they are rendered for completeness only: placeholders, labels, forbidden terms
+  and the note.
 
-`FROZEN_READINGS` is not in the fixtures; every reason code is also rendered with a sample value
-and with null. The renderer in the test file is a test helper, not a second server
-implementation.
+The renderer in the test file is a test helper, not a second server implementation.
 
 ## Known gaps and open points
 
@@ -303,25 +347,25 @@ implementation.
    `run.detector` (an interface decision for B) and new placeholders.
 3. **`DAYS_NOT_SCORED` window.** The contract says "days in the case window". The writer
    (`evidence.py`) counts unscored days from three days before onset to the last day. The
-   templates follow the contract wording; the contract should define the window or the count
-   should change (owner decision).
+   templates keep the contract wording until the owner's decision on the window.
 4. **Fixture value.** In `SW-SYN-HVAC-90002-20180722-CHR`, `DAYS_NOT_SCORED` is 3. The fixture's
-   own daily rows give 2 under the writer's window and 0 within onset–last. The fixtures are
-   made up, so the tests are not affected, but a demo on fixtures would show a number the
-   chart does not.
-5. **"Measured data" in synthetic summaries.** This is true for real runs. The committed
-   fixtures are made up throughout (`fixture: true`), so the console should keep showing that.
-6. **Scenario type not named.** The text does not say step, ramp or data fault. The console can
+   own daily rows give 2 under the writer's window and 0 within onset–last. The tests no longer
+   read exact values from the fixtures. The fixture generator is being corrected separately;
+   the example above will be re-rendered after that.
+5. **Scenario type not named.** The text does not say step, ramp or data fault. The console can
    show `synthetic.scenario` directly; labels for scenarios would be a catalog addition.
 
 ## Versioning
 
 exp-0.1 targets evidence contract `silentwatt.evidence/0.1` and recommendation library
-`rec-0.1`. The catalog records both. While the catalog is a draft, wording changes inside a
-sentence keep exp-0.1 and are reviewed in the pull request. These changes create exp-0.2:
+`rec-0.1`. The catalog records both. Changes made while this first draft is under review keep
+exp-0.1.
+
+After the catalog is merged, wording changes inside a sentence keep the version and are
+reviewed in the pull request. These changes create a new version:
 
 - a new placeholder;
-- a change to a format or to the assembly order;
+- a change to a format, to the `assembly` order or to the structure of the file;
 - a new code.
 
 A new reason code or field in the contract (v0.2) needs a catalog update in the same change.
