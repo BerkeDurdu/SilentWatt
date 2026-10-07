@@ -641,6 +641,52 @@ class MadeUpCaseTests(unittest.TestCase):
                             self.assertNotIn(label, explanation["summary"])
 
 
+class SyntheticWordingTests(unittest.TestCase):
+    """Contract rule 3: synthetic cases stay labelled and are never presented as real cases."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def test_synthetic_summary_ends_with_the_scenario_sentence(self):
+        # made_up_case applies its scenario from 2018-07-08 for 7 days.
+        expected_endings = {
+            "tr": "Bu vaka gerçek bir olay değildir: 8 Temmuz 2018 tarihinden başlayarak air1 verisine "
+                  "7 günlük bir senaryo eklendi.",
+            "en": "This case is not a real event: starting on 8 July 2018, a scenario was added to the "
+                  "air1 data (scenario length in days: 7).",
+        }
+        for kind in sorted(typescript_union_members("EvidenceKind")):
+            case = made_up_case(kind, "synthetic")
+            for language_code, ending in expected_endings.items():
+                with self.subTest(kind=kind, language=language_code):
+                    summary = render_explanation(case, self.catalog, language_code)["summary"]
+                    self.assertTrue(summary.endswith(ending), summary)
+
+    def test_synthetic_summaries_do_not_call_the_data_measured(self):
+        # The committed fixtures are made up throughout, so "measured data" would not be true
+        # for them.
+        words = {"tr": "ölçülmüş", "en": "measured"}
+        for language_code, word in words.items():
+            summaries = self.catalog["languages"][language_code]["summary"]
+            for kind, templates_by_origin in summaries.items():
+                with self.subTest(language=language_code, kind=kind):
+                    self.assertNotIn(word, templates_by_origin["synthetic"].lower())
+
+    def test_synthetic_limitations_say_demonstration_only(self):
+        # The recommendation steps plan a technician and record the outcome; for a synthetic
+        # case that must not happen.
+        expected = {
+            "tr": "Sentetik bir vaka yalnız gösterim amaçlıdır; teknisyen planlanmaz ve inceleme sonucu "
+                  "kaydedilmez.",
+            "en": "A synthetic case is for demonstration only; no technician is planned and no inspection "
+                  "outcome is recorded.",
+        }
+        for language_code, sentence in expected.items():
+            with self.subTest(language=language_code):
+                self.assertIn(sentence, self.catalog["languages"][language_code]["limitations"]["synthetic"])
+
+
 class FixtureRenderingTests(unittest.TestCase):
     """Completeness over the committed fixtures: placeholders resolve, labels, forbidden terms.
 

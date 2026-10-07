@@ -65,11 +65,11 @@
       "summary": {
         "consumption_deviation": {
           "observed": "Hane {household_id} için air1 kanal sapması. {onset_local_date} ile {last_local_date} arasında tüketim, sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez {detected_local_date} tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı {flagged_days}.",
-          "synthetic": "Sentetik deney. Hane {household_id} için air1 kanal sapması. {onset_local_date} ile {last_local_date} arasında tüketim, sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez {detected_local_date} tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı {flagged_days}. Bu vaka gerçek bir olay değildir: ölçülmüş air1 verisine {synthetic.start_local_date} tarihinden başlayarak {synthetic.duration_days} günlük bir senaryo uygulandı."
+          "synthetic": "Sentetik deney. Hane {household_id} için air1 kanal sapması. {onset_local_date} ile {last_local_date} arasında tüketim, sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez {detected_local_date} tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı {flagged_days}. Bu vaka gerçek bir olay değildir: {synthetic.start_local_date} tarihinden başlayarak air1 verisine {synthetic.duration_days} günlük bir senaryo eklendi."
         },
         "data_issue": {
           "observed": "Hane {household_id} için air1 kanalında veri sorunu. {onset_local_date} ile {last_local_date} arasında ölçümler günlük veri kalitesi kontrolünden geçemedi; bu günlerde tüketim değerlendirilemedi. Veri sorunu kuralı ilk kez {detected_local_date} tarihinde karşılandı; kontrolden geçemeyen gün sayısı {flagged_days}.",
-          "synthetic": "Sentetik deney. Hane {household_id} için air1 kanalında veri sorunu. {onset_local_date} ile {last_local_date} arasında ölçümler günlük veri kalitesi kontrolünden geçemedi; bu günlerde tüketim değerlendirilemedi. Veri sorunu kuralı ilk kez {detected_local_date} tarihinde karşılandı; kontrolden geçemeyen gün sayısı {flagged_days}. Bu vaka gerçek bir olay değildir: ölçülmüş air1 verisine {synthetic.start_local_date} tarihinden başlayarak {synthetic.duration_days} günlük bir senaryo uygulandı."
+          "synthetic": "Sentetik deney. Hane {household_id} için air1 kanalında veri sorunu. {onset_local_date} ile {last_local_date} arasında ölçümler günlük veri kalitesi kontrolünden geçemedi; bu günlerde tüketim değerlendirilemedi. Veri sorunu kuralı ilk kez {detected_local_date} tarihinde karşılandı; kontrolden geçemeyen gün sayısı {flagged_days}. Bu vaka gerçek bir olay değildir: {synthetic.start_local_date} tarihinden başlayarak air1 verisine {synthetic.duration_days} günlük bir senaryo eklendi."
         }
       },
       "reasons": {
@@ -115,7 +115,8 @@
           "Veri sorunu ölçümle ya da veri aktarımıyla ilgilidir; cihazın durumu hakkında bilgi vermez."
         ],
         "synthetic": [
-          "Sentetik vakalar dedektörü sınamak için üretilir; gerçek vaka sayılarına ve istatistiklerine katılmaz."
+          "Sentetik vakalar dedektörü sınamak için üretilir; gerçek vaka sayılarına ve istatistiklerine katılmaz.",
+          "Sentetik bir vaka yalnız gösterim amaçlıdır; teknisyen planlanmaz ve inceleme sonucu kaydedilmez."
         ]
       },
       "human_decision_note": "Bu bir inceleme önerisidir; karar ekibindir.",
@@ -157,11 +158,11 @@
       "summary": {
         "consumption_deviation": {
           "observed": "Household {household_id}: air1 channel deviation. Between {onset_local_date} and {last_local_date}, consumption was higher than expected for the temperature and time of day. The detector rule was first met on {detected_local_date}; number of days that met the daily condition (flagged days): {flagged_days}.",
-          "synthetic": "Synthetic experiment. Household {household_id}: air1 channel deviation. Between {onset_local_date} and {last_local_date}, consumption was higher than expected for the temperature and time of day. The detector rule was first met on {detected_local_date}; number of days that met the daily condition (flagged days): {flagged_days}. This case is not a real event: a {synthetic.duration_days}-day scenario was applied to measured air1 data starting on {synthetic.start_local_date}."
+          "synthetic": "Synthetic experiment. Household {household_id}: air1 channel deviation. Between {onset_local_date} and {last_local_date}, consumption was higher than expected for the temperature and time of day. The detector rule was first met on {detected_local_date}; number of days that met the daily condition (flagged days): {flagged_days}. This case is not a real event: starting on {synthetic.start_local_date}, a scenario was added to the air1 data (scenario length in days: {synthetic.duration_days})."
         },
         "data_issue": {
           "observed": "Household {household_id}: data issue on the air1 channel. Between {onset_local_date} and {last_local_date}, the readings did not pass the daily data quality check, so consumption could not be assessed on these days. The data issue rule was first met on {detected_local_date}; number of days that failed the check: {flagged_days}.",
-          "synthetic": "Synthetic experiment. Household {household_id}: data issue on the air1 channel. Between {onset_local_date} and {last_local_date}, the readings did not pass the daily data quality check, so consumption could not be assessed on these days. The data issue rule was first met on {detected_local_date}; number of days that failed the check: {flagged_days}. This case is not a real event: a {synthetic.duration_days}-day scenario was applied to measured air1 data starting on {synthetic.start_local_date}."
+          "synthetic": "Synthetic experiment. Household {household_id}: data issue on the air1 channel. Between {onset_local_date} and {last_local_date}, the readings did not pass the daily data quality check, so consumption could not be assessed on these days. The data issue rule was first met on {detected_local_date}; number of days that failed the check: {flagged_days}. This case is not a real event: starting on {synthetic.start_local_date}, a scenario was added to the air1 data (scenario length in days: {synthetic.duration_days})."
         }
       },
       "reasons": {
@@ -207,7 +208,8 @@
           "A data issue concerns the measurement or the data transfer; it says nothing about the condition of the device."
         ],
         "synthetic": [
-          "Synthetic cases are generated to test the detector; they are not counted in real case numbers or statistics."
+          "Synthetic cases are generated to test the detector; they are not counted in real case numbers or statistics.",
+          "A synthetic case is for demonstration only; no technician is planned and no inspection outcome is recorded."
         ]
       },
       "human_decision_note": "This is an inspection recommendation; the decision rests with the team.",
