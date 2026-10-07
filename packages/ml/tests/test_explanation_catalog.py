@@ -9,8 +9,8 @@ the backend owner, who may adapt the format. These tests check the content only:
 - placeholders name evidence fields, and static text carries no number of its own,
 - the made-up fixture cases (households 90001-90004) render without an unresolved placeholder,
 - no forbidden wording appears (unit claims, fault claims, fault probabilities, savings, money),
-- synthetic cases carry the synthetic label and every explanation ends with the
-  human-decision note.
+- synthetic cases carry the synthetic label, and every explanation follows the catalog's
+  assembly order and ends with the approved human-decision note (contract rule 6).
 
 The small renderer in this file exists only to test the content; it is not a second server
 implementation. No real measurement and no real household id is used here.
@@ -38,6 +38,16 @@ PLACEHOLDER_PATTERN = re.compile(r"\{([a-z_]+(?:\.[a-z_]+)?)\}")
 CHANNEL_NAME = "air1"
 # Marks an evidence path that does not exist, e.g. synthetic details of an observed case.
 MISSING = object()
+# The parts of the server's Explanation shape (server/explain/index.ts) that carry text, by the
+# names the catalog's assembly uses.
+EXPLANATION_PARTS = ("summary", "reasons", "recommendation.firstCheck", "recommendation.steps",
+                     "limitations", "humanDecisionNote")
+# Contract rule 6: every explanation ends with this sentence. The wording is approved, so a
+# change must be deliberate and shows up here.
+APPROVED_HUMAN_DECISION_NOTES = {
+    "tr": "Bu bir inceleme önerisidir; karar ekibindir.",
+    "en": "This is an inspection recommendation; the decision rests with the team.",
+}
 
 
 def load_catalog() -> dict:
@@ -195,7 +205,10 @@ def case_placeholder_values(case: dict, catalog: dict, formatting: dict) -> dict
 
 
 def render_explanation(case: dict, catalog: dict, language_code: str) -> dict:
-    """The parts of the server's Explanation shape, filled from one evidence case."""
+    """The text parts of the server's Explanation shape, filled from one evidence case.
+
+    The keys are the names the catalog's assembly uses (EXPLANATION_PARTS).
+    """
     language = catalog["languages"][language_code]
     formatting = language["formatting"]
     values = case_placeholder_values(case, catalog, formatting)
@@ -220,17 +233,26 @@ def render_explanation(case: dict, catalog: dict, language_code: str) -> dict:
     return {
         "summary": summary,
         "reasons": reasons,
-        "first_check": recommendation["first_check"],
-        "steps": list(recommendation["steps"]),
+        "recommendation.firstCheck": recommendation["first_check"],
+        "recommendation.steps": list(recommendation["steps"]),
         "limitations": limitations,
-        "human_decision_note": language["human_decision_note"],
+        "humanDecisionNote": language["human_decision_note"],
     }
 
 
-def explanation_text(explanation: dict) -> str:
-    """All parts in reading order, one per line; the human-decision note is the last line."""
-    lines = [explanation["summary"], *explanation["reasons"], explanation["first_check"],
-             *explanation["steps"], *explanation["limitations"], explanation["human_decision_note"]]
+def explanation_text(explanation: dict, catalog: dict) -> str:
+    """All parts in the order of the catalog's assembly, one text per line.
+
+    The order is read from the catalog, not written here, so the tests check the order the
+    server is told to use.
+    """
+    lines = []
+    for step in catalog["assembly"]:
+        part = explanation[step["field"]]
+        if isinstance(part, list):
+            lines += part
+        else:
+            lines.append(part)
     return "\n".join(lines)
 
 
@@ -274,6 +296,27 @@ class ForbiddenTermMatcherTests(unittest.TestCase):
     def test_does_not_match_inside_a_longer_word(self):
         self.assertEqual(forbidden_terms_in("a backward step", ["kW"]), [])
         self.assertEqual(forbidden_terms_in("veri kesintisi", ["kesin arıza"]), [])
+
+
+class HumanDecisionNoteTests(unittest.TestCase):
+    """Contract rule 6: the product recommends an inspection; people decide."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+
+    def test_note_texts_are_the_approved_ones(self):
+        for language_code in LANGUAGES:
+            with self.subTest(language=language_code):
+                self.assertEqual(self.catalog["languages"][language_code]["human_decision_note"],
+                                 APPROVED_HUMAN_DECISION_NOTES[language_code])
+
+    def test_note_is_the_last_step_of_the_assembly(self):
+        self.assertEqual(self.catalog["assembly"][-1]["field"], "humanDecisionNote")
+
+    def test_assembly_names_every_explanation_part_exactly_once(self):
+        fields = [step["field"] for step in self.catalog["assembly"]]
+        self.assertEqual(sorted(fields), sorted(EXPLANATION_PARTS))
 
 
 class CatalogCoverageTests(unittest.TestCase):
@@ -511,7 +554,7 @@ class FixtureRenderingTests(unittest.TestCase):
             for language_code in LANGUAGES:
                 with self.subTest(case=case["case_id"], language=language_code):
                     explanation = render_explanation(case, self.catalog, language_code)
-                    text = explanation_text(explanation)
+                    text = explanation_text(explanation, self.catalog)
                     self.assertNotIn("{", text)
                     self.assertNotIn("}", text)
                     self.assertIsNone(re.search(r"\b(None|null|undefined|NaN)\b", text))
@@ -521,10 +564,12 @@ class FixtureRenderingTests(unittest.TestCase):
     def test_every_explanation_ends_with_the_human_decision_note(self):
         for case in self.cases:
             for language_code in LANGUAGES:
-                note = self.catalog["languages"][language_code]["human_decision_note"]
+                note = APPROVED_HUMAN_DECISION_NOTES[language_code]
                 with self.subTest(case=case["case_id"], language=language_code):
-                    text = explanation_text(render_explanation(case, self.catalog, language_code))
+                    explanation = render_explanation(case, self.catalog, language_code)
+                    text = explanation_text(explanation, self.catalog)
                     self.assertTrue(text.endswith(note))
+                    self.assertEqual(text.count(note), 1)
 
     def test_synthetic_cases_carry_the_synthetic_label(self):
         for case in self.cases:

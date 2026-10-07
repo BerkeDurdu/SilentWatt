@@ -8,12 +8,14 @@
     "content": "Role C (Data & AI): templates, limitations, human-decision note, forbidden terms; wording review in pull requests.",
     "server": "Role B (backend): explainCase in server/explain/index.ts reads this catalog and may adapt its format."
   },
+  "assembly_rule": "The explanation is built in this order; field names follow the Explanation shape in server/explain/index.ts. humanDecisionNote is always the last step (contract rule 6).",
   "assembly": [
-    "summary: languages.<lang>.summary[kind][origin], filled with the case placeholders.",
-    "reasons: one sentence per evidence reason, in the order of evidence.reasons, from languages.<lang>.reasons[code] with {value}.",
-    "recommendation: languages.<lang>.recommendations[recommendation_code], first_check and steps.",
-    "limitations: limitations.always, then limitations[kind], then limitations.synthetic for synthetic cases.",
-    "humanDecisionNote: languages.<lang>.human_decision_note, always the last text of the explanation."
+    {"field": "summary", "source": "languages.<lang>.summary[kind][origin], filled with the case placeholders"},
+    {"field": "reasons", "source": "languages.<lang>.reasons[code] with {value}, one sentence per evidence reason, in the order of evidence.reasons"},
+    {"field": "recommendation.firstCheck", "source": "languages.<lang>.recommendations[recommendation_code].first_check"},
+    {"field": "recommendation.steps", "source": "languages.<lang>.recommendations[recommendation_code].steps"},
+    {"field": "limitations", "source": "languages.<lang>.limitations.always, then limitations[kind], then limitations.synthetic for synthetic cases"},
+    {"field": "humanDecisionNote", "source": "languages.<lang>.human_decision_note"}
   ],
   "placeholder_syntax": "{name}, where name is a key of placeholders. Static text carries no digit except the channel name air1, so every number in an explanation comes from the evidence.",
   "placeholders": {
