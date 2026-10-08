@@ -175,7 +175,7 @@ tekrarladı (B0 üst aşım %12,78, çalışırken kapsama %80,77). `git diff --
 bağlantı kontrolü temiz. Push yapılmadı. İlk deneme `wip/dead-band-first-pass` dalında
 (`dbf65bb`) arşivli; silinmesi kullanıcı kararı.
 
-# MVP (9 Ekim 2026) — uçtan uca HVAC dikey dilimi
+# MVP (16 Ekim 2026; ilk hedef 9 Ekim) — uçtan uca HVAC dikey dilimi
 
 Dal: `feat/mvp`. Kararlar (5–6 Ekim): yalnız HVAC (`air1`), 21 hane, Temmuz yeniden oynatma ve
 sentetik vakalar (test ayları yok); açıklama önce şablon. 6 Ekim: push edildi (taslak PR #2); konsol ve API bizim

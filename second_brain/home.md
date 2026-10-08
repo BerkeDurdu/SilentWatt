@@ -21,7 +21,7 @@ C Yusuf Ziya Demirel (AI/ML). İki parça var: rol bazlı web konsolu (React + E
 
 ## Güncel durum
 
-- **Takvim:** staj 9 Ekim'de biter; sunumda **çalışan MVP** (yalnız HVAC) istenir. Teknik
+- **Takvim:** MVP sunumu **16 Ekim** (Yusuf, 8 Ekim; önceki hedef 9 Ekim). Teknik
   çalışmalar 30 Ekim'de sunulur. PRD v2.0 kanıttan yazılacak; v1.1'in metriklerine güvenilmiyor.
 - **Aşama:** P0, P1, `p1-v2` ve 21 hanelik EDA (notebook `02`) tamam. Dedektör çekirdeği ve
   kanıt yazıcı testleriyle var (`09d5e98`), gerçek veride çalıştırılmadı; kanıt sözleşmesi v0.1
@@ -57,7 +57,7 @@ C Yusuf Ziya Demirel (AI/ML). İki parça var: rol bazlı web konsolu (React + E
 - **Q-01:** 2361 ve 3039'da ölü bant üstü sabit okumalar donma şüphesinde.
 - **Q-13:** kapsam genişletme için ekip kararı (A+B+C).
 
-## Sıradaki işler (MVP, 9 Ekim)
+## Sıradaki işler (MVP, 16 Ekim)
 
 0. **Sonraki oturumun ilk işi:** `tasks/todo.md` "Agent orkestrasyonu — 1. dalga": Yusuf'un 7 kararı,
    Agent 2'nin reviewer'ı ve birleştirmesi. Açıklama kataloğu ve `p1-v3` 7 Ekim'de birleştirildi.
