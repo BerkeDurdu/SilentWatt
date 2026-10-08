@@ -253,6 +253,10 @@ okumaz; gerekçe ve öneri kodları v0.1'de dondurulur.
       90002 örneği yeniden üretilir.
 - [ ] Reviewer: her teslimden sonra (`code-reviewer`, `tdd-guide`; bağımlılık değişirse
       `dependency-auditor`). Bulguları düzeltmez, raporlar.
+- [x] Agent düzeni (8 Ekim, öneriler 1–5): `.claude/agents/` tanımları, `tasks/agents/` altında
+      `preflight.py`, `merge_gate.py`, devir dosyası şablonu; aynı anda en fazla 2 agent.
+- [ ] Derin öğrenme hattı (19–30 Ekim): protokol ve aday mimariler, bağımlılık kararı (PyTorch),
+      eğitim, aynı kalibrasyonla Temmuz karşılaştırması, 26 Ekim kilit, 27 Ekim tek seferlik kör test.
 
 # EDA notebook 02 — 21 hane (6–7 Ekim 2026)
 

@@ -136,6 +136,7 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | 2026-10-06 | `feat/ml-foundation` (2 commit) ve `feat/mvp` push edildi; `feat/mvp` için taslak [PR #2](https://github.com/BerkeDurdu/SilentWatt/pull/2), taban `feat/ml-foundation` (PR #1 birleşince `main`). Push yalnız açık onayla (Yusuf) | sohbet, 2026-10-06 |
 | 2026-10-06 | Alarm bütçesi: değiştirilmemiş veride 21 hane için ayda en fazla 2 tüketim sapması vakası (hane başına yılda yaklaşık 1); akut ve kronik dedektöre ayrı ayrı en fazla 1. Eşik Haziran'da bu bütçeyi aşmayan en hassas değer olarak seçilir; Temmuz'da değiştirilmez, vaka sayısı ve sentetik yakalama oranı olduğu gibi raporlanır. Veri sorunu vakaları bütçeye girmez, ayrı raporlanır. Bütçe dedektör sonuçları görülmeden belirlendi (Yusuf) | sohbet, 2026-10-06 · alarm yükü KPI'ı (PRD v2.0) · Q-19 |
 | 2026-10-08 | MVP sunumu 16 Ekim'de (önceki hedef 9 Ekim). Teknik sunum 30 Ekim'de kalıyor (Yusuf) | sohbet, 2026-10-08 |
+| 2026-10-08 | Agent düzeni: tanımlar `.claude/agents/` (`sw-implementer` Opus, `sw-reviewer` Opus 5.5 yüksek akıl yürütme), ilk komut `preflight.py`, iş başına devir dosyası, her birleştirmeden önce `merge_gate.py`, aynı anda en fazla 2 agent (Yusuf) | sohbet, 2026-10-08 · [tasks/agents](../tasks/agents/README.md) · [AGENTS.md](../AGENTS.md) §2 |
 
 ## Kanıtı olan riskler (tam liste: PRD §19.1)
 

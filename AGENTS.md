@@ -34,6 +34,7 @@ These hold unless the project owner or the team decides otherwise. Open items an
 - Use subagents only when work can be meaningfully isolated or parallelized.
 - Keep each subagent focused on one well-defined responsibility.
 - Give each subagent its success criteria, file scope and verification commands; a subagent that meets an inconsistency reports it instead of guessing.
+- Agent work follows `tasks/agents/README.md`: the definitions in `.claude/agents/` (`sw-implementer`, `sw-reviewer`), `preflight.py` as the agent's first command, one handoff file per task, `merge_gate.py` before every merge, and at most two agents at a time.
 
 ### 3. Preserve Scope
 
