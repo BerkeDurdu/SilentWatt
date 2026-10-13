@@ -67,13 +67,13 @@ class IntervalMetricTests(unittest.TestCase):
 class RunningThresholdConfigTests(unittest.TestCase):
     def setUp(self):
         repository = Path(__file__).resolve().parents[3]
-        self.raw = json.loads((repository / "configs/ml/austin-2018.json").read_text())
+        self.raw = json.loads((repository / "configs/ml/austin-2018.json").read_text(encoding="utf-8"))
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "config.json"
 
     def load(self):
-        self.path.write_text(json.dumps(self.raw))
+        self.path.write_text(json.dumps(self.raw), encoding="utf-8")
         return load_config(self.path)
 
     def test_config_carries_the_running_threshold(self):
