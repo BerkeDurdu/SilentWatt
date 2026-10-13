@@ -158,7 +158,7 @@ class ComparisonTests(unittest.TestCase):
         self.data = self.root / 'data'
         self.data.mkdir()
         repo = Path(__file__).resolve().parents[3]
-        self.raw = json.loads((repo / 'configs/ml/austin-2018.json').read_text())
+        self.raw = json.loads((repo / 'configs/ml/austin-2018.json').read_text(encoding='utf-8'))
         self.raw['display_timezone'] = 'UTC'
         self.raw['analysis_window_utc'] = {'start': '2018-01-01T00:00:00Z', 'end': '2018-01-10T00:00:00Z'}
         self.raw['splits_local_date'] = {'train': ['2018-01-01', '2018-01-04'],
@@ -180,10 +180,10 @@ class ComparisonTests(unittest.TestCase):
         self.write()
 
     def write(self):
-        self.config.write_text(json.dumps(self.raw))
+        self.config.write_text(json.dumps(self.raw), encoding='utf-8')
         self.electric.to_csv(self.data / self.raw['files']['electric_15m'], index=False)
         (self.data / self.raw['files']['weather']).write_text(
-            'timezone,utc_offset_seconds\nGMT,0\n\n' + self.weather.to_csv(index=False))
+            'timezone,utc_offset_seconds\nGMT,0\n\n' + self.weather.to_csv(index=False), encoding='utf-8')
 
     def run_comparison(self):
         return run_comparison(load_config(self.config), self.data)
@@ -254,7 +254,7 @@ class ComparisonTests(unittest.TestCase):
                    '--data-dir', str(self.data), '--output-dir', str(out)]
         sources = {p: sha256_file(p) for p in self.data.iterdir()}
         subprocess.run(command, capture_output=True, text=True, check=True)
-        report = json.loads((out / 'report.json').read_text())
+        report = json.loads((out / 'report.json').read_text(encoding='utf-8'))
         for name, digest in report['artifact_sha256'].items():
             self.assertEqual(sha256_file(out / name), digest)
         repeated = self.root / 'repeat'

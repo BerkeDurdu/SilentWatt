@@ -27,7 +27,7 @@ class PipelineTests(unittest.TestCase):
         self.data = self.root / "dataset"
         self.data.mkdir()
         template = Path(__file__).resolve().parents[3] / "configs/ml/austin-2018.json"
-        self.raw = json.loads(template.read_text())
+        self.raw = json.loads(template.read_text(encoding="utf-8"))
         self.raw["display_timezone"] = "UTC"
         self.raw["analysis_window_utc"] = {"start": "2018-01-01T00:00:00Z", "end": "2018-01-05T00:00:00Z"}
         self.raw["splits_local_date"] = {
@@ -48,12 +48,12 @@ class PipelineTests(unittest.TestCase):
         self.write_sources()
 
     def write_sources(self):
-        self.config_path.write_text(json.dumps(self.raw))
+        self.config_path.write_text(json.dumps(self.raw), encoding="utf-8")
         self.electric.to_csv(self.data / self.raw["files"]["electric_15m"], index=False)
         self.electric.iloc[:1].rename(columns={"local_15min": "localminute"}).to_csv(
             self.data / self.raw["files"]["electric_1m"], index=False)
         path = self.data / self.raw["files"]["weather"]
-        path.write_text("latitude,longitude,timezone,utc_offset_seconds\n30,-97,GMT,0\n\n" + self.weather.to_csv(index=False))
+        path.write_text("latitude,longitude,timezone,utc_offset_seconds\n30,-97,GMT,0\n\n" + self.weather.to_csv(index=False), encoding="utf-8")
 
     def run_model(self, **kwargs):
         return run_baseline(load_config(self.config_path), self.data, 999999, **kwargs)
@@ -85,7 +85,7 @@ class PipelineTests(unittest.TestCase):
         self.electric.loc[96:, "air1"] = -100.0
         self.write_sources()
         audit_path = self.root / "audit.json"
-        audit_path.write_text(json.dumps(build_audit(load_config(self.config_path), self.data)))
+        audit_path.write_text(json.dumps(build_audit(load_config(self.config_path), self.data)), encoding="utf-8")
         before = sha256_file(self.data / self.raw["files"]["electric_15m"])
         report = review(str(self.config_path), str(self.data), str(audit_path))
         household = report["households"][0]
@@ -107,7 +107,7 @@ class PipelineTests(unittest.TestCase):
         script = Path(__file__).resolve().parents[3] / "docs/product/ekler/review_p0_cohort.py"
         review = runpy.run_path(str(script))["review"]
         audit_path = self.root / "audit.json"
-        audit_path.write_text(json.dumps(build_audit(load_config(self.config_path), self.data)))
+        audit_path.write_text(json.dumps(build_audit(load_config(self.config_path), self.data)), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "without a dead band"):
             review(str(self.config_path), str(self.data), str(audit_path))
 
@@ -200,7 +200,7 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "valid, unique"):
             self.run_model()
         path = self.data / self.raw["files"]["weather"]
-        path.write_text(path.read_text().replace("GMT,0", "America/Chicago,-21600"))
+        path.write_text(path.read_text(encoding="utf-8").replace("GMT,0", "America/Chicago,-21600"), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "UTC/GMT"):
             weather_frame(path, load_config(self.config_path))
 
@@ -215,7 +215,7 @@ class PipelineTests(unittest.TestCase):
     def test_config_rejects_overlap_and_ignored_parameters(self):
         for edit in ("overlap", "quantiles", "width", "path"):
             with self.subTest(edit=edit):
-                raw = json.loads(self.config_path.read_text())
+                raw = json.loads(self.config_path.read_text(encoding="utf-8"))
                 if edit == "overlap":
                     raw["splits_local_date"]["test"] = raw["splits_local_date"]["train"]
                 elif edit == "quantiles":
@@ -225,7 +225,7 @@ class PipelineTests(unittest.TestCase):
                 else:
                     raw["files"]["weather"] = "../outside.csv"
                 candidate = self.root / f"{edit}.json"
-                candidate.write_text(json.dumps(raw))
+                candidate.write_text(json.dumps(raw), encoding="utf-8")
                 with self.assertRaises(ValueError):
                     load_config(candidate)
 
@@ -263,7 +263,7 @@ class PipelineTests(unittest.TestCase):
         output = self.root / "run"
         completed = subprocess.run([*command, str(output)], capture_output=True, text=True)
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        metrics = json.loads((output / "metrics.json").read_text())
+        metrics = json.loads((output / "metrics.json").read_text(encoding="utf-8"))
         self.assertIn("package_source_sha256", metrics["metadata"]["provenance"])
         second = self.root / "second-run"
         repeated = subprocess.run([*command, str(second)], capture_output=True, text=True)
