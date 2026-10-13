@@ -1,4 +1,5 @@
 // Types shared by the API server and the web client.
+import type { DailyEvidence, EvidenceKind, EvidenceOrigin, EvidenceSeriesPoint } from './evidence';
 
 export type Lang = 'tr' | 'en';
 export type ScreenKey = 'overview' | 'queue' | 'team' | 'reports' | 'data' | 'users' | 'jobs';
@@ -6,8 +7,6 @@ export type Capability = 'case.assign' | 'case.dismiss' | 'case.result' | 'repor
 export type AddressLevel = 'district' | 'neighbourhood' | 'full';
 export type RoleKey = 'manager' | 'operator' | 'technician' | 'admin';
 export type CaseStatus = 'new' | 'review' | 'assigned' | 'verified' | 'dismissed';
-export type FaultKey = 'airflow' | 'refrig' | 'aux' | 'defrost' | 'pv' | 'pvstring';
-export type Equipment = 'hp' | 'pv';
 export type Priority = 1 | 2 | 3;
 export type FieldResult = 'verified' | 'other' | 'dismissed';
 
@@ -28,26 +27,29 @@ export interface Me {
   scopeNote: string;
   screens: ScreenLink[];
   capabilities: Capability[];
-}
-
-export interface Cause {
-  key: FaultKey;
-  label: string;
-  p: number;
+  /** True while the console reads the committed synthetic fixtures instead of a detector run. */
+  fixture: boolean;
 }
 
 export interface CaseSummary {
   id: string;
   status: CaseStatus;
   priority: Priority;
-  equipment: Equipment;
+  /** Synthetic cases are injected scenarios: always labelled, never acted on, counted apart. */
+  origin: EvidenceOrigin;
+  kind: EvidenceKind;
+  title: string;
+  detectorLabel: string;
+  household: string;
+  /** Example site record, masked to the user's address level. */
   location: string;
-  topCause: Cause;
-  secondCause: Cause | null;
-  deviation: number;
-  days: number;
-  lossKwhMonth: number;
-  spark: { act: number[]; ref: number[]; onset: number };
+  /** observed / reference − 1 over the flagged days; null when not computed. Never drawn as 0. */
+  excessShare: number | null;
+  flaggedDays: number;
+  onsetDate: string;
+  lastDate: string;
+  /** Daily unit-hours of the replay month; null on days that could not be scored. */
+  spark: { observed: (number | null)[]; reference: (number | null)[]; from: number; to: number };
   technicianName: string | null;
   firstCheck: string;
   /** True once the resident asked for an inspection from the SMS link. */
@@ -58,7 +60,7 @@ export interface CaseSummary {
 
 export interface CaseList {
   items: CaseSummary[];
-  counts: { open: number; closed: number; all: number };
+  counts: { open: number; closed: number; synthetic: number; all: number };
 }
 
 /* ── resident notice & service request ─────────────────── */
@@ -98,7 +100,7 @@ export interface RequestReceipt {
   note: string | null;
 }
 
-/** Everything the public request page shows. No meter number, no diagnosis internals. */
+/** Everything the public request page shows. No household id, no detector internals. */
 export interface RequestPage {
   caseId: string;
   noticeAt: string;
@@ -106,7 +108,7 @@ export interface RequestPage {
   body: string;
   points: string[];
   equipmentLabel: string;
-  lossKwhMonth: number;
+  excessShare: number | null;
   days: number;
   closed: boolean;
   /** Prefilled from the subscriber record; the resident can change any of it. */
@@ -116,29 +118,36 @@ export interface RequestPage {
 }
 
 
-export interface SeriesPoint {
-  d: number;
-  label: string;
-  ref: number;
-  lo: number;
-  hi: number;
-  act: number;
-}
-
 export interface CaseEvent {
   label: string;
   at: string;
   note: string | null;
 }
 
+export interface DailyPoint extends DailyEvidence {
+  /** Why the day could not be scored, in the user's language; null on scored days. */
+  notScoredLabel: string | null;
+}
+
+/** Text written from the evidence by server/explain. No fault probability, no diagnosis. */
+export interface CaseExplanation {
+  summary: string;
+  reasons: string[];
+  recommendation: { firstCheck: string; steps: string[] };
+  limitations: string[];
+  humanDecisionNote: string;
+}
+
 export interface CaseDetail extends CaseSummary {
-  meter: string;
   masked: boolean;
-  hypotheses: (Cause & { inSet: boolean })[];
-  other: number;
-  evidence: string[];
-  series: SeriesPoint[];
-  onset: number;
+  detectedDate: string;
+  upperExceedanceShare: number | null;
+  /** How the injected scenario was built; null for observed cases. */
+  synthetic: { scenarioLabel: string; severity: number | null; durationDays: number; startDate: string } | null;
+  daily: DailyPoint[];
+  series: EvidenceSeriesPoint[];
+  explanation: CaseExplanation;
+  run: { model: string; protocol: string; thresholdProvenance: string };
   events: CaseEvent[];
   notice: CustomerNotice | null;
   request: CustomerRequest | null;
@@ -152,17 +161,32 @@ export interface Notification {
   href: string | null;
 }
 
+export interface ScenarioRow {
+  label: string;
+  severity: number | null;
+  durationDays: number;
+  injected: number;
+  detected: number;
+  medianDelayDays: number | null;
+}
+
 export interface OverviewData {
-  visitsPerConfirmed: number;
-  falseAlarmRate: number;
-  falseAlarmTarget: number;
-  openCases: number;
-  coverage: number;
-  coverageTarget: number;
-  fieldResults: number;
-  weeks: { week: number; verified: number; dismissed: number; open: number }[];
-  families: { key: FaultKey; label: string; count: number; mvp0: boolean }[];
-  regions: { name: string; meters: number; open: number; verified: number; dismissed: number }[];
+  window: { start: string; end: string };
+  households: number;
+  /** Observed cases only; synthetic cases never enter these counts. */
+  observed: { open: number; closed: number; deviations: number; dataIssues: number };
+  syntheticCases: number;
+  thresholdProvenance: string;
+  /** Detection results on injected scenarios and clean data; null when the run has none. */
+  evaluation: {
+    syntheticCases: number;
+    syntheticDetected: number;
+    cleanHouseholdDays: number;
+    falseCasesOnCleanData: number;
+    dataFaultsCaughtByQualityGate: number;
+    scenarios: ScenarioRow[];
+  } | null;
+  householdRows: { household: string; observedOpen: number; observedClosed: number; synthetic: number; scoredDays: number; notScoredDays: number }[];
 }
 
 export interface SmsMessage {
@@ -190,36 +214,35 @@ export interface TeamMember {
   initials: string;
   openJobs: number;
   closed: number;
-  confirmedRate: number | null;
+  findingRate: number | null;
   jobs: CaseSummary[];
 }
 
 export interface ReportRow {
   label: string;
-  mvp0: boolean;
-  confirmed: number;
-  falseAlarms: number;
-  visits: number;
-  lossKwhMonth: number;
+  synthetic: boolean;
+  cases: number;
+  open: number;
+  /** Closed after a site visit that found something. */
+  withFinding: number;
+  /** Closed with nothing found, on site or at the desk. */
+  noFinding: number;
+  flaggedDays: number;
+  /** Median excess share of the group's cases; null when none has one. */
+  medianExcessShare: number | null;
 }
 
 export interface ReportData {
   period: string;
   rows: ReportRow[];
-  totals: ReportRow;
   canExport: boolean;
 }
 
-export interface DataSource {
-  id: string;
-  name: string;
-  description: string;
-  status: 'waiting' | 'connected' | 'example' | 'none';
-  lastData: string | null;
-}
-
+/** Where the cases on screen come from: the detector run, its thresholds and the synthetic plan. */
 export interface DataSourcesData {
-  sources: DataSource[];
+  fixture: boolean;
+  generatedAt: string;
+  groups: { title: string; rows: { label: string; value: string }[] }[];
 }
 
 export interface UserRow {

@@ -4,7 +4,7 @@ import { useApi } from '../api';
 import { useMe } from '../auth';
 import { CaseDetailView } from '../components/CaseDetailView';
 import { Icon } from '../components/icons';
-import { GoHome, LoadError, Loading, PageHead, StatusPill, StepGlyph } from '../components/ui';
+import { CaseState, GoHome, LoadError, Loading, PageHead, StepGlyph } from '../components/ui';
 import { dateTime } from '../format';
 import { useI18n } from '../i18n';
 
@@ -37,12 +37,12 @@ function JobList() {
             <article className="job" key={job.id}>
               <div className="job-top">
                 <span className="case-id">{job.id}</span>
-                <StatusPill status={job.status} />
+                <CaseState status={job.status} origin={job.origin} />
                 {job.customerRequest && <span className="pill req">{t('hasRequest')}</span>}
                 <span className="job-prio"><StepGlyph priority={job.priority} /></span>
               </div>
-              <h2>{job.topCause.label}</h2>
-              <p className="addr">{job.location}</p>
+              <h2>{job.title}</h2>
+              <p className="addr">{job.household} · {job.location}</p>
               <div className="job-check">
                 <b>{t('firstCheck')}</b>
                 {job.firstCheck}
