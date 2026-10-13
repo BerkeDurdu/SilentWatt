@@ -47,7 +47,7 @@ def utc_slots(day: date) -> list[datetime]:
 def daily_rows(flagged: set[date], excess: float, data_gap_days: set[date]) -> list[dict]:
     rows = []
     for day in JULY_DAYS:
-        reference = round(sum(reference_value(slot.hour) for slot in utc_slots(day)) * 0.25, 3)
+        reference = round(sum(reference_value((slot.hour - 5) % 24) for slot in utc_slots(day)) * 0.25, 3)
         if day in TOO_HOT_DAYS:
             rows.append({"local_date": day.isoformat(), "scored": False,
                          "not_scored_reason": "temperature_out_of_support", "valid_slots": 96,
@@ -78,7 +78,7 @@ def series_points(first: date, last: date, flagged: set[date], excess: float, da
     day = first
     while day <= last:
         for slot in utc_slots(day):
-            reference = reference_value(slot.hour)
+            reference = reference_value((slot.hour - 5) % 24)
             factor = 1 + excess if day in flagged else 1.02
             observed = round(reference * factor, 3)
             scored = day not in TOO_HOT_DAYS and day not in data_gap_days
