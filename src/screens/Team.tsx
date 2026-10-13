@@ -24,7 +24,7 @@ export default function Team() {
             <dl className="member-stats">
               <div><dt>{t('openJobs')}</dt><dd>{m.openJobs}</dd></div>
               <div><dt>{t('closedJobs')}</dt><dd>{m.closed}</dd></div>
-              <div><dt>{t('confirmRate')}</dt><dd>{m.confirmedRate === null ? '—' : pct(m.confirmedRate)}</dd></div>
+              <div><dt>{t('confirmRate')}</dt><dd>{m.findingRate === null ? '—' : pct(m.findingRate)}</dd></div>
             </dl>
             {m.jobs.length === 0 ? (
               <p className="panel-b muted">{t('noJobs')}</p>
@@ -35,7 +35,7 @@ export default function Team() {
                     <StepGlyph priority={j.priority} />
                     <div>
                       {j.href ? <Link to={j.href} className="mono">{j.id}</Link> : <span className="mono">{j.id}</span>}
-                      <span className="sub">{j.topCause.label} · {j.location}</span>
+                      <span className="sub">{j.title} · {j.household}</span>
                     </div>
                     <StatusPill status={j.status} />
                   </li>

@@ -1,16 +1,9 @@
-import type { DataSource, DataSourcesData } from '../../shared/types';
+import type { DataSourcesData } from '../../shared/types';
 import { useApi } from '../api';
+import { Icon } from '../components/icons';
 import { LoadError, Loading, PageHead } from '../components/ui';
-import type { DictKey } from '../dict';
 import { dateTime } from '../format';
 import { useI18n } from '../i18n';
-
-const STATUS: Record<DataSource['status'], [DictKey, string]> = {
-  waiting: ['srcWaiting', 'st-new'],
-  connected: ['srcConnected', 'st-verified'],
-  example: ['srcExample', 'st-verified'],
-  none: ['srcNone', 'st-dismissed'],
-};
 
 export default function DataSources() {
   const { t } = useI18n();
@@ -21,21 +14,22 @@ export default function DataSources() {
   return (
     <>
       <PageHead title={t('dataTitle')} lead={t('dataLead')} />
-      <section className="panel sources">
-        {data.sources.map((s) => (
-          <div className="src" key={s.id}>
-            <div>
-              <h2>{s.name}</h2>
-              <p>{s.description}</p>
+      {data.fixture && <p className="readonly note"><Icon name="eye" />{t('fixtureNote')}</p>}
+      <div className="team">
+        {data.groups.map((g) => (
+          <section className="panel" key={g.title}>
+            <div className="panel-h"><h2>{g.title}</h2></div>
+            <div className="panel-b">
+              <dl className="kv">
+                {g.rows.map((r) => (
+                  <div className="kv-row" key={r.label}><dt>{r.label}</dt><dd className="mono">{r.value}</dd></div>
+                ))}
+              </dl>
             </div>
-            <div className="src-last">
-              <span className="muted">{t('lastData')}</span>
-              <span className="mono">{s.lastData ? dateTime(s.lastData) : '—'}</span>
-            </div>
-            <span className={`pill ${STATUS[s.status][1]}`}>{t(STATUS[s.status][0])}</span>
-          </div>
+          </section>
         ))}
-      </section>
+      </div>
+      <p className="footnote">{t('generatedAt')}: <span className="mono">{dateTime(data.generatedAt)}</span></p>
     </>
   );
 }

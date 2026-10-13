@@ -125,7 +125,7 @@ function TraceArt() {
       <path d="M330 132 H470" fill="none" stroke="var(--brand)" strokeWidth="2" strokeDasharray="5 6" opacity=".7" />
       <path d="M330 132 V84 H550" fill="none" stroke="var(--amber)" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
       <text x="478" y="150" className="t-muted">{t('artReference')}</text>
-      <text x="344" y="72" className="t-amber">{t('artLoss')} +14%</text>
+      <text x="344" y="72" className="t-amber">{t('artLoss')}</text>
     </svg>
   );
 }

@@ -3,12 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import type { CaseDetail, FieldResult, Technician } from '../../shared/types';
 import { api, ApiError, useApi } from '../api';
 import type { DictKey } from '../dict';
-import { dateTime, isOpenStatus, num, pct, signedPct } from '../format';
+import { dateTime, isOpenStatus, share, shortDay, signedShare } from '../format';
 import { useI18n } from '../i18n';
 import { useToast } from '../toast';
-import { CaseChart } from './charts';
+import { DailyChart, SeriesChart } from './charts';
 import { Icon } from './icons';
-import { LoadError, Loading, Priority, StatusPill } from './ui';
+import { CaseState, LoadError, Loading, Priority } from './ui';
 
 export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
   const { t } = useI18n();
@@ -19,7 +19,7 @@ export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
   if (loading || !data) return <Loading />;
 
   const c = data;
-  const chartTitle = t(c.equipment === 'pv' ? 'chartPv' : 'chartHp');
+  const { explanation } = c;
 
   return (
     <>
@@ -27,63 +27,87 @@ export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
       <div className="case-head">
         <div className="case-meta">
           <span className="case-id">{c.id}</span>
-          <StatusPill status={c.status} />
+          <CaseState status={c.status} origin={c.origin} />
           <Priority priority={c.priority} />
         </div>
-        <h1>{c.topCause.label}</h1>
+        <h1>{c.title}</h1>
       </div>
+
+      {c.synthetic && (
+        <div className="syn-banner" role="note">
+          <p>{t('synBanner')}</p>
+          <dl>
+            <div><dt>{t('synScenario')}</dt><dd>{c.synthetic.scenarioLabel}{c.synthetic.severity !== null && ` · ${signedShare(c.synthetic.severity)}`} · {t('days', { n: c.synthetic.durationDays })}</dd></div>
+            <div><dt>{t('synStart')}</dt><dd>{shortDay(c.synthetic.startDate)}</dd></div>
+          </dl>
+        </div>
+      )}
 
       <div className="case-layout">
         <div className="stack">
           <section className="panel">
             <div className="panel-b verdict">
-              <span className={c.deviation < 0 ? 'big down' : 'big'}>{signedPct(c.deviation)}</span>
-              <p>
-                {t(c.deviation < 0 ? 'belowExpected' : 'aboveRef')}
-                <span className="sub">{t('persistent', { d: c.days, k: num(c.lossKwhMonth) })}</span>
-              </p>
+              {c.excessShare === null ? (
+                <p>{t(c.kind === 'data_issue' ? 'verdictData' : 'notComputed')}</p>
+              ) : (
+                <>
+                  <span className="big">{signedShare(c.excessShare)}</span>
+                  <p>
+                    {t(c.excessShare < 0 ? 'belowRef' : 'aboveRef')}
+                    <span className="sub">
+                      {t('verdictSub', { n: c.flaggedDays, from: shortDay(c.onsetDate), to: shortDay(c.lastDate) })}
+                      {c.upperExceedanceShare !== null && ` · ${t('upperShare', { v: share(c.upperExceedanceShare) })}`}
+                    </span>
+                  </p>
+                </>
+              )}
             </div>
             <div className="panel-h">
-              <h2>{chartTitle}</h2>
+              <h2>{t('chartDaily')}</h2>
+              <span className="aside legend">
+                <span><i style={{ background: 'var(--ink)' }} />{t('lgMeasured')}</span>
+                <span><i style={{ background: 'var(--brand)' }} />{t('lgReference')}</span>
+                <span><i style={{ background: 'var(--amber)' }} />{t('lgFlagged')}</span>
+                <span><i className="hatch-swatch" />{t('lgNotScored')}</span>
+              </span>
+            </div>
+            <div className="panel-b chart-wrap">
+              <DailyChart daily={c.daily} onset={c.onsetDate} last={c.lastDate} title={t('chartDaily')} />
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-h">
+              <h2>{t('chartSeries')}</h2>
               <span className="aside legend">
                 <span><i style={{ background: 'var(--ink)' }} />{t('lgMeasured')}</span>
                 <span><i style={{ background: 'var(--brand)' }} />{t('lgReference')}</span>
                 <span><i className="band-swatch" />{t('lgInterval')}</span>
+                <span><i className="hatch-swatch" />{t('lgNotScored')}</span>
               </span>
             </div>
             <div className="panel-b chart-wrap">
-              <CaseChart series={c.series} onset={c.onset} deviation={c.deviation} title={chartTitle} />
+              <SeriesChart series={c.series} title={t('chartSeries')} />
             </div>
           </section>
 
           <div className="two">
             <section className="panel">
-              <div className="panel-h"><h2>{t('hypotheses')}</h2><span className="aside">{t('conformal')}</span></div>
+              <div className="panel-h"><h2>{t('reasonsTitle')}</h2></div>
               <div className="panel-b">
-                {c.hypotheses.map((h) => (
-                  <div key={h.key} className={h.inSet ? 'hyp in' : 'hyp'}>
-                    <span>{h.label}</span>
-                    <div className="track"><div className="fill" style={{ width: `${h.p * 100}%` }} /></div>
-                    <span className="p">{pct(h.p * 100)}</span>
-                  </div>
-                ))}
-                <div className="hyp">
-                  <span className="muted">{t('otherUnknown')}</span>
-                  <div className="track"><div className="fill rest" style={{ width: `${c.other * 100}%` }} /></div>
-                  <span className="p muted">{pct(c.other * 100)}</span>
-                </div>
-                <p className="set-note">
-                  {t('setNoteA')} <span className="mono">{`{${c.hypotheses.filter((h) => h.inSet).map((h) => h.label).join(', ')}}`}</span>.{' '}
-                  {t('setNoteB')}
-                </p>
+                <ul className="evidence">
+                  {explanation.reasons.map((r) => <li key={r}><Icon name="step" /><span>{r}</span></li>)}
+                </ul>
               </div>
             </section>
             <section className="panel">
-              <div className="panel-h"><h2>{t('evidence')}</h2></div>
+              <div className="panel-h"><h2>{t('explainTitle')}</h2></div>
               <div className="panel-b">
-                <ul className="evidence">
-                  {c.evidence.map((e) => <li key={e}><Icon name="step" /><span>{e}</span></li>)}
+                <p className="explain">{explanation.summary}</p>
+                <ul className="limits">
+                  {explanation.limitations.map((x) => <li key={x}>{x}</li>)}
                 </ul>
+                <p className="set-note">{explanation.humanDecisionNote}</p>
               </div>
             </section>
           </div>
@@ -92,8 +116,11 @@ export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
         <div className="stack">
           <section className="next">
             <span className="eyebrow">{t('firstCheck')}</span>
-            <h3>{c.firstCheck}</h3>
-            <p>{t('firstCheckP')}</p>
+            <h3>{explanation.recommendation.firstCheck}</h3>
+            {explanation.recommendation.steps.length > 0 && (
+              <ol>{explanation.recommendation.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+            )}
+            <p>{explanation.humanDecisionNote}</p>
           </section>
 
           <section className="panel">
@@ -105,12 +132,16 @@ export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
             <div className="panel-h"><h2>{t('site')}</h2></div>
             <div className="panel-b">
               <dl className="kv">
+                <dt>{t('household')}</dt><dd className="mono">{c.household}</dd>
+                <dt>{t('channel')}</dt><dd className="mono">air1</dd>
+                <dt>{t('detector')}</dt><dd>{c.detectorLabel}</dd>
+                <dt>{t('detectedOn')}</dt><dd>{shortDay(c.detectedDate)}</dd>
+                <dt>{t('modelProtocol')}</dt><dd className="mono">{c.run.model} · {c.run.protocol}</dd>
+                <dt>{t('thresholdSrc')}</dt><dd>{c.run.thresholdProvenance}</dd>
                 <dt>{t('address')}</dt><dd>{c.location}</dd>
-                <dt>{t('meter')}</dt><dd className="mono">{c.meter}</dd>
-                <dt>{t('equipment')}</dt><dd>{t(`equipment_${c.equipment}`)}</dd>
-                <dt>{t('estLoss')}</dt><dd className="mono">≈ {num(c.lossKwhMonth)} {t('kwhMonth')}</dd>
                 {c.technicianName && <><dt>{t('technician')}</dt><dd>{c.technicianName}</dd></>}
               </dl>
+              <p className="masked"><Icon name="eye" />{t('exampleRecord')}</p>
               {c.masked && <p className="masked"><Icon name="lock" />{t('masked')}</p>}
             </div>
           </section>
@@ -136,31 +167,33 @@ export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
             </section>
           )}
 
-          <section className="panel">
-            <div className="panel-h"><h2>{t('custRequest')}</h2></div>
-            <div className="panel-b">
-              {c.request ? (
-                <>
-                  <dl className="kv">
-                    <dt>{t('custRef')}</dt><dd className="mono">{c.request.reference}</dd>
-                    <dt>{t('pubName')}</dt><dd>{c.request.name}</dd>
-                    <dt>{t('custPhone')}</dt><dd className="mono">{c.request.phone}</dd>
-                    {c.request.email && <><dt>{t('custEmail')}</dt><dd>{c.request.email}</dd></>}
-                    <dt>{t('address')}</dt>
-                    <dd>
-                      {c.request.address}
-                      {c.request.addressEdited && !c.request.masked && <span className="sub">{t('custEdited')}</span>}
-                    </dd>
-                    <dt>{t('custSlot')}</dt><dd>{c.request.slotLabel}</dd>
-                  </dl>
-                  {c.request.note && <p className="bubble note-quote">{c.request.note}</p>}
-                  {c.request.masked && <p className="masked"><Icon name="lock" />{t('custMaskedAddr')}</p>}
-                </>
-              ) : (
-                <p className="muted">{t('custNone')}</p>
-              )}
-            </div>
-          </section>
+          {(c.request || (c.origin === 'observed' && c.kind === 'consumption_deviation')) && (
+            <section className="panel">
+              <div className="panel-h"><h2>{t('custRequest')}</h2></div>
+              <div className="panel-b">
+                {c.request ? (
+                  <>
+                    <dl className="kv">
+                      <dt>{t('custRef')}</dt><dd className="mono">{c.request.reference}</dd>
+                      <dt>{t('pubName')}</dt><dd>{c.request.name}</dd>
+                      <dt>{t('custPhone')}</dt><dd className="mono">{c.request.phone}</dd>
+                      {c.request.email && <><dt>{t('custEmail')}</dt><dd>{c.request.email}</dd></>}
+                      <dt>{t('address')}</dt>
+                      <dd>
+                        {c.request.address}
+                        {c.request.addressEdited && !c.request.masked && <span className="sub">{t('custEdited')}</span>}
+                      </dd>
+                      <dt>{t('custSlot')}</dt><dd>{c.request.slotLabel}</dd>
+                    </dl>
+                    {c.request.note && <p className="bubble note-quote">{c.request.note}</p>}
+                    {c.request.masked && <p className="masked"><Icon name="lock" />{t('custMaskedAddr')}</p>}
+                  </>
+                ) : (
+                  <p className="muted">{t('custNone')}</p>
+                )}
+              </div>
+            </section>
+          )}
 
           <section className="panel">
             <div className="panel-h"><h2>{t('history')}</h2></div>
@@ -278,10 +311,12 @@ function CaseActions({ detail, onChange }: { detail: CaseDetail; onChange: (d: C
     );
   }
 
-  const text = !isOpenStatus(detail.status)
-    ? t('roClosed')
-    : detail.status === 'assigned'
-      ? t('roAssigned', { name: detail.technicianName ?? '' })
-      : t('roView');
+  const text = detail.origin === 'synthetic'
+    ? t('roSynthetic')
+    : !isOpenStatus(detail.status)
+      ? t('roClosed')
+      : detail.status === 'assigned'
+        ? t('roAssigned', { name: detail.technicianName ?? '' })
+        : t('roView');
   return <p className="readonly"><Icon name="eye" />{text}</p>;
 }

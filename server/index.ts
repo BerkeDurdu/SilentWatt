@@ -5,7 +5,7 @@ import express, { type Request, type Response } from 'express';
 import type { FieldResult } from '../shared/types';
 import { authenticate, csrfGuard, endSessionsFor, langOf, login, logout, notFound, requireCapability, requireScreen } from './auth';
 import {
-  assignCase, canViewCase, dataSources, dismissCase, getCase, jobsFor, listCases, listTechnicians, markOpened,
+  assignCase, canViewCase, dataSources, dismissCase, getCase, isSynthetic, jobsFor, listCases, listTechnicians, markOpened,
   notificationsFor, overview, recordResult, report, reportCsv, requestPage, reviewCase, submitRequest, team,
   toDetail, toMe, updateUser, usersData, type CaseRecord,
 } from './store';
@@ -82,7 +82,8 @@ function visibleCase(req: Request, res: Response): CaseRecord | null {
 }
 
 const conflict = (res: Response) => res.status(409).json({ error: 'invalid_state' });
-const isTriage = (c: CaseRecord) => c.status === 'new' || c.status === 'review';
+// Synthetic cases are labelled experiments; nobody reviews, assigns or closes them.
+const isTriage = (c: CaseRecord) => !isSynthetic(c) && (c.status === 'new' || c.status === 'review');
 
 api.get('/cases', requireScreen('queue'), (req, res) => {
   res.json(listCases(req.user!, String(req.query.status ?? 'open'), langOf(req)));
@@ -98,7 +99,7 @@ api.get('/cases/:id', (req, res) => {
 api.post('/cases/:id/review', requireCapability('case.assign'), (req, res) => {
   const c = visibleCase(req, res);
   if (!c) return;
-  if (c.status !== 'new') return void conflict(res);
+  if (c.status !== 'new' || isSynthetic(c)) return void conflict(res);
   reviewCase(c);
   res.json(toDetail(c, req.user!, langOf(req)));
 });
@@ -163,7 +164,7 @@ api.get('/reports/monthly', requireScreen('reports'), (req, res) => {
 
 api.get('/reports/monthly.csv', requireScreen('reports'), requireCapability('report.export'), (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="${langOf(req) === 'tr' ? 'silentwatt-rapor-h27-h38' : 'silentwatt-report-w27-w38'}.csv"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${langOf(req) === 'tr' ? 'silentwatt-rapor' : 'silentwatt-report'}.csv"`);
   res.send(reportCsv(req.user!, langOf(req)));
 });
 

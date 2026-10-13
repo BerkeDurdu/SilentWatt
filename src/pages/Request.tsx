@@ -5,7 +5,7 @@ import { api, ApiError, useApi } from '../api';
 import { Icon, Logo, Wordmark } from '../components/icons';
 import { LangToggle, Loading } from '../components/ui';
 import type { DictKey } from '../dict';
-import { dateTime, num } from '../format';
+import { dateTime, signedShare } from '../format';
 import { useI18n } from '../i18n';
 
 /**
@@ -86,7 +86,7 @@ function Notice({ data }: { data: RequestPage }) {
       <p className="pub-lead">{data.body}</p>
 
       <dl className="pub-facts">
-        <div><dt>{t('pubLoss')}</dt><dd className="mono">≈ {num(data.lossKwhMonth)} {t('kwhMonth')}</dd></div>
+        {data.excessShare !== null && <div><dt>{t('pubExcess')}</dt><dd className="mono">{signedShare(data.excessShare)}</dd></div>}
         <div><dt>{t('pubDuration')}</dt><dd className="mono">{t('days', { n: data.days })}</dd></div>
         <div><dt>{t('pubEquipment')}</dt><dd>{data.equipmentLabel}</dd></div>
       </dl>
