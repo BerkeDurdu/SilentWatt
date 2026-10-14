@@ -160,6 +160,35 @@ export interface CaseExplanation {
   humanDecisionNote: string;
 }
 
+/** Which language model the case assistant uses, and whether it answers right now. */
+export interface AssistantStatus {
+  enabled: boolean;
+  /** e.g. "qwen2.5:7b"; null when the assistant is off. */
+  model: string | null;
+  /** local: Ollama on this machine; cloud: an OpenAI-compatible service such as ModelArts Studio. */
+  location: 'local' | 'cloud' | null;
+  reachable: boolean;
+}
+
+/**
+ * A text the assistant wrote from the case facts. It passed the same guard as the template
+ * (no kWh, money or probability; every number from the evidence); otherwise the template is shown.
+ */
+export interface AssistantAnswer {
+  kind: 'summary' | 'question';
+  question: string | null;
+  text: string;
+  provider: 'llm' | 'template';
+  model: string | null;
+  location: 'local' | 'cloud' | null;
+  /** Why the template is shown instead of the model's text. */
+  fallback: 'disabled' | 'unreachable' | 'timeout' | 'guard' | null;
+  guard: { passed: boolean; violations: string[]; attempts: number };
+  humanDecisionNote: string;
+  cached: boolean;
+  ms: number;
+}
+
 export interface CaseDetail extends CaseSummary {
   masked: boolean;
   detectedDate: string;

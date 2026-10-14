@@ -125,7 +125,7 @@ server/            Express + TypeScript API
   catalog.ts       7 ekranın tanımı, rol ön ayarları
   auth.ts          oturum, giriş, CSRF, requireScreen / requireCapability
   evidence.ts      kanıt dosyalarını okur ve sözleşmeye göre denetler
-  explain/         vaka açıklaması: şablon ve metin kalkanı
+  explain/         vaka açıklaması: şablon, metin kalkanı ve dil modeli asistanı (Ollama/Qwen, ModelArts)
   store.ts         hesaplar, vaka iş akışı, ekran verileri
   persist.ts       konsol durumunun JSON dosyasına kaydı
   app.ts           API uçları, canlı ortamda statik dosya sunumu

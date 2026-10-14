@@ -32,4 +32,20 @@ export const config = {
   trustProxy: env.SILENTWATT_TRUST_PROXY || 'loopback',
   /** One JSON line per request on stdout; "off" silences it (tests). */
   requestLog: flag(env.SILENTWATT_REQUEST_LOG, true),
+  /**
+   * Language model behind the case assistant (server/explain/llm.ts). "ollama" is a local Ollama
+   * (default in development), "openai" any OpenAI-compatible endpoint such as Huawei Cloud ModelArts
+   * Studio (Qwen, DeepSeek), "off" keeps the template text only (default in production).
+   */
+  llm: (() => {
+    const provider = (env.SILENTWATT_LLM_PROVIDER || (prod ? 'off' : 'ollama')).toLowerCase();
+    return {
+      provider: (['ollama', 'openai'].includes(provider) ? provider : 'off') as 'ollama' | 'openai' | 'off',
+      baseUrl: (env.SILENTWATT_LLM_BASE_URL || (provider === 'ollama' ? 'http://127.0.0.1:11434/v1' : '')).replace(/\/+$/, ''),
+      model: env.SILENTWATT_LLM_MODEL || (provider === 'ollama' ? 'qwen2.5:7b' : ''),
+      apiKey: env.SILENTWATT_LLM_API_KEY || null,
+      /** A 7B model on a laptop CPU needs tens of seconds; a hosted model a few. */
+      timeoutMs: Number(env.SILENTWATT_LLM_TIMEOUT_MS || 120_000),
+    };
+  })(),
 };

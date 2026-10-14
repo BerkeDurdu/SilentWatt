@@ -6,8 +6,9 @@ import express, { type Request, type Response } from 'express';
 import type { FieldResult } from '../shared/types';
 import { authenticate, csrfGuard, endSessionsFor, langOf, login, logout, notFound, requireCapability, requireScreen, sweep } from './auth';
 import { config } from './config';
+import { askAssistant, assistantStatus } from './explain/llm';
 import {
-  assignCase, canViewCase, dataSources, dismissCase, evidenceInfo, explainByChange, getCase, isChangeKind, isSynthetic, jobsFor, listCases,
+  assignCase, assistantInput, canViewCase, dataSources, dismissCase, evidenceInfo, explainByChange, getCase, isChangeKind, isSynthetic, jobsFor, listCases,
   listChanges, listTechnicians, markOpened,
   notificationsFor, overview, recordResult, report, reportCsv, requestPage, reviewCase, submitRequest, team,
   toDetail, toMe, updateUser, usersData, type CaseRecord,
@@ -119,6 +120,34 @@ api.get('/cases/:id', (req, res) => {
   if (!c) return;
   markOpened(c, req.user!);
   res.json(toDetail(c, req.user!, langOf(req)));
+});
+
+/* case assistant: a language model writes from the case facts; its text passes the evidence guard */
+
+const askAttempts = new Map<string, { count: number; reset: number }>();
+const ASK_WINDOW = 10 * 60 * 1000;
+const MAX_ASKS = 40;
+setInterval(() => sweep(askAttempts), ASK_WINDOW).unref();
+
+api.get('/assistant', requireScreen('queue', 'jobs'), async (_req, res) => {
+  res.json(await assistantStatus());
+});
+
+api.post('/cases/:id/assistant', requireScreen('queue', 'jobs'), async (req, res) => {
+  const c = visibleCase(req, res);
+  if (!c) return;
+  const raw = req.body?.question;
+  if (raw !== undefined && raw !== null && typeof raw !== 'string') return void res.status(400).json({ error: 'invalid_question' });
+  const question = typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 300) : null;
+  if (question) {
+    const t = Date.now();
+    const seen = askAttempts.get(req.user!.id);
+    const entry = seen && seen.reset > t ? seen : { count: 0, reset: t + ASK_WINDOW };
+    if (entry.count >= MAX_ASKS) return void res.status(429).json({ error: 'too_many_requests' });
+    entry.count += 1;
+    askAttempts.set(req.user!.id, entry);
+  }
+  res.json(await askAssistant(assistantInput(c, langOf(req), question)));
 });
 
 api.post('/cases/:id/review', requireCapability('case.assign'), (req, res) => {

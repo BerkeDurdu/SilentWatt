@@ -111,6 +111,15 @@ test('the workflow runs end to end and every step is saved', async () => {
   assert.equal(saved.state.tokens.length, 3);
 });
 
+test('with the assistant off, the template summary is shown and no model is named', async () => {
+  const operator = await api.signIn('operator@silentwatt.demo');
+  assert.deepEqual((await api.call('/assistant', { cookie: operator })).json, { enabled: false, model: null, location: null, reachable: false });
+  const answer = await api.call(`/cases/${OBSERVED}/assistant`, { method: 'POST', cookie: operator, body: {} });
+  assert.equal(answer.json.provider, 'template');
+  assert.equal(answer.json.fallback, 'disabled');
+  assert.match(answer.json.text, /^Hane 90003, klima devresi \(air1\)/);
+});
+
 test('an unknown resident link answers 404', async () => {
   assert.equal((await api.call('/public/request/not-a-token')).status, 404);
 });

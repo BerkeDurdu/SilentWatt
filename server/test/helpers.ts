@@ -13,6 +13,9 @@ export const ALL_CASES = [
   'SW-SYN-SOL-90007-20180710-ACU', 'SW-SYN-HVAC-90001-20180707-ACU', 'SW-SYN-HVAC-90002-20180722-CHR', SOLAR,
   'SW-HVAC-90003-20180703-ACU', FRIDGE, 'SW-SYN-REF-90006-20180716-ACU', 'SW-SYN-HVAC-90004-20180724-DQ',
 ];
+// Tests never reach a real language model; assistant.test.ts starts its own fake one.
+process.env.SILENTWATT_LLM_PROVIDER ??= 'off';
+
 const HEADERS = { 'Content-Type': 'application/json', 'X-Requested-With': 'silentwatt' };
 
 export async function startApi() {

@@ -89,6 +89,17 @@ curl -s https://<alan-adı>/api/health
   çerezi saklamaz ve giriş yapılamaz; internete açık kalıcı kullanım için alan adı ve HTTPS gerekir.
 - RDS kullanılıyorsa `--profile localdb` yazılmaz, `.env` içine `SILENTWATT_DATABASE_URL` eklenir.
 
+### Vaka asistanı (isteğe bağlı)
+
+Konsol, vaka özetlerini ve operatör sorularını bir dil modeliyle yazabilir. Bulutta Qwen veya DeepSeek
+modeli ModelArts Studio (MaaS) üzerinden kullanılır; ECS'e GPU gerekmez.
+
+1. ModelArts Studio konsolunda modelin hizmetini açın ve bir API anahtarı oluşturun.
+2. `deploy/.env` içindeki `SILENTWATT_LLM_*` satırlarını doldurun: OpenAI uyumlu adres, model adı ve anahtar.
+3. `docker compose -f compose.cloud.yml up -d console` komutunu çalıştırın.
+
+Model erişilemezse konsol şablon metniyle çalışmaya devam eder. Modele kişisel veri gönderilmez.
+
 ## 6. Dedektör çıktısını yayınla
 
 ML koşusu bittiğinde (Yusuf):
