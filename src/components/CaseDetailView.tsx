@@ -7,6 +7,7 @@ import type { DictKey } from '../dict';
 import { dateTime, isOpenStatus, share, shortDay, signedShare } from '../format';
 import { useI18n } from '../i18n';
 import { useToast } from '../toast';
+import { AssistantPanel } from './AssistantPanel';
 import { DailyChart, SeriesChart } from './charts';
 import { Icon } from './icons';
 import { CaseState, LoadError, Loading, Priority } from './ui';
@@ -113,6 +114,8 @@ export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
               </div>
             </section>
           </div>
+
+          <AssistantPanel caseId={c.id} />
         </div>
 
         <div className="stack">

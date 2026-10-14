@@ -15,6 +15,7 @@ import { ROLES, SCREENS, SCREEN_ORDER, isRoleKey, isScreenKey, screenLinks, type
 import { config } from './config';
 import { loadEvidence } from './evidence';
 import { explainCase } from './explain';
+import type { AssistantInput } from './explain/llm';
 import { hashPassword } from './password';
 import { createStateStore } from './persist';
 
@@ -620,6 +621,44 @@ export function toDetail(c: CaseRecord, u: User, l: Lang): CaseDetail {
     changeOptions: changeOptions(l),
   };
 }
+
+const STATUS_FACT: Record<CaseStatus, Text> = {
+  new: { tr: 'yeni, henüz incelenmedi', en: 'new, not reviewed yet' },
+  review: { tr: 'operatör incelemesinde', en: 'under operator review' },
+  assigned: { tr: 'teknisyene atandı', en: 'assigned to a technician' },
+  verified: { tr: 'sahada doğrulandı', en: 'verified on site' },
+  dismissed: { tr: 'bulgu yok diye kapatıldı', en: 'closed with no finding' },
+  explained: { tr: 'bildirilen bir değişiklikle açıklandı', en: 'explained by a reported change' },
+};
+
+/**
+ * What the case assistant may read: the sentences the console already shows, nothing more. No address,
+ * name or phone ever goes to a model, and no raw series; free-text notes are left out because their
+ * numbers would not be in the evidence.
+ */
+export function assistantInput(c: CaseRecord, l: Lang, question: string | null): AssistantInput {
+  const e = c.evidence;
+  const x = explainCase(e, l);
+  const tr = l === 'tr';
+  const facts = [
+    `${tr ? 'Vaka' : 'Case'}: ${caseTitle(e, l)} · ${ORIGIN_LABEL[e.origin][l]} · ${tr ? 'durum' : 'status'}: ${isSynthetic(c) ? (tr ? 'yalnız okunur doğrulama senaryosu' : 'read-only validation scenario') : STATUS_FACT[c.status][l]}`,
+    x.summary,
+    ...x.reasons,
+    `${tr ? 'İlk kontrol' : 'First check'}: ${x.recommendation.firstCheck}. ${x.recommendation.steps.join(' ')}`,
+    ...x.limitations,
+    ...(changesFor(c).length
+      ? changesFor(c).map((n) => `${tr ? 'Bildirilen değişiklik' : 'Reported change'}: ${CHANGE_LABEL[n.kind][l]} (${n.source === 'resident' ? (tr ? 'müşteri bildirdi' : 'reported by the resident') : (tr ? 'operatör kaydetti' : 'recorded by an operator')})`)
+      : [tr ? 'Bildirilen değişiklik: yok. Müşteri veya operatör yeni cihaz, onarım ya da kullanım değişikliği bildirirse operatör vakayı "bildirilen değişiklikle açıklandı" diye kapatabilir ve dedektör referansı yeniden öğrenir.'
+        : 'Reported change: none. If the resident or an operator reports a new device, a repair or a change in use, the operator can close the case as "explained by a reported change" and the detector re-learns the reference.']),
+    x.humanDecisionNote,
+  ];
+  return { caseId: c.id, evidence: e, facts, templateSummary: x.summary, question, lang: l };
+}
+
+/** Summaries for the assistant to write ahead of time: open observed cases first. */
+export const assistantWarmList = (l: Lang) =>
+  [...cases].sort((a, b) => Number(isSynthetic(a)) - Number(isSynthetic(b)) || a.evidence.rank - b.evidence.rank)
+    .map((c) => assistantInput(c, l, null));
 
 export function listCases(u: User, filter: string, family: string, l: Lang): CaseList {
   const observed = observedCases();

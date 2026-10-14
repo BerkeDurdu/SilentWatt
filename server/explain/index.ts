@@ -2,13 +2,14 @@
 //
 // Template provider: every sentence is built from fields of the evidence, then checked by a guard
 // (no forbidden wording, every number comes from the evidence, the human-decision sentence is there).
-// An LLM provider can be plugged in behind the same interface; a failed guard falls back to the template.
+// The case assistant (./llm.ts) lets a language model rewrite or answer from these same facts; its text
+// passes the same guard, and a failed guard falls back to the template.
 
 import type { EvidenceCase, EvidenceFamily, EvidenceReason, RecommendationCode } from '../../shared/evidence';
 import type { Lang } from '../../shared/types';
 
 export interface Explanation {
-  /** Which provider wrote the text; 'template' until an LLM provider is plugged in. */
+  /** Which provider wrote the text; the structured explanation is always the template, the assistant (./llm.ts) writes alongside it. */
   provider: 'template' | 'llm';
   /** One short paragraph that says what was observed, in the user's language. */
   summary: string;
@@ -24,7 +25,7 @@ export interface Explanation {
 
 type Text = Record<Lang, string>;
 
-const HUMAN_DECISION: Text = {
+export const HUMAN_DECISION: Text = {
   tr: 'Bu bir inceleme önerisidir; kararı ekip verir.',
   en: 'This is an inspection recommendation; the team decides.',
 };
@@ -145,7 +146,9 @@ function limitations(e: EvidenceCase, l: Lang): string[] {
   return list;
 }
 
-const FORBIDDEN = [/\bkwh?\b/i, /arıza doğrulandı/i, /kesin arıza/i, /fault confirmed/i, /tasarruf/i, /\bsavings?\b/i, /olasılı[kğ]/i, /\b(probability|likelihood)\b/i];
+export const FORBIDDEN = [/\bkwh?\b/i, /arıza doğrulandı/i, /kesin arıza/i, /fault confirmed/i, /tasarruf/i, /\bsavings?\b/i, /olası/i, /ihtimal/i, /\b(probability|likelihood)\b/i,
+  // Money is out of scope as well; a model may reach for it when asked about the bill.
+  /₺|\b(TL|lira|euros?|dollars?)\b/i];
 
 /** Every digit run in a value the evidence itself carries: the only numbers a text may contain. */
 function evidenceNumbers(e: EvidenceCase): Set<string> {

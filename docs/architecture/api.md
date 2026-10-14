@@ -21,6 +21,8 @@ vakalar üzerinde yaptıklarını (durum, atama, müşteri talebi, kullanıcı y
 | `POST /cases/{id}/dismiss` | `case.dismiss` | İnceleme gerekmiyor olarak kapatır |
 | `POST /cases/{id}/result` | atanmış teknisyen | `{result: verified\|other\|dismissed, note}` |
 | `POST /cases/{id}/explain` | `case.assign` | `{kind: new_device\|repair\|usage_change\|other, localDate, note}`; vaka "değişiklikle açıklandı" olarak kapanır, değişiklik kaydedilir |
+| `GET /assistant` | `queue` veya `jobs` | Vaka asistanının modeli (`model`, `location: local\|cloud`) ve şu an yanıt verip vermediği |
+| `POST /cases/{id}/assistant` | vakayı görebilen herkes | `{question?}`; soru yoksa vaka özeti. Yanıt `provider: llm\|template`, `fallback`, `guard{passed, violations, attempts}`, `humanDecisionNote`; 10 dakikada 40 sorudan sonra `429` |
 | `GET /changes` | `data` | Bildirilen değişiklikler (`silentwatt.changes/0.1`); dedektör bir sonraki koşuda bu cihazların referansını yeniden öğrenir |
 | `GET /technicians` | `case.assign` | Atanabilir teknisyenler |
 | `GET /overview` | `overview` | Gözlenen vaka sayıları, sentetik değerlendirme, hane tablosu |
@@ -54,9 +56,40 @@ Kurallar:
 | `SILENTWATT_COOKIE_SECURE` | canlıda `on` | `Secure` çerez; HTTPS arkasında açık kalmalı |
 | `SILENTWATT_TRUST_PROXY` | `loopback` | Ters vekil arkasında istemci IP'si için (ör. `uniquelocal`) |
 | `SILENTWATT_REQUEST_LOG` | `on` | İstek başına bir JSON satırı: `request_id`, `run_id`, yol, durum, süre, kullanıcı |
+| `SILENTWATT_LLM_PROVIDER` | geliştirmede `ollama`, canlıda `off` | Vaka asistanı: `ollama` (yerel), `openai` (OpenAI uyumlu bir uç, ör. Huawei Cloud ModelArts Studio) veya `off` |
+| `SILENTWATT_LLM_BASE_URL` | `ollama` için `http://127.0.0.1:11434/v1` | `/chat/completions` ve `/models` uçlarının kökü |
+| `SILENTWATT_LLM_MODEL` | `ollama` için `qwen2.5:7b` | Model adı (ör. ModelArts'ta Qwen veya DeepSeek modelinin adı) |
+| `SILENTWATT_LLM_API_KEY` | — | Bulut model için API anahtarı (`Authorization: Bearer`); yereldeki Ollama istemez |
+| `SILENTWATT_LLM_TIMEOUT_MS` | `120000` | Tek bir model çağrısının süre sınırı |
 | `PORT` / `API_PORT` | `3001` | Canlıda `PORT`, geliştirmede `API_PORT` |
 
 Canlı mod (`npm start`, Docker) hiçbir hesap yoksa başlamaz ve nedenini yazar.
+
+## Vaka asistanı
+
+`server/explain/llm.ts`. Bir dil modeli vaka özetini yazar ve operatörün vakayla ilgili sorularını
+yanıtlar. Model yalnız konsolun o vakada zaten gösterdiği cümleleri görür (özet, gerekçeler, ilk kontrol,
+sınırlar, bildirilen değişikliğin türü). Ad, adres, telefon, serbest notlar ve ham seri gönderilmez.
+
+Modelin her metni şablonla aynı kalkandan geçer:
+- yasak ifade olmamalı (kWh, para, tasarruf, olasılık, kesin arıza);
+- her sayı kanıttan gelmeli;
+- Latin dışı yazı, liste biçimi ve tahmin bildiren ifadeler reddedilir.
+
+Kalkandan geçmeyen metin için ihlaller modele söylenip bir kez daha istenir. İkinci metin de geçmezse,
+model erişilemezse ya da süre dolarsa şablon metni gösterilir; yanıttaki `fallback` alanı nedenini
+söyler. Asistan vakayı değiştirmez ve karar vermez. Her yanıtta insan kararı cümlesi bulunur.
+
+- **Yerel:** `ollama pull qwen2.5:7b`, ardından `npm run dev`. Sunucu açılışta özetleri arka planda
+  sırayla yazar; dizüstü CPU'da bir yanıt 3-10 saniye sürer, ilk yükleme yaklaşık 30 saniye.
+- **Bulut:** Huawei Cloud ModelArts Studio (MaaS) konsolunda bir Qwen veya DeepSeek modeli için
+  hizmet açılır ve API anahtarı oluşturulur. `.env` içine şunlar yazılır:
+  - `SILENTWATT_LLM_PROVIDER=openai`
+  - `SILENTWATT_LLM_BASE_URL`: konsolda gösterilen OpenAI uyumlu adres, `/v1` ile biten kök
+  - `SILENTWATT_LLM_MODEL`: konsoldaki model adı
+  - `SILENTWATT_LLM_API_KEY`
+
+  DeepSeek-R1 gibi akıl yürütme modellerinin `<think>` bölümü gösterilmez.
 
 ## Hesaplar
 

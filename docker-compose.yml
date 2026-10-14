@@ -12,6 +12,14 @@ services:
       SILENTWATT_EVIDENCE_DIR: ${SILENTWATT_EVIDENCE_DIR:-}
       # Session cookies need HTTPS. Behind a TLS proxy keep "on"; "off" only for plain HTTP on a private network.
       SILENTWATT_COOKIE_SECURE: ${SILENTWATT_COOKIE_SECURE:-on}
+      # Case assistant, off by default. Ollama on this machine: SILENTWATT_LLM_PROVIDER=ollama and
+      # SILENTWATT_LLM_BASE_URL=http://host.docker.internal:11434/v1
+      SILENTWATT_LLM_PROVIDER: ${SILENTWATT_LLM_PROVIDER:-off}
+      SILENTWATT_LLM_BASE_URL: ${SILENTWATT_LLM_BASE_URL:-}
+      SILENTWATT_LLM_MODEL: ${SILENTWATT_LLM_MODEL:-}
+      SILENTWATT_LLM_API_KEY: ${SILENTWATT_LLM_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - console-state:/data
       # - ./users.json:/config/users.json:ro          # with SILENTWATT_USERS_FILE=/config/users.json
