@@ -2,3 +2,6 @@
 *.sh text eol=lf
 Dockerfile text eol=lf
 deploy/** text eol=lf
+
+# Tool packages are not project code; keep them out of the language stats.
+.claude/** linguist-vendored
