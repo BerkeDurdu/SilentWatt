@@ -1,0 +1,22 @@
+# Local or VM run of the console:  docker compose up --build  → http://localhost:3001
+# Accounts: put users.json next to this file (npm run hash-password), or set SILENTWATT_DEMO_ACCOUNTS=on
+# for a demo; the demo password is public. Real detector output: mount it and set SILENTWATT_EVIDENCE_DIR.
+services:
+  console:
+    build: .
+    ports:
+      - "${SILENTWATT_HTTP_PORT:-3001}:3001"
+    environment:
+      SILENTWATT_DEMO_ACCOUNTS: ${SILENTWATT_DEMO_ACCOUNTS:-off}
+      SILENTWATT_USERS_FILE: ${SILENTWATT_USERS_FILE:-}
+      SILENTWATT_EVIDENCE_DIR: ${SILENTWATT_EVIDENCE_DIR:-}
+      # Session cookies need HTTPS. Behind a TLS proxy keep "on"; "off" only for plain HTTP on a private network.
+      SILENTWATT_COOKIE_SECURE: ${SILENTWATT_COOKIE_SECURE:-on}
+    volumes:
+      - console-state:/data
+      # - ./users.json:/config/users.json:ro          # with SILENTWATT_USERS_FILE=/config/users.json
+      # - ./artifacts/evidence:/evidence:ro            # with SILENTWATT_EVIDENCE_DIR=/evidence
+    restart: unless-stopped
+
+volumes:
+  console-state:
