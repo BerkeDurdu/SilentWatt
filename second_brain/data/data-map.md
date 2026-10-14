@@ -20,7 +20,7 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 | Dosya, kolon, dönem ve cohort ayarları | [configs/ml/austin-2018.json](../../configs/ml/austin-2018.json) |
 | 25 hanenin seçim muhasebesi, duyarlılık, D-01…D-05 | [P0 karar kaydı](../../docs/project-status/p0-data-decisions-2026-09-17.md) |
 | Günlük kalite politikası v1 | [P1 protokolü](../../docs/architecture/p1-ml-protocol.md) |
-| Bağımsız yeniden hesap ve grafikler | [Veri anlama notebook'u](../../notebooks/01_data_understanding.ipynb) · [README](../../notebooks/README.md) |
+| Bağımsız yeniden hesap ve grafikler | Veri anlama notebook'u (`notebooks/01_data_understanding.ipynb`, depoda değil) · README (`notebooks/README.md`, depoda değil) |
 | Tarihsel envanter (15 Eylül) | `docs/product/ekler/dataset-audit-2026-09-15.json`, [review_p0_cohort.py](../../docs/product/ekler/review_p0_cohort.py) |
 | Birim, aralık, HVAC ve metadata kontrolleri (27 Eylül, train) | [kaynak anlamı notu](source-semantics-evidence.md), [kanal notu](channel-inventory-and-metadata.md), `docs/product/ekler/review_*.py` |
 
@@ -48,7 +48,7 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 - **Geçerli hedef:** Dönemde, ızgarada, tekil, sonlu ve ≥ 0. Negatifler onaya kadar geçersiz (D-04).
 - **Cohort:** Train geçerli kapsamı ≥ %95; `air2`/`airwindowunit1` train'de gözlenmemiş;
   yinelenen anahtar yok. Sonuç 25 → 9 → 8 → 8
-  ([notebook](../../notebooks/01_data_understanding.ipynb), bölüm D).
+  (notebook (`notebooks/01_data_understanding.ipynb`, depoda değil), bölüm D).
 - **Günlük kalite v1:** Günlük hedef+hava kapsamı ≥ %95; donma şüphesi olan gün dışlanır;
   tek slotu bile destek dışı olan gün dışlanır.
 - **Hava:** Aynı UTC saatine eşleme; ileri/geri doldurma yok.
@@ -61,7 +61,7 @@ Durumlar [decisions.md](../decisions.md)'de tutulur.
 - Hava eşlemesi bir hesap kabulüdür; fiziksel interval doğrulaması değildir (D-02).
 - 1 dk dosyası parça parça okunur; bütünüyle belleğe alınmaz.
 - Test dönemine ait hedefler analizde kullanılmaz. Notebook'taki katı okuyucular:
-  [_support.py](../../notebooks/_support.py).
+  _support.py (`notebooks/_support.py`, depoda değil).
 - Metadata bayrağı "devre tanımlı" demektir; 2018'de veri olduğunu garanti etmez
   (ör. 4031 `air1`, 5746).
 - `solar` ve `grid`'deki negatifler fiziksel (gece inverter tüketimi, şebekeye verme);
