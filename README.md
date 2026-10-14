@@ -2,7 +2,7 @@
 
 SilentWatt'ın rol bazlı operasyon konsolu. Kullanıcı giriş yapar ve yalnızca kendisine atanmış ekranları görür. Diğer ekranlar menüde yer almaz; adresleri elle yazılsa bile kullanıcı kendi ana ekranına yönlendirilir. Var olmayan bir adresle aynı sonuç verdiği için ekranın varlığı anlaşılmaz.
 
-Tüm veriler sunum için **örnek veridir**.
+Vakalar ML'in yazdığı kanıt dosyalarından gelir ([kanıt sözleşmesi](docs/architecture/evidence-contract.md)). Gerçek dedektör çıktısı verilmezse depodaki sentetik örnek dosyalar gösterilir ve ekranlarda **Örnek kanıt dosyaları** etiketi görünür. Adres ve abone bilgileri her durumda örnek kayıttır; veri setinde kimlik ve adres yoktur.
 
 ## Dil, renk ve logo
 
@@ -29,7 +29,15 @@ npm run build
 npm start
 ```
 
-`npm start` hem API'yi hem derlenmiş arayüzü tek bir porttan sunar (`PORT` ortam değişkeni, varsayılan 3001).
+`npm start` hem API'yi hem derlenmiş arayüzü tek bir porttan sunar (`PORT` ortam değişkeni, varsayılan 3001). Canlı modda demo hesapları kapalıdır; hesap dosyası (`SILENTWATT_USERS_FILE`) verilmezse sunucu başlamaz.
+
+Docker ile:
+
+```bash
+docker compose up --build
+```
+
+Gerçek dedektör çıktısını göstermek için `SILENTWATT_EVIDENCE_DIR` ile kanıt klasörünü verin. Tüm ortam değişkenleri, uçlar, hesap dosyası ve saklama: [API belgesi](docs/architecture/api.md). API testleri: `npm test`.
 
 ## AI/ML geliştirme
 
@@ -60,11 +68,11 @@ Rol sahipleri:
 - Muharrem Dokgöz: backend, veri hattı ve bulut işletimi
 - Yusuf Ziya Demirel: AI/ML, kalibrasyon, anomali tespiti ve değerlendirme
 
-Mevcut ML akışı çevrimdışı ve keşifseldir; konsoldaki örnek vakalara bağlı değildir. Baseline varsayılan olarak geliştirme dönemini değerlendirir. İnceleme bulguları ve kalan teslimler: [teknik değerlendirme](docs/architecture/foundation-review.md).
+ML akışı çevrimdışıdır; konsola kanıt dosyalarıyla bağlanır. Baseline varsayılan olarak geliştirme dönemini değerlendirir. İnceleme bulguları ve kalan teslimler: [teknik değerlendirme](docs/architecture/foundation-review.md).
 
 ## Demo hesapları
 
-Tüm hesapların şifresi `SilentWatt2026!`. Giriş ekranındaki demo listesi yalnızca `npm run dev` ile görünür, canlı derlemede çıkmaz.
+Tüm hesapların şifresi `SilentWatt2026!`. Bu hesaplar geliştirmede açıktır; canlı modda yalnızca `SILENTWATT_DEMO_ACCOUNTS=on` ile açılır. Giriş ekranındaki demo listesi yalnızca `npm run dev` ile görünür.
 
 | E-posta | Rol | Gördüğü ekranlar |
 |---|---|---|
@@ -78,18 +86,18 @@ Toplam 7 ekran var. Roller yalnızca başlangıç ayarıdır; sistem yöneticisi
 
 ### Uçtan uca demo akışı
 
-1. `operator@…` ile girin → Vaka Kuyruğu → `SW-F-24817` → Emre Kaya'ya atayın.
+1. `operator@…` ile girin → Vaka Kuyruğu → `SW-HVAC-90003-20180703-ACU` → Emre Kaya'ya atayın. Sentetik vakalar **Sentetik** filtresinde durur; üzerlerinde işlem yapılmaz.
 2. Çıkış yapıp `emre@…` ile girin. Teknisyen yalnızca **İş Emirlerim** ekranını görür; menü yoktur.
 3. Gelen SMS'teki linki açın → saha sonucunu kaydedin.
 4. `yonetim@…` ile girip vakanın kapandığını görün.
 
 ## Müşteri bilgilendirmesi ve kontrol talebi
 
-Vaka açıldığında abonenin telefonuna bilgilendirme SMS'i gider: ne gördüğümüz sade bir dille anlatılır, aylık fark kWh olarak yazılır ve **isterse** talep oluşturabileceği bir adres verilir (`silentwatt.app/talep/<jeton>`).
+Vaka açıldığında abonenin telefonuna bilgilendirme SMS'i gider: ne ölçtüğümüz sade bir dille, model referansına göre fark olarak anlatılır (birim, enerji veya para yazılmaz) ve **isterse** talep oluşturabileceği bir adres verilir (`silentwatt.app/talep/<jeton>`).
 
 - **Giriş yok.** Link tek bir vakaya bağlı, tahmin edilemez bir jeton taşır. Geçersiz jeton `404` döner ve sayfa "bu bağlantı geçerli değil" der; konsola yönlendirme yapılmaz.
 - **Form dolu gelir.** Ad, telefon, e-posta ve adres abonelik kaydından doldurulur; **hiçbiri kilitli değildir**. Abone adresini düzeltirse ekip düzeltilmiş adrese gider ve konsolda "müşteri düzeltti" etiketi görünür.
-- **Sayfa müşteriye göredir.** Sayaç numarası, hipotez olasılıkları, öncelik gibi iç veriler bu sayfada yoktur.
+- **Sayfa müşteriye göredir.** Hane kimliği, dedektör ayrıntıları ve öncelik gibi iç veriler bu sayfada yoktur. Sentetik ve veri sorunu vakalarında SMS ve link hiç oluşmaz.
 - **Konsolda karşılığı:** Vaka detayında "Müşteriye giden SMS" ve "Müşteri talebi" panelleri açılır, vaka geçmişine bir satır düşer, kuyrukta ve iş emri kartında "Talep var" rozeti çıkar, operatöre bildirim gider.
 - **Maskeleme burada da geçerli:** Talepteki adres yönetime ilçe, operatöre mahalle düzeyinde gösterilir. Link ve içindeki jeton yalnızca tam adres yetkisi olan role (saha teknisyeni) açılır; diğerlerinde `silentwatt.app/talep/••••••` olarak görünür.
 - **Kötüye kullanım:** Talep gönderimi IP başına saatte 20 istekle sınırlıdır; form alanları sunucuda doğrulanır ve `X-Requested-With` başlığı zorunludur.
@@ -104,7 +112,7 @@ Demo için: operatörle vakayı bir teknisyene atayın, teknisyen hesabında vak
 - **CSRF:** Veri değiştiren her istek `X-Requested-With: silentwatt` başlığı taşımak zorundadır.
 - **Ekran erişimi sunucuda denetlenir:** Her API ucu bir ekrana veya yetkiye bağlıdır (`requireScreen`, `requireCapability`). Kullanıcıda o ekran yoksa yanıt `403` değil `404` olur; ekranın varlığı böylece sızmaz.
 - **Vaka erişimi:** Teknisyen yalnızca kendisine atanmış vakayı açabilir. Diğer vaka numaraları ona `404` döner.
-- **Alan maskeleme sunucuda yapılır:** Yönetim adresi ilçe düzeyinde, operatör mahalle düzeyinde, teknisyen tam adres olarak görür. Sayaç numarası da buna göre kısaltılır.
+- **Alan maskeleme sunucuda yapılır:** Yönetim adresi ilçe düzeyinde, operatör mahalle düzeyinde, teknisyen tam adres olarak görür.
 - **Arayüz:** Erişilemeyen her adres (başka rolün ekranı, başkasının vakası, giriş sonrası eski bir `next` adresi) kullanıcının ana ekranına yönlendirir. `/api/me` yalnızca izinli ekranları döner. Menü ve rotalar bu listeden üretilir; her ekranın kodu ayrı parçaya bölünmüştür ve yalnızca o ekrana sahip kullanıcı açtığında indirilir.
 
 > Not: Derlenmiş JS parça dosyalarının adları statik sunucuda durur. Bunlar veri içermez; veriye ve işlemlere erişim yukarıdaki sunucu kontrolleriyle korunur.
@@ -113,11 +121,20 @@ Demo için: operatörle vakayı bir teknisyene atayın, teknisyen hesabında vak
 
 ```
 server/            Express + TypeScript API
+  config.ts        ortam değişkenleri
   catalog.ts       7 ekranın tanımı, rol ön ayarları
   auth.ts          oturum, giriş, CSRF, requireScreen / requireCapability
-  store.ts         örnek veri ve iş kuralları (şimdilik bellekte)
-  index.ts         API uçları, canlı ortamda statik dosya sunumu
+  evidence.ts      kanıt dosyalarını okur ve sözleşmeye göre denetler
+  explain/         vaka açıklaması: şablon ve metin kalkanı
+  store.ts         hesaplar, vaka iş akışı, ekran verileri
+  persist.ts       konsol durumunun JSON dosyasına kaydı
+  app.ts           API uçları, canlı ortamda statik dosya sunumu
+  index.ts         sunucuyu başlatır
+  test/            API testleri (npm test)
 shared/types.ts    API ile arayüzün ortak tipleri
+shared/evidence.ts kanıt sözleşmesinin tipleri
+shared/fixtures/   sentetik örnek kanıt dosyaları
+scripts/           hash-password: hesap dosyası kaydı üretir
 src/               React + TypeScript arayüz (Vite)
   App.tsx          giriş kapısı ve izinli rotalar
   registry.ts      ekran anahtarı → tembel yüklenen bileşen
@@ -129,6 +146,7 @@ src/               React + TypeScript arayüz (Vite)
 
 ## Sınırlamalar
 
-- Veriler bellekte tutulur; sunucu yeniden başlayınca örnek veriye döner. Kalıcılık için `store.ts` bir veritabanı katmanıyla değiştirilmelidir (API şekli aynı kalır).
+- Konsol durumu bir JSON dosyasında tutulur; PostgreSQL sonraki adımdır (`server/persist.ts`). Oturumlar bellektedir; sunucu yeniden başlayınca kullanıcılar tekrar giriş yapar.
 - SMS gönderimi simüledir; teknisyene giden mesaj gelen kutusunda, müşteriye giden mesaj vaka detayında gösterilir. Gerçek gönderim için bir SMS sağlayıcısı bağlanmalıdır.
-- Müşteri linkinin jetonu sunucu her başladığında yeniden üretilir; eski linkler geçersiz olur.
+- Müşteri linklerinin jetonları durum dosyasıyla birlikte saklanır; durum dosyası silinirse eski linkler geçersiz olur.
+- HTTPS sunucunun önündeki vekilde sonlanır; imaj kendi başına TLS sunmaz.
