@@ -25,7 +25,7 @@ analizler de buraya yazılır.
   Berke ve Muharrem'e haber verilecek ([decisions.md](decisions.md)).
 - EDA notebook `02` (21 hane, P1 run04'e kilitli): 20/20 kontrol, 11 grafik. Haziran'da bile üst
   sınır aşımı %8,3 (simetrik kalibrasyon + sıfırlar), Temmuz'da %12,0; Temmuz hane-günlerinin %40'ı
-  değerlendirilemiyor. Q-03, A-04, Q-16, Q-17 Yusuf'un kararını bekliyor ([notebooks/README](../notebooks/README.md)).
+  değerlendirilemiyor. Q-03, A-04, Q-16, Q-17 Yusuf'un kararını bekliyor (notebooks/README (`notebooks/README.md`, depoda değil)).
 - Dedektör çekirdeği testleriyle `09d5e98`'de; gerçek veride çalıştırılmadı. Paket hash'i değiştiği
   için P1 run04 üretildi; çıktıları run03 ile bayt bayt aynı ([koşu kaydı](ml/experiment-log.md)).
   Park edilen test ve karşılaştırma betiği `tasks/paused/` altında (commit edilmedi).
@@ -109,7 +109,7 @@ analizler de buraya yazılır.
   arasında ve hanelerin "sıfır" okuması farklı → [not](data/negative-values-sensor-floor.md);
   D-04 ve Q-01 için kanıt.
 - Veri anlama notebook'u tamamlandı: 82/82 kontrol uyumlu, 19 grafik; commit edilmedi
-  ([notebooks/README.md](../notebooks/README.md), [tasks/todo.md](../tasks/todo.md)).
+  (notebooks/README.md (`notebooks/README.md`, depoda değil), [tasks/todo.md](../tasks/todo.md)).
 
 ## 2026-09-17
 

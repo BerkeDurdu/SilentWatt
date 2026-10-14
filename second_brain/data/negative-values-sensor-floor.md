@@ -26,12 +26,12 @@ geçersiz sayan mevcut kural cohort'u nasıl etkiliyor?
 
 - 2026-09-22 tarihli, tek seferlik bir sorgu; notebook'ta yer almıyor.
 - Kapsam: 15 dakikalık dosya, `air1`, 25 hane, yalnız train penceresi
-  `[2018-01-01T06:00Z, 2018-06-01T05:00Z)`.
+  `2018-01-01T06:00Z, 2018-06-01T05:00Z)`.
 - Komşu analizi: hane içinde zamana göre sıralı önceki/sonraki mevcut satır kullanıldı.
 - **Test erişimi:** Sorgu dosyayı bütün olarak okudu ve test satırlarını hiçbir hesaba
   girmeden ayırdı. Bu, P1 standardıdır. Notebook'un daha sıkı "test hedefini hiç
   ayrıştırma" standardı uygulanmadı. Analiz notebook'a taşınırsa
-  [_support.py](../../notebooks/_support.py) okuyucuları kullanılmalı.
+  [_support.py (`notebooks/_support.py`, depoda değil) okuyucuları kullanılmalı.
 
 ## Kanıt
 
@@ -74,7 +74,7 @@ geçersiz sayan mevcut kural cohort'u nasıl etkiliyor?
 
   Yani cohort seçimini sensörün sıfır ayarı etkiliyor.
 - 6139'daki donma şüphesi büyük ihtimalle aynı pozitif kaymanın sonucu: ilk işaretlenen
-  slotun değeri 0,004 ([notebook](../../notebooks/01_data_understanding.ipynb), bölüm F)
+  slotun değeri 0,004 (notebook (`notebooks/01_data_understanding.ipynb`, depoda değil), bölüm F)
   → Q-01.
 - Birim bilinmiyor. kW ise −0,005 yaklaşık 5 W; 15 dakikalık kWh ise ortalama yaklaşık 20 W.
   Karşılaştırma için train değerlerinin 95. yüzdeliği 1,90, 99. yüzdeliği 3,06
@@ -114,5 +114,5 @@ hesaplarının yeniden yapılması. Etkinin büyüklüğü için P0 duyarlılı�
 
 - [P0 karar kaydı](../../docs/project-status/p0-data-decisions-2026-09-17.md): §2–§6 (D-04, C-02, duyarlılık)
 - [PRD](../../docs/product/SilentWatt-Teknik-PRD-v1.1.md): §5.1–5.2 (DQ-06, DQ-07)
-- [Veri anlama notebook'u](../../notebooks/01_data_understanding.ipynb): bölüm C, E, F
+- Veri anlama notebook'u (`notebooks/01_data_understanding.ipynb`, depoda değil): bölüm C, E, F
 - [P1 raporu](../../docs/project-status/p1-ml-results-2026-09-17.md): donma kapısının etkisi

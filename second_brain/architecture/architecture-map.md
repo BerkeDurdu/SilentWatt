@@ -36,7 +36,7 @@ ML sürümlü kanıt paketi → B: saklama ve API → A: vaka listesi ve detay e
 | Demo API tipleri | Arıza aileleri, hipotezler, `lossKwhMonth` gibi alanlar. **ML kanıt şeması değildir.** | [shared/types.ts](../../shared/types.ts) |
 | ML paketi | Python 3.12; `data/` (okuma, kalite, denetim, günlük kapılar), `models/` (baseline, kalibrasyon, karşılaştırma, değerlendirme); CLI `silentwatt-ml` | [packages/ml/README.md](../../packages/ml/README.md) |
 | Config | Dosya, kolon, dönem, cohort ve model ayarları | [austin-2018.json](../../configs/ml/austin-2018.json) |
-| Notebook'lar | Analiz; kendi kilit dosyası; test hedeflerine erişmez | [notebooks/README.md](../../notebooks/README.md) |
+| Notebook'lar | Analiz; kendi kilit dosyası; test hedeflerine erişmez | notebooks/README.md (`notebooks/README.md`, depoda değil) |
 | CI | Web typecheck/build + ML kurulum/test/CLI | [ci.yml](../../.github/workflows/ci.yml) |
 | Ajan skill'leri | `.claude/skills` altında dokuz sabitlenmiş skill; `ponytail` ailesi `.codex/skills`'te kullanılmıyor | [.claude/skills/README.md](../../.claude/skills/README.md) |
 

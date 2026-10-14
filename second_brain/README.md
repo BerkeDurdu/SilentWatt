@@ -20,7 +20,7 @@ bağlantı verir ve en fazla 1–2 cümle özetler.
 |---|---|---|
 | Sözleşme | [PRD](../docs/product/SilentWatt-Teknik-PRD-v1.1.md), [config](../configs/ml/austin-2018.json) | Kapsam, eşikler, KPI'lar, sürüm kapıları |
 | Yayımlanmış kanıt | `docs/project-status/`, `docs/architecture/` | Tarihli, sonradan değiştirilmeyen raporlar ve protokoller |
-| Çalıştırma | [README](../README.md), [ML](../packages/ml/README.md), [veri](../data/README.md), [notebook](../notebooks/README.md) | Kurulum, komutlar, sınırlar |
+| Çalıştırma | [README](../README.md), [ML](../packages/ml/README.md), [veri](../data/README.md), notebook (`notebooks/README.md`, depoda değil) | Kurulum, komutlar, sınırlar |
 | Ajan iş akışı | [AGENTS.md](../AGENTS.md), [tasks/todo.md](../tasks/todo.md), [tasks/lessons.md](../tasks/lessons.md) | Görev planı, doğrulama, süreç dersleri |
 | **Yaşayan bilgi** | **`second_brain/`** | Güncel durum, karar/soru takibi, araştırma notları, koşu kaydı, sözlük, günlük |
 | Kişisel tercih | Claude hafızası (repo dışında) | Yalnız çalışma tercihleri; proje bilgisi değil |

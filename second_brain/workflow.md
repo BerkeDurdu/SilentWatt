@@ -19,7 +19,7 @@ Bu sayfa kuralları tekrar etmez; nerede olduklarını ve nasıl birleştiklerin
 - [CI](../.github/workflows/ci.yml): web (typecheck + build, Node 22) ve ML (kilitli
   kurulum, `pip check`, unittest, CLI). Notebook testleri CI'da yok (Q-07).
 - Komutlar: [kök README](../README.md) (web), [packages/ml/README.md](../packages/ml/README.md)
-  (ML), [notebooks/README.md](../notebooks/README.md) (notebook).
+  (ML), notebooks/README.md (`notebooks/README.md`, depoda değil) (notebook).
 
 ## Git düzeni (gözlenen)
 
@@ -56,7 +56,7 @@ Veri analizi, EDA ve model incelemesi `notebooks/` altında yürür; kurallar ve
 - **Sayılar:** Resmî sayı CLI koşusundan gelir; notebook'ta hesaplanan sayı "keşif" olarak
   etiketlenir. Notebook sonundaki doğrulama hücresi resmî artifact'larla karşılaştırır.
 - **Erişim:** Notebook'lar veriyi `notebooks/_support.py` üzerinden okur; test dönemi
-  hedefleri okunmaz. Kurulum ve tekrar çalıştırma: [notebooks/README.md](../notebooks/README.md).
+  hedefleri okunmaz. Kurulum ve tekrar çalıştırma: notebooks/README.md (`notebooks/README.md`, depoda değil).
 
 ## Görev takibi
 

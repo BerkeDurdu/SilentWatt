@@ -111,7 +111,7 @@ Operatör grafik taramak yerine sıralı vakaları inceler. Teknisyen hangi dön
 
 ## 4. Veri setlerinin sözleşmesi ve doğrulanmış profil
 
-Yerel dosya taramasının ayrıntısı [veri denetim çıktısında](ekler/dataset-audit-2026-09-15.json), tekrar üretim yöntemi [denetim betiğinde](ekler/audit_prd_data.py) saklanır. Hash, satır sayısı, kolonlar, hane bazında doluluk, zaman anahtarı ve seçili kalite kontrolleri bu ekte yer alır. Bu tarama fiziksel cihaz kimliğini veya arıza durumunu doğrulamaz.
+Yerel dosya taramasının ayrıntısı [veri denetim çıktısında](../product/ekler/dataset-audit-2026-09-15.json), tekrar üretim yöntemi [denetim betiğinde](../product/ekler/audit_prd_data.py) saklanır. Hash, satır sayısı, kolonlar, hane bazında doluluk, zaman anahtarı ve seçili kalite kontrolleri bu ekte yer alır. Bu tarama fiziksel cihaz kimliğini veya arıza durumunu doğrulamaz.
 
 ### 4.1 Dosya adlarının eşleştirilmesi
 
@@ -830,8 +830,8 @@ Teslim paketi: çalışan kod, OpenAPI, veri/özellik sözleşmesi, veri kalite 
 
 ## 21. Kaynaklar ve denetimin tekrar üretimi
 
-1. [Yerel veri denetimi](ekler/dataset-audit-2026-09-15.json): 15 Eylül 2026 taraması; dosya hashleri ve hane/kanal ölçümleri.
-2. [Denetim betiği](ekler/audit_prd_data.py): Kaynaklara yazmaz; yalnızca JSON profil üretir. Python + pandas + NumPy gerektirir. `SilentWatt/` içinden `python Dokümanlar/ekler/audit_prd_data.py` ile çalıştırılabilir. Tarihli çıktıyı yenilemeden önce eski kopya korunmalıdır.
+1. [Yerel veri denetimi](../product/ekler/dataset-audit-2026-09-15.json): 15 Eylül 2026 taraması; dosya hashleri ve hane/kanal ölçümleri.
+2. [Denetim betiği](../product/ekler/audit_prd_data.py): Kaynaklara yazmaz; yalnızca JSON profil üretir. Python + pandas + NumPy gerektirir. `SilentWatt/` içinden `python Dokümanlar/ekler/audit_prd_data.py` ile çalıştırılabilir. Tarihli çıktıyı yenilemeden önce eski kopya korunmalıdır.
 3. [Pecan Street metadata](https://dataport.pecanstreet.org/metatable): Kanal/hane eşleştirmesinin doğrulanacağı dış kaynak; sağlayıcı tablosuna erişim tek başına yerel dosyanın tüm metadata'sının doğrulandığı anlamına gelmez.
 4. [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api): Tarihsel hava verisi ve yeniden analiz yaklaşımı.
 5. [Scikit-learn kuantil tahmin örneği](https://scikit-learn.org/stable/auto_examples/ensemble/plot_gradient_boosting_quantile.html): Kuantil regresyonla tahmin aralığı üretimi; SilentWatt performans kanıtı değildir.
