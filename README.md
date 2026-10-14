@@ -22,6 +22,16 @@ npm run dev
 
 Arayüz http://localhost:5173 adresinde, API http://localhost:3001 adresinde açılır. Vite, `/api` isteklerini API'ye yönlendirir.
 
+Repo yalnızca 8 örnek vakayla gelir (`shared/fixtures/evidence`); Pecan Street ölçümleri ve gerçek dedektör çıktısı lisans gereği repoda değildir.
+
+Vaka asistanı geliştirmede yerel Ollama'yı kullanır. [Ollama](https://ollama.com) kurulduktan sonra modeli bir kez indirin:
+
+```bash
+ollama pull qwen2.5:7b
+```
+
+Ollama çalışmıyorsa konsol yine açılır; asistan vaka özetini şablondan gösterir. Asistanı tamamen kapatmak için `SILENTWATT_LLM_PROVIDER=off` verin.
+
 Canlı ortam için:
 
 ```bash
