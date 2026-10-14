@@ -14,7 +14,7 @@ import { config } from './config';
 import { loadEvidence } from './evidence';
 import { explainCase } from './explain';
 import { hashPassword } from './password';
-import { readState, writeState } from './persist';
+import { createStateStore } from './persist';
 
 export const ORGANIZATION: Text = { tr: 'Pilot Dağıtım A.Ş. (örnek)', en: 'Pilot Distribution Co. (example)' };
 export const DEMO_PASSWORD = 'SilentWatt2026!';
@@ -283,15 +283,17 @@ function snapshot(): ConsoleState {
   };
 }
 
-/** Saves after every change. A small synchronous write: the console has a handful of users. */
-const save = () => writeState(config.stateFile, snapshot());
+export const stateStore = createStateStore<ConsoleState>(config);
+
+/** Saves after every change. Writes are queued; the latest state always wins. */
+const save = () => stateStore.save(snapshot());
 
 /**
  * Restores what matches the current evidence and accounts. A case that is no longer in the evidence,
  * or a user that no longer exists, is dropped instead of guessed.
  */
-function restore() {
-  const saved = readState<ConsoleState>(config.stateFile);
+async function restore() {
+  const saved = await stateStore.load();
   if (saved) {
     for (const s of saved.cases) {
       const c = getCase(s.id);
@@ -321,7 +323,7 @@ function restore() {
   save();
 }
 
-restore();
+await restore();
 
 const SLOT_LABELS: Record<Lang, Record<RequestSlot, string>> = {
   tr: { morning: 'Sabah · 09:00–12:00', afternoon: 'Öğleden sonra · 12:00–17:00', evening: 'Akşam · 17:00–20:00', any: 'Farketmez' },
