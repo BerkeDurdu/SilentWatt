@@ -1,11 +1,9 @@
 // Reads the evidence files ML writes (contract: docs/architecture/evidence-contract.md).
-// SILENTWATT_EVIDENCE_DIR points at a detector run; without it the committed fixtures are used.
+// The directory comes from config (SILENTWATT_EVIDENCE_DIR, or the committed fixtures).
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { EVIDENCE_SCHEMA_VERSION, type EvidenceCase, type EvidenceIndex } from '../shared/evidence';
 
-const FIXTURES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../shared/fixtures/evidence');
 const CASE_ID = /^[A-Za-z0-9-]+$/;
 
 export interface Evidence {
@@ -19,7 +17,7 @@ function readJson(file: string): unknown {
 }
 
 /** Loads one evidence directory and rejects anything the contract does not allow. */
-export function loadEvidence(dir = process.env.SILENTWATT_EVIDENCE_DIR || FIXTURES): Evidence {
+export function loadEvidence(dir: string): Evidence {
   const index = readJson(path.join(dir, 'index.json')) as EvidenceIndex;
   if (index.schema_version !== EVIDENCE_SCHEMA_VERSION) {
     throw new Error(`Evidence schema ${index.schema_version} is not ${EVIDENCE_SCHEMA_VERSION}: ${dir}`);

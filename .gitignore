@@ -7,6 +7,8 @@ dist/
 
 # environment and secrets
 .env
+users.json
+.data/
 .env.*
 !.env.example
 

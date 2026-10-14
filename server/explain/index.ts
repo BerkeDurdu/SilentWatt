@@ -123,7 +123,8 @@ function evidenceNumbers(e: EvidenceCase): Set<string> {
   return allowed;
 }
 
-function check(texts: string[], humanDecisionNote: string, e: EvidenceCase, l: Lang): string[] {
+/** Wording and number checks for any provider's text; an empty list means the text may be shown. */
+export function guardViolations(texts: string[], humanDecisionNote: string, e: EvidenceCase, l: Lang): string[] {
   const violations: string[] = [];
   const allowed = evidenceNumbers(e);
   for (const text of texts) {
@@ -161,6 +162,6 @@ export function explainCase(evidence: EvidenceCase, lang: Lang): Explanation {
     humanDecisionNote: HUMAN_DECISION[lang],
     guard: { passed: true, violations: [] },
   };
-  const violations = check([explanation.summary, ...explanation.reasons], explanation.humanDecisionNote, evidence, lang);
+  const violations = guardViolations([explanation.summary, ...explanation.reasons], explanation.humanDecisionNote, evidence, lang);
   return violations.length ? fallback(evidence, lang, violations) : explanation;
 }

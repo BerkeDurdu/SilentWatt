@@ -1,6 +1,7 @@
 // In-memory store: users and case workflow live here, the cases themselves come from the evidence files.
 // Swap for a database later; the API shape stays the same.
 import { randomBytes } from 'node:crypto';
+import fs from 'node:fs';
 import type { DetectorName, EvidenceCase, EvidenceKind, EvidenceOrigin } from '../shared/evidence';
 import type {
   AddressLevel, Capability, CaseDetail, CaseList, CaseStatus, CaseSummary, CustomerNotice, CustomerRequest,
@@ -9,9 +10,11 @@ import type {
   Technician, UserRow, UsersData,
 } from '../shared/types';
 import { ROLES, SCREENS, SCREEN_ORDER, isRoleKey, isScreenKey, screenLinks, type Text } from './catalog';
+import { config } from './config';
 import { loadEvidence } from './evidence';
 import { explainCase } from './explain';
 import { hashPassword } from './password';
+import { readState, writeState } from './persist';
 
 export const ORGANIZATION: Text = { tr: 'Pilot Dağıtım A.Ş. (örnek)', en: 'Pilot Distribution Co. (example)' };
 export const DEMO_PASSWORD = 'SilentWatt2026!';
@@ -39,13 +42,49 @@ function makeUser(id: string, name: string, email: string, role: RoleKey): User 
   return { id, name, initials, email, role, screens: [...ROLES[role].screens], active: true, ...hashPassword(DEMO_PASSWORD) };
 }
 
-export const users: User[] = [
+const demoUsers = (): User[] => [
   makeUser('u-selin', 'Selin Aydın', 'yonetim@silentwatt.demo', 'manager'),
   makeUser('u-kaan', 'Kaan Yıldız', 'operator@silentwatt.demo', 'operator'),
   makeUser('u-emre', 'Emre Kaya', 'emre@silentwatt.demo', 'technician'),
   makeUser('u-deniz', 'Deniz Tunç', 'deniz@silentwatt.demo', 'technician'),
   makeUser('u-ece', 'Ece Arslan', 'admin@silentwatt.demo', 'admin'),
 ];
+
+/** Accounts from SILENTWATT_USERS_FILE: [{id, name, email, role, salt, hash}], hashes from scripts/hash-password.ts. */
+function fileUsers(file: string): User[] {
+  const rows = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>[];
+  if (!Array.isArray(rows)) throw new Error(`${file} must hold a JSON array of users`);
+  return rows.map((row, i) => {
+    const field = (key: string) => {
+      const value = row[key];
+      if (typeof value !== 'string' || value === '') throw new Error(`${file}: user ${i + 1} has no "${key}"`);
+      return value;
+    };
+    const role = field('role');
+    if (!isRoleKey(role)) throw new Error(`${file}: user ${i + 1} has an unknown role "${role}"`);
+    const name = field('name');
+    const initials = name.split(' ').map((p) => p[0]).join('').slice(0, 2);
+    return {
+      id: field('id'), name, initials, email: field('email').trim().toLowerCase(), role,
+      screens: [...ROLES[role].screens], active: row.active !== false, salt: field('salt'), hash: field('hash'),
+    };
+  });
+}
+
+function loadUsers(): User[] {
+  const list = [...(config.demoAccounts ? demoUsers() : []), ...(config.usersFile ? fileUsers(config.usersFile) : [])];
+  if (list.length === 0) {
+    throw new Error('No accounts: set SILENTWATT_USERS_FILE, or SILENTWATT_DEMO_ACCOUNTS=on for a demo (the demo password is public).');
+  }
+  const emails = new Set<string>();
+  for (const u of list) {
+    if (emails.has(u.email)) throw new Error(`Two accounts share the e-mail ${u.email}`);
+    emails.add(u.email);
+  }
+  return list;
+}
+
+export const users: User[] = loadUsers();
 
 export const findUser = (id: string) => users.find((u) => u.id === id);
 export const findUserByEmail = (email: string) => users.find((u) => u.email === email.trim().toLowerCase());
@@ -64,8 +103,11 @@ export function toMe(u: User, l: Lang): Me {
 
 /* ── evidence ──────────────────────────────────────────── */
 
-const evidence = loadEvidence();
+const evidence = loadEvidence(config.evidenceDir);
 const run = evidence.index.run;
+
+/** Which evidence run is being served; for health checks and request logs. */
+export const evidenceInfo = () => ({ run_id: run.run_id, fixture: evidence.index.fixture, cases: evidence.index.cases.length });
 
 const KIND_TITLE: Record<EvidenceKind, Text> = {
   consumption_deviation: { tr: 'air1 kanalında tüketim sapması', en: 'air1 channel consumption deviation' },
@@ -201,11 +243,6 @@ const messages: MessageRecord[] = [];
 /** One unguessable link per case. The resident never signs in; the token is the whole key. */
 const tokenByCase = new Map<string, string>();
 const caseByToken = new Map<string, string>();
-for (const c of cases.filter(hasNotice)) {
-  const token = randomBytes(12).toString('base64url');
-  tokenByCase.set(c.id, token);
-  caseByToken.set(token, c.id);
-}
 
 export const REQUEST_PATH = '/talep';
 const requestHref = (c: CaseRecord) => `${REQUEST_PATH}/${tokenByCase.get(c.id)}`;
@@ -225,6 +262,66 @@ interface RequestRecord {
 
 const requests: RequestRecord[] = [];
 const requestFor = (caseId: string) => requests.find((r) => r.caseId === caseId);
+
+/* ── saved state ───────────────────────────────────────── */
+
+/** What people did on top of the evidence. The evidence itself is never copied here. */
+interface ConsoleState {
+  cases: { id: string; status: CaseStatus; techId: string | null; events: CaseEventRecord[] }[];
+  messages: MessageRecord[];
+  requests: RequestRecord[];
+  tokens: [caseId: string, token: string][];
+  users: { id: string; role: RoleKey; screens: ScreenKey[]; active: boolean }[];
+}
+
+function snapshot(): ConsoleState {
+  return {
+    cases: cases.map(({ id, status, techId, events }) => ({ id, status, techId, events })),
+    messages, requests,
+    tokens: [...tokenByCase],
+    users: users.map(({ id, role, screens, active }) => ({ id, role, screens, active })),
+  };
+}
+
+/** Saves after every change. A small synchronous write: the console has a handful of users. */
+const save = () => writeState(config.stateFile, snapshot());
+
+/**
+ * Restores what matches the current evidence and accounts. A case that is no longer in the evidence,
+ * or a user that no longer exists, is dropped instead of guessed.
+ */
+function restore() {
+  const saved = readState<ConsoleState>(config.stateFile);
+  if (saved) {
+    for (const s of saved.cases) {
+      const c = getCase(s.id);
+      if (c && !isSynthetic(c)) Object.assign(c, { status: s.status, techId: s.techId && findUser(s.techId) ? s.techId : null, events: s.events });
+    }
+    messages.push(...saved.messages.filter((m) => getCase(m.caseId) && findUser(m.techId)));
+    requests.push(...saved.requests.filter((r) => getCase(r.caseId)));
+    for (const [caseId, token] of saved.tokens) {
+      const c = getCase(caseId);
+      if (c && hasNotice(c)) {
+        tokenByCase.set(caseId, token);
+        caseByToken.set(token, caseId);
+      }
+    }
+    for (const s of saved.users) {
+      const u = findUser(s.id);
+      if (u && isRoleKey(s.role) && s.screens.every(isScreenKey)) Object.assign(u, { role: s.role, screens: s.screens, active: s.active });
+    }
+  }
+  // One unguessable link per case that may notify a resident.
+  for (const c of cases.filter(hasNotice)) {
+    if (tokenByCase.has(c.id)) continue;
+    const token = randomBytes(12).toString('base64url');
+    tokenByCase.set(c.id, token);
+    caseByToken.set(token, c.id);
+  }
+  save();
+}
+
+restore();
 
 const SLOT_LABELS: Record<Lang, Record<RequestSlot, string>> = {
   tr: { morning: 'Sabah · 09:00–12:00', afternoon: 'Öğleden sonra · 12:00–17:00', evening: 'Akşam · 17:00–20:00', any: 'Farketmez' },
@@ -343,6 +440,7 @@ export function submitRequest(token: string, input: RequestInput, l: Lang): Subm
   if (existing) Object.assign(existing, record);
   else requests.push(record);
   c.events.push({ type: 'requested', at: record.at });
+  save();
   return { ok: true, receipt: toReceipt(record, l) };
 }
 
@@ -457,12 +555,15 @@ export function listCases(u: User, filter: string, l: Lang): CaseList {
 /* ── case actions ──────────────────────────────────────── */
 
 export function markOpened(c: CaseRecord, u: User) {
-  if (c.techId === u.id && c.events.at(-1)?.type === 'assigned') c.events.push({ type: 'opened', at: now() });
+  if (c.techId !== u.id || c.events.at(-1)?.type !== 'assigned') return;
+  c.events.push({ type: 'opened', at: now() });
+  save();
 }
 
 export function reviewCase(c: CaseRecord) {
   c.status = 'review';
   c.events.push({ type: 'review', at: now() });
+  save();
 }
 
 export function assignCase(c: CaseRecord, techId: string) {
@@ -473,17 +574,20 @@ export function assignCase(c: CaseRecord, techId: string) {
   c.techId = tech.id;
   c.events.push({ type: 'assigned', at: time, techId: tech.id });
   messages.push({ id: `m-${messages.length + 1}`, techId: tech.id, caseId: c.id, at: time });
+  save();
   return true;
 }
 
 export function dismissCase(c: CaseRecord) {
   c.status = 'dismissed';
   c.events.push({ type: 'dismissed', at: now() });
+  save();
 }
 
 export function recordResult(c: CaseRecord, result: FieldResult, note: string) {
   c.status = result === 'dismissed' ? 'dismissed' : 'verified';
   c.events.push({ type: result, at: now(), note: note || undefined });
+  save();
 }
 
 export const listTechnicians = (): Technician[] =>
@@ -750,5 +854,6 @@ export function updateUser(me: User, id: string, patch: Record<string, unknown>,
 
   const deactivated = target.active && !active;
   Object.assign(target, { role, screens, active });
+  save();
   return { ok: true, user: toUserRow(target, me, l), deactivated };
 }
