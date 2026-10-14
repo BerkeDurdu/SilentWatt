@@ -247,10 +247,16 @@ okumaz; gerekçe ve öneri kodları v0.1'de dondurulur.
       örnek vakalar yer tutucu açığı ve yasak ifade olmadan üretilir. Reviewer: "değişiklik gerekli"
       (kural 6 testi, sentetik ifade, yasak terimler, test boşlukları); düzeltildi, `2dd1ff6` ile
       birleştirildi. 116 test, typecheck ve build geçti.
-- [ ] Örnek kanıt dosyaları: üretici gerekçe değerlerini elle yazıyor; dört değer kendi günlük
+- [x] Örnek kanıt dosyaları: üretici gerekçe değerlerini elle yazıyor; dört değer kendi günlük
       satırlarıyla çelişiyor (90002 DAYS_NOT_SCORED ve CUSUM, 90003 z, 90004 eksik okuma payı).
       Değerler paketin kanıt yazıcısıyla hesaplanacak (önce test); ardından katalog belgesindeki
-      90002 örneği yeniden üretilir.
+      90002 örneği yeniden üretilir. 14 Ekim (Yusuf'un onayı): ayrıca üç tüketim vakasında üst
+      sınır aşım payı serideki noktalarla çelişiyordu (%41, seride %0). Üretici artık yalnız
+      15 dakikalık okumaları, Haziran referansını ve günlük kapıyı uyduruyor; günlük tablo, z,
+      CUSUM, kurallar ve gerekçeler paketten. Vaka kimlikleri, tarihler, sıra ve öncelik aynı;
+      örnek kronik k/h 0,5/5 → 1,0/10 (kısa akut koşu kronik vaka açmasın), protokol `p1-v3`.
+      Doğrulama: önce yazılan `test_evidence_fixtures.py` (8 test) eski dosyalarda 101 hatayla
+      kırmızı, yeni dosyalarda yeşil; 141 ML testi, typecheck, build geçti.
 - [ ] Reviewer: her teslimden sonra (`code-reviewer`, `tdd-guide`; bağımlılık değişirse
       `dependency-auditor`). Bulguları düzeltmez, raporlar.
 - [x] Agent düzeni (8 Ekim, öneriler 1–5): `.claude/agents/` tanımları, `tasks/agents/` altında

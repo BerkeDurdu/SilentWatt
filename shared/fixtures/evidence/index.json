@@ -1,12 +1,12 @@
 {
   "schema_version": "silentwatt.evidence/0.1",
-  "generated_at_utc": "2026-10-06T00:00:00Z",
+  "generated_at_utc": "2026-10-14T00:00:00Z",
   "fixture": true,
   "run": {
     "run_id": "fixture-0.1",
     "source_run": "fixture (made-up values)",
     "dataset_id": "fixture",
-    "protocol_version": "p1-v2",
+    "protocol_version": "p1-v3",
     "model": "B0",
     "replay_window": {
       "split": "development",
@@ -23,8 +23,8 @@
         "consecutive_days": 2
       },
       "chronic": {
-        "k": 0.5,
-        "h": 5.0,
+        "k": 1.0,
+        "h": 10.0,
         "positive_days": 3,
         "window_days": 5
       },
@@ -111,7 +111,7 @@
       "last_local_date": "2018-07-10",
       "flagged_days": 4,
       "excess_share": 0.31,
-      "upper_exceedance_share": 0.41,
+      "upper_exceedance_share": 0.625,
       "rank": 1,
       "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
       "priority": 1,
@@ -132,7 +132,7 @@
       "last_local_date": "2018-07-31",
       "flagged_days": 10,
       "excess_share": 0.12,
-      "upper_exceedance_share": 0.41,
+      "upper_exceedance_share": 0.125,
       "rank": 2,
       "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
       "priority": 2,
@@ -153,7 +153,7 @@
       "last_local_date": "2018-07-05",
       "flagged_days": 3,
       "excess_share": 0.18,
-      "upper_exceedance_share": 0.41,
+      "upper_exceedance_share": 0.4583,
       "rank": 3,
       "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
       "priority": 3,

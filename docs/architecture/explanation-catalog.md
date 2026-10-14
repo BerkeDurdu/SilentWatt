@@ -293,19 +293,19 @@ met 2018-07-25, last day 2018-07-26; reason `MISSING_READINGS` 0.58; recommendat
 
 ### `SW-SYN-HVAC-90002-20180722-CHR` (synthetic, chronic): summary and reasons
 
-Evidence (current fixture): synthetic `ramp_increase` from 2018-07-18 for 14 days; onset
-2018-07-22, rule met 2018-07-27, last day 2018-07-31, 10 flagged days; reasons
-`PERSISTENT_CUSUM` 6.1, `UPPER_BOUND_EXCEEDANCE` 0.41, `EXCESS_OVER_REFERENCE` 0.12,
-`DAYS_NOT_SCORED` 3. The `DAYS_NOT_SCORED` value disagrees with the fixture's own daily rows
+Evidence (current fixture, regenerated 2026-10-14): synthetic `ramp_increase` from 2018-07-18
+for 14 days; onset 2018-07-22, rule met 2018-07-27, last day 2018-07-31, 10 flagged days;
+reasons `UPPER_BOUND_EXCEEDANCE` 0.125, `PERSISTENT_CUSUM` 18.8, `EXCESS_OVER_REFERENCE` 0.12,
+`DAYS_NOT_SCORED` 2. The values are made up and are computed from the fixture's own readings
 (see "Known gaps", point 4).
 
 | Field | Türkçe | English |
 | --- | --- | --- |
 | summary | Sentetik deney. Hane 90002 için air1 kanal sapması. 22 Temmuz 2018 ile 31 Temmuz 2018 arasında tüketim, sıcaklık ve saate göre beklenenden yüksek seyretti. Dedektör kuralı ilk kez 27 Temmuz 2018 tarihinde karşılandı; günlük koşulu karşılayan (işaretli) gün sayısı 10. Bu vaka gerçek bir olay değildir: 18 Temmuz 2018 tarihinden başlayarak air1 verisine 14 günlük bir senaryo eklendi. | Synthetic experiment. Household 90002: air1 channel deviation. Between 22 July 2018 and 31 July 2018, consumption was higher than expected for the temperature and time of day. The detector rule was first met on 27 July 2018; number of days that met the daily condition (flagged days): 10. This case is not a real event: starting on 18 July 2018, a scenario was added to the air1 data (scenario length in days: 14). |
-| reasons | Kalıcılık göstergesinin (birikimli toplam, CUSUM) vaka boyunca ulaştığı en yüksek değer 6,1; bu gösterge, beklenenden yüksek tüketimli günler biriktikçe büyür. | The highest value the persistence statistic (cumulative sum, CUSUM) reached during the case is 6.1; it grows as days with higher-than-expected consumption accumulate. |
-| | İşaretli günlerde modelin tahmin aralığının üst sınırını aşan geçerli çeyrek saatlik ölçümlerin payı %41. | On the flagged days, the share of valid quarter-hour readings above the upper bound of the model's prediction interval is 41%. |
+| reasons | İşaretli günlerde modelin tahmin aralığının üst sınırını aşan geçerli çeyrek saatlik ölçümlerin payı %12,5. | On the flagged days, the share of valid quarter-hour readings above the upper bound of the model's prediction interval is 12.5%. |
+| | Kalıcılık göstergesinin (birikimli toplam, CUSUM) vaka boyunca ulaştığı en yüksek değer 18,8; bu gösterge, beklenenden yüksek tüketimli günler biriktikçe büyür. | The highest value the persistence statistic (cumulative sum, CUSUM) reached during the case is 18.8; it grows as days with higher-than-expected consumption accumulate. |
 | | İşaretli günlerin toplamında gözlenen tüketimin model referansına (sıcaklık ve saate göre beklenen tüketim) göre farkı +%12. | Over the flagged days, the difference between observed consumption and the model reference (the expected consumption for the temperature and time of day) is +12%. |
-| | Vaka penceresinde değerlendirilemeyen gün sayısı 3; bu günler (örneğin eğitimde görülmemiş bir sıcaklık ya da eksik veri yüzünden) ne normal ne de sapmalı sayıldı. | The number of days in the case window that could not be assessed is 3; these days (for example because of a temperature not seen in training or missing data) count as neither normal nor deviating. |
+| | Vaka penceresinde değerlendirilemeyen gün sayısı 2; bu günler (örneğin eğitimde görülmemiş bir sıcaklık ya da eksik veri yüzünden) ne normal ne de sapmalı sayıldı. | The number of days in the case window that could not be assessed is 2; these days (for example because of a temperature not seen in training or missing data) count as neither normal nor deviating. |
 
 ## Verification
 
@@ -348,10 +348,11 @@ The renderer in the test file is a test helper, not a second server implementati
 3. **`DAYS_NOT_SCORED` window.** The contract says "days in the case window". The writer
    (`evidence.py`) counts unscored days from three days before onset to the last day. The
    templates keep the contract wording until the owner's decision on the window.
-4. **Fixture value.** In `SW-SYN-HVAC-90002-20180722-CHR`, `DAYS_NOT_SCORED` is 3. The fixture's
-   own daily rows give 2 under the writer's window and 0 within onset–last. The tests no longer
-   read exact values from the fixtures. The fixture generator is being corrected separately;
-   the example above will be re-rendered after that.
+4. **Fixture values (resolved 2026-10-14).** The generator used to write reason values by hand,
+   and four of them contradicted the fixture's own rows. It now makes up only the readings, the
+   June reference and the daily gate; the package computes the daily rows, z, CUSUM, the rules
+   and the reasons. `test_evidence_fixtures.py` checks the consistency, and the example above was
+   re-rendered. `DAYS_NOT_SCORED` follows the writer's window (point 3).
 5. **Scenario type not named.** The text does not say step, ramp or data fault. The console can
    show `synthetic.scenario` directly; labels for scenarios would be a catalog addition.
 
