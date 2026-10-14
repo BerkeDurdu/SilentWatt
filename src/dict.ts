@@ -44,7 +44,7 @@ export const DICT = {
   // login
   thesis1: { tr: 'Sessiz sapmalar,', en: 'Silent deviations,' },
   thesis2: { tr: 'net sonraki adım.', en: 'a clear next step.' },
-  thesisBody: { tr: 'Klima devresindeki kalıcı tüketim sapmaları, gerekçeli bir inceleme önerisine dönüşür.', en: 'Persistent consumption deviations on the air-conditioning circuit become a reasoned inspection recommendation.' },
+  thesisBody: { tr: 'Klima, buzdolabı ve güneş panelindeki kalıcı sapmalar, gerekçeli bir inceleme önerisine dönüşür.', en: 'Persistent deviations in air conditioning, refrigerators and solar panels become a reasoned inspection recommendation.' },
   signInTitle: { tr: 'Giriş yap', en: 'Sign in' },
   signInToOpen: { tr: 'Bu sayfayı açmak için giriş yapın.', en: 'Sign in to open this page.' },
   signInLead: { tr: 'Kurumunuzun size verdiği hesapla giriş yapın.', en: 'Sign in with the account your organisation gave you.' },
