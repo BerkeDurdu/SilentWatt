@@ -642,6 +642,7 @@ export function assistantInput(c: CaseRecord, l: Lang, question: string | null):
   const tr = l === 'tr';
   const facts = [
     `${tr ? 'Vaka' : 'Case'}: ${caseTitle(e, l)} · ${ORIGIN_LABEL[e.origin][l]} · ${tr ? 'durum' : 'status'}: ${isSynthetic(c) ? (tr ? 'yalnız okunur doğrulama senaryosu' : 'read-only validation scenario') : STATUS_FACT[c.status][l]}`,
+    priorityFact(c, l),
     x.summary,
     ...x.reasons,
     `${tr ? 'İlk kontrol' : 'First check'}: ${x.recommendation.firstCheck}. ${x.recommendation.steps.join(' ')}`,
@@ -652,7 +653,29 @@ export function assistantInput(c: CaseRecord, l: Lang, question: string | null):
         : 'Reported change: none. If the resident or an operator reports a new device, a repair or a change in use, the operator can close the case as "explained by a reported change" and the detector re-learns the reference.']),
     x.humanDecisionNote,
   ];
-  return { caseId: c.id, evidence: e, facts, templateSummary: x.summary, question, lang: l };
+  return { caseId: c.id, evidence: e, facts, templateSummary: x.summary, question, lang: l, assigned: c.status === 'assigned' || c.status === 'verified' };
+}
+
+/**
+ * The priority comes from the detector, not from the model: deviations are ranked by how far and how
+ * long they stray from the reference, and the ranking is cut in thirds. The assistant may explain it,
+ * never change it. Written without digits so every number the model repeats is still from the evidence.
+ */
+function priorityFact(c: CaseRecord, l: Lang): string {
+  const tr = l === 'tr';
+  const word = PRIORITY_WORD[l][priorityOf(c)];
+  if (c.evidence.kind === 'data_issue') {
+    return tr
+      ? `Öncelik: ${word}. Dedektör bunu verir: veri sorunları her zaman düşük önceliklidir, çünkü cihaz sinyali değildir ve tüketim sapmalarından sonra sıralanır.`
+      : `Priority: ${word}. Set by the detector: data issues are always low priority, because they are not a device signal and rank after every consumption deviation.`;
+  }
+  const third = tr
+    ? { 3: 'en büyük', 2: 'ortadaki', 1: 'en küçük' }[priorityOf(c)]
+    : { 3: 'largest', 2: 'middle', 1: 'smallest' }[priorityOf(c)];
+  // The first sentence is the answer to "why this priority?"; the rest is the rule behind it.
+  return tr
+    ? `Öncelik: ${word}. Bu vaka ${word} önceliklidir, çünkü dedektörün bu koşudaki sapma sıralamasında ${third} üçte birdedir; önceliği dil modeli değil dedektör verir. Kural: tüketim sapmaları model referansından sapmanın büyüklüğüne (sapma × süre) ve işaretli gün sayısına göre sıralanır; ilk üçte bir yüksek, ortadaki üçte bir orta, son üçte bir düşük öncelik alır.`
+    : `Priority: ${word}. This case is ${word} priority because it sits in the ${third} third of the detector's ranking of this run's deviations; the detector sets it, not the language model. Rule: deviations are ranked by their size against the model reference (deviation × duration) and by flagged days; the top third is high, the middle third medium, the bottom third low.`;
 }
 
 /** Summaries for the assistant to write ahead of time: open observed cases first. */

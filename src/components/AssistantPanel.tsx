@@ -85,7 +85,7 @@ export function AssistantPanel({ caseId }: { caseId: string }) {
             <form className="ai-ask" onSubmit={submit}>
               <label htmlFor="ai-q" className="eyebrow">{t('aiAskLabel')}</label>
               <div className="ai-suggest">
-                {(['aiQ1', 'aiQ2', 'aiQ3'] as const).map((k) => (
+                {(['aiQ4', 'aiQ1', 'aiQ2', 'aiQ3'] as const).map((k) => (
                   <button key={k} type="button" className="chip" disabled={busy} onClick={() => void ask(t(k))}>{t(k)}</button>
                 ))}
               </div>

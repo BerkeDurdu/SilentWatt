@@ -65,6 +65,7 @@ test('a text that breaks the rules gets one retry with the violations, then fall
   const retry = seen.at(-1)!.body.messages.at(-1)!;
   assert.match(retry.content, /number_not_in_evidence: 120/);
   assert.match(retry.content, /forbidden_wording/);
+  assert.match(retry.content, /Kullanabileceğin sayılar yalnızca şunlar: .*\b18\b/);
 
   replies.push('Arıza olasılığı yüksektir.', 'Muhtemelen arıza var, 1000 saatlik bir sorun.');
   const failed = await api.call(`/cases/${OBSERVED}/assistant`, { method: 'POST', cookie: operator, body: { question: 'Arıza var mı?' } });
@@ -72,6 +73,16 @@ test('a text that breaks the rules gets one retry with the violations, then fall
   assert.equal(failed.json.fallback, 'guard');
   assert.match(failed.json.text, /^Yapay zekâ yanıtı gösterilemiyor; vaka özeti şablondan: Hane 90003/);
   assert.ok(failed.json.guard.violations.includes('hedging'));
+
+  replies.push('Air1 klimanız %18 üzerinde; teknisyen incelemesi planlanmıştır.', 'Air1 klimanız %18 üzerinde çalıştı; operatör inceleyip teknisyen atayabilir.');
+  const claim = await api.call(`/cases/${OBSERVED}/assistant`, { method: 'POST', cookie: operator, body: { question: 'Müşteriye ne diyeyim?' } });
+  assert.equal(claim.json.provider, 'llm', '"Air1" is a circuit name, not a number');
+  assert.equal(claim.json.guard.attempts, 2, 'a visit that was never planned is refused while the case is not assigned');
+
+  replies.push('Panelleriniz %18 eksik üretti, yakında teknisyen gelecek.', 'Panelleriniz model referansının %18 altında üretti; değişiklik varsa bildirin.');
+  const promise = await api.call(`/cases/${OBSERVED}/assistant`, { method: 'POST', cookie: operator, body: { question: 'Müşteriye söz verebilir miyim?' } });
+  assert.equal(promise.json.guard.attempts, 2, 'no visit is promised before one is assigned');
+  assert.match(seen.at(-1)!.body.messages.at(-1)!.content, /yapılmamış bir işlemi .* yapılacak gibi yazdın/);
 
   replies.push('第一 sapma var.', '');
   const foreign = await api.call(`/cases/${FRIDGE}/assistant`, { method: 'POST', cookie: operator, body: { question: 'Ne oldu?' } });
@@ -86,6 +97,8 @@ test('the model is sent case facts only: no name, address or phone of the reside
   }
   const user = seen[0].body.messages.find((m) => m.role === 'user')!.content;
   assert.match(user, /Bildirilen değişiklik: yok/);
+  // The priority is the detector's; the model is told how it was set, so it can explain it but not invent one.
+  assert.match(user, /Öncelik: orta\. Bu vaka orta önceliklidir, çünkü dedektörün bu koşudaki sapma sıralamasında ortadaki üçte birdedir/);
   // A question is a string of at most 300 characters; anything else is refused before the model.
   const bad = await api.call(`/cases/${OBSERVED}/assistant`, { method: 'POST', cookie: operator, body: { question: { x: 1 } } });
   assert.equal(bad.status, 400);
