@@ -2,7 +2,7 @@
 
 SilentWatt'ın rol bazlı operasyon konsolu. Kullanıcı giriş yapar ve yalnızca kendisine atanmış ekranları görür. Diğer ekranlar menüde yer almaz; adresleri elle yazılsa bile kullanıcı kendi ana ekranına yönlendirilir. Var olmayan bir adresle aynı sonuç verdiği için ekranın varlığı anlaşılmaz.
 
-Vakalar ML'in yazdığı kanıt dosyalarından gelir ([kanıt sözleşmesi](docs/architecture/evidence-contract.md)). Gerçek dedektör çıktısı verilmezse depodaki sentetik örnek dosyalar gösterilir ve ekranlarda **Örnek kanıt dosyaları** etiketi görünür. Adres ve abone bilgileri her durumda örnek kayıttır; veri setinde kimlik ve adres yoktur.
+Vakalar ML'in yazdığı kanıt dosyalarından gelir ([kanıt sözleşmesi](docs/architecture/evidence-contract.md)). Her cihaz kendi beklenen davranışıyla karşılaştırılır: klima dış sıcaklığa, buzdolabı kendi haftalık profiline, güneş paneli ışınım ve kapasiteye göre. Faturadaki artış değil, hangi cihazın neden saptığı gösterilir; bilinen bir değişiklik (yeni cihaz, onarım) bildirilince vaka kapanır ve referans yeniden öğrenilir. Gerçek dedektör çıktısı verilmezse depodaki sentetik örnek dosyalar gösterilir ve ekranlarda **Örnek kanıt dosyaları** etiketi görünür. Adres ve abone bilgileri her durumda örnek kayıttır; veri setinde kimlik ve adres yoktur.
 
 ## Dil, renk ve logo
 

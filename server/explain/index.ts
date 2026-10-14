@@ -4,7 +4,7 @@
 // (no forbidden wording, every number comes from the evidence, the human-decision sentence is there).
 // An LLM provider can be plugged in behind the same interface; a failed guard falls back to the template.
 
-import type { EvidenceCase, EvidenceReason, RecommendationCode } from '../../shared/evidence';
+import type { EvidenceCase, EvidenceFamily, EvidenceReason, RecommendationCode } from '../../shared/evidence';
 import type { Lang } from '../../shared/types';
 
 export interface Explanation {
@@ -29,13 +29,27 @@ const HUMAN_DECISION: Text = {
   en: 'This is an inspection recommendation; the team decides.',
 };
 
-/** Library rec-0.1: the first check is the contract's wording, the steps spell it out. */
+/** Library rec-0.2: the first check is the contract's wording, the steps spell it out. */
 const RECOMMENDATIONS: Record<RecommendationCode, { firstCheck: Text; steps: Record<Lang, string[]> }> = {
   HVAC_PERSISTENT_INCREASE: {
     firstCheck: { tr: 'Termostat ayarını ve kullanım değişikliğini kontrol edin', en: 'Check thermostat settings and usage changes' },
     steps: {
       tr: ['Termostat ayar noktasında veya programında değişiklik var mı bakın.', 'Hanede kullanım değişikliği olup olmadığını sorun.', 'Açıklama yoksa teknisyen incelemesi planlayın.'],
       en: ['Look for a change in the thermostat set point or schedule.', 'Ask whether usage in the household changed.', 'If there is no explanation, plan a technician inspection.'],
+    },
+  },
+  REFRIGERATOR_PERSISTENT_INCREASE: {
+    firstCheck: { tr: 'Kapı contasını, ayarı ve arka bobini kontrol edin', en: 'Check the door seal, the setting and the rear coil' },
+    steps: {
+      tr: ['Kapının tam kapandığını ve contanın sağlam olduğunu kontrol edin.', 'Termostat ayarının ve dolabın yerinin değişip değişmediğini sorun.', 'Arka bobin tozlu ya da hava alamıyorsa temizlenmesini önerin; açıklama yoksa servis planlayın.'],
+      en: ['Check that the door closes fully and the seal is intact.', 'Ask whether the setting or the location of the fridge changed.', 'If the rear coil is dusty or blocked, suggest cleaning it; if nothing explains it, plan a service visit.'],
+    },
+  },
+  SOLAR_PRODUCTION_SHORTFALL: {
+    firstCheck: { tr: 'Panellerde gölge ve kirliliği, invertör uyarılarını kontrol edin', en: 'Check the panels for shade and soiling, and the inverter for alerts' },
+    steps: {
+      tr: ['Panellerin önünde yeni bir gölge (ağaç, yapı) ya da kirlilik var mı bakın.', 'İnvertör ekranında hata kaydı veya kapanmış dizi olup olmadığını kontrol edin.', 'Açıklama yoksa dizi bağlantıları için teknisyen incelemesi planlayın.'],
+      en: ['Look for new shade (trees, buildings) or soiling in front of the panels.', 'Check the inverter display for error logs or a string that is off.', 'If nothing explains it, plan a technician inspection of the string connections.'],
     },
   },
   DATA_SOURCE_CHECK: {
@@ -55,6 +69,19 @@ const pct = (share: number, l: Lang) => (l === 'tr' ? `%${num(share * 100, 0, l)
 const day = (iso: string, l: Lang) =>
   new Intl.DateTimeFormat(locale(l), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
 
+/** How each family is named in a sentence. */
+const SUBJECT: Record<EvidenceFamily, Text> = {
+  hvac: { tr: 'klima devresi (air1)', en: 'air-conditioning circuit (air1)' },
+  refrigeration: { tr: 'buzdolabı devresi', en: 'refrigerator circuit' },
+  solar: { tr: 'güneş paneli üretimi', en: 'solar production' },
+};
+/** What the reference of each family is built from, in plain words. */
+const REFERENCE_FROM: Record<EvidenceFamily, Text> = {
+  hvac: { tr: 'Referans, aynı dış sıcaklık ve saatte beklenen tüketimdir.', en: 'The reference is the consumption expected at the same outdoor temperature and hour.' },
+  refrigeration: { tr: 'Referans, buzdolabının Haziran’daki kendi haftalık çalışma profilidir.', en: 'The reference is the refrigerator’s own weekly profile in June.' },
+  solar: { tr: 'Referans, açık gök ışınımı ve panel kapasitesinden beklenen üretimdir.', en: 'The reference is the production expected from clear-sky irradiance and panel capacity.' },
+};
+
 function reasonText(reason: EvidenceReason, l: Lang): string {
   const tr = l === 'tr';
   const v = reason.value;
@@ -62,6 +89,10 @@ function reasonText(reason: EvidenceReason, l: Lang): string {
   switch (reason.code) {
     case 'DAILY_EXCESS_Z':
       return tr ? `En yüksek günlük z değeri ${num(v, 2, l)} (Haziran günlerine göre ölçeklenmiş).` : `The largest daily z is ${num(v, 2, l)} (scaled with June days).`;
+    case 'LOWER_BOUND_SHORTFALL':
+      return tr ? `İşaretli günlerde geçerli ölçümlerin ${pct(v, l)} kadarı kalibre alt sınırın altında.` : `On the flagged days ${pct(v, l)} of valid readings lie below the calibrated lower bound.`;
+    case 'SHORTFALL_BELOW_REFERENCE':
+      return tr ? `İşaretli günlerde ölçülen üretim, model referansının ${pct(Math.abs(v), l)} altında.` : `Over the flagged days measured production is ${pct(Math.abs(v), l)} below the model reference.`;
     case 'UPPER_BOUND_EXCEEDANCE':
       return tr ? `İşaretli günlerde geçerli ölçümlerin ${pct(v, l)} kadarı kalibre üst sınırın üzerinde.` : `On the flagged days ${pct(v, l)} of valid readings lie above the calibrated upper bound.`;
     case 'CONSECUTIVE_FLAGGED_DAYS':
@@ -82,20 +113,25 @@ function reasonText(reason: EvidenceReason, l: Lang): string {
 function summaryText(e: EvidenceCase, l: Lang): string {
   const tr = l === 'tr';
   const span = `${day(e.onset_local_date, l)} – ${day(e.last_local_date, l)}`;
+  const subject = SUBJECT[e.family][l];
+  const who = tr ? `Hane ${e.household_id}, ${subject}` : `Household ${e.household_id}, ${subject}`;
   const prefix = e.origin === 'synthetic'
-    ? (tr ? 'Sentetik deney: bu vaka, Temmuz verisine enjekte edilmiş bir senaryodan gelir. ' : 'Synthetic experiment: this case comes from a scenario injected into July data. ')
+    ? (tr ? 'Doğrulama senaryosu: bu vaka, Temmuz verisine bilerek eklenmiş bir senaryodan gelir. ' : 'Validation scenario: this case comes from a scenario deliberately injected into July data. ')
     : '';
   if (e.kind === 'data_issue') {
     return prefix + (tr
-      ? `Hane ${e.household_id}, air1 kanalı: ${span} arasında ${e.flagged_days} gün veri kalitesi nedeniyle değerlendirilemedi. Bu bir cihaz sinyali değil, ölçüm veya veri kaynağı sorunudur.`
-      : `Household ${e.household_id}, air1 channel: ${e.flagged_days} days between ${span} could not be scored because of data quality. This is a measurement or data-source issue, not a device signal.`);
+      ? `${who}: ${span} arasında ${e.flagged_days} gün veri kalitesi nedeniyle değerlendirilemedi. Bu bir cihaz sinyali değil, ölçüm veya veri kaynağı sorunudur.`
+      : `${who}: ${e.flagged_days} days between ${span} could not be scored because of data quality. This is a measurement or data-source issue, not a device signal.`);
   }
-  const excess = e.excess_share === null
+  const share = e.excess_share;
+  const measured = share === null
     ? ''
-    : (tr ? ` Bu günlerde ölçülen değer model referansının ${pct(e.excess_share, l)} üzerinde.` : ` On those days the measured value is ${pct(e.excess_share, l)} above the model reference.`);
+    : e.kind === 'production_shortfall'
+      ? (tr ? ` Bu günlerde ölçülen üretim model referansının ${pct(Math.abs(share), l)} altında.` : ` On those days measured production is ${pct(Math.abs(share), l)} below the model reference.`)
+      : (tr ? ` Bu günlerde ölçülen değer model referansının ${pct(share, l)} üzerinde.` : ` On those days the measured value is ${pct(share, l)} above the model reference.`);
   return prefix + (tr
-    ? `Hane ${e.household_id}, air1 kanalı: ${span} arasında ${e.flagged_days} gün günlük sapma koşulunu sağladı.${excess}`
-    : `Household ${e.household_id}, air1 channel: ${e.flagged_days} days between ${span} met the daily deviation condition.${excess}`);
+    ? `${who}: ${span} arasında ${e.flagged_days} gün günlük sapma koşulunu sağladı.${measured} ${REFERENCE_FROM[e.family][l]}`
+    : `${who}: ${e.flagged_days} days between ${span} met the daily deviation condition.${measured} ${REFERENCE_FROM[e.family][l]}`);
 }
 
 function limitations(e: EvidenceCase, l: Lang): string[] {
@@ -104,7 +140,8 @@ function limitations(e: EvidenceCase, l: Lang): string[] {
     tr ? 'Değerler doğrulanmamış kaynak birimindedir; enerji veya para karşılığı hesaplanmaz.' : 'Values are in an unverified source unit; no energy or money figure is derived.',
     tr ? 'Yalnız Temmuz 2018 yeniden oynatma penceresi değerlendirildi.' : 'Only the July 2018 replay window was evaluated.',
   ];
-  if (e.origin === 'synthetic') list.push(tr ? 'Sentetik vaka gerçek vaka sayılarına girmez.' : 'A synthetic case never enters real-case counts.');
+  if (e.origin === 'synthetic') list.push(tr ? 'Doğrulama senaryosu gerçek vaka sayılarına girmez.' : 'A validation scenario never enters real-case counts.');
+  list.push(tr ? 'Bilinen bir değişiklik (yeni cihaz, onarım, kullanım) varsa bildirilmelidir; referans o tarihten yeniden öğrenilir.' : 'A known change (new device, repair, usage) should be reported; the reference is then re-learned from that date.');
   return list;
 }
 
@@ -117,8 +154,8 @@ function evidenceNumbers(e: EvidenceCase): Set<string> {
   for (const iso of [e.onset_local_date, e.last_local_date]) add(String(Number(iso.slice(8))));
   for (const value of [e.excess_share, ...e.reasons.map((r) => r.value)]) {
     if (value === null) continue;
-    add(num(value, 2, 'en'));
-    add(num(value * 100, 0, 'en'));
+    add(num(Math.abs(value), 2, 'en'));
+    add(num(Math.abs(value) * 100, 0, 'en'));
   }
   return allowed;
 }
@@ -129,8 +166,8 @@ export function guardViolations(texts: string[], humanDecisionNote: string, e: E
   const allowed = evidenceNumbers(e);
   for (const text of texts) {
     for (const pattern of FORBIDDEN) if (pattern.test(text)) violations.push(`forbidden_wording: ${pattern.source}`);
-    // "air1" and "2018" are names, not measurements.
-    for (const token of text.replace(/air1/g, '').match(/\d+/g) ?? []) {
+    // Circuit names such as "air1" are names, not measurements.
+    for (const token of text.replace(/\b(air1|furnace1|refrigerator1)\b/g, '').match(/\d+/g) ?? []) {
       if (!allowed.has(token)) violations.push(`number_not_in_evidence: ${token}`);
     }
   }
@@ -142,7 +179,7 @@ export function guardViolations(texts: string[], humanDecisionNote: string, e: E
 function fallback(e: EvidenceCase, l: Lang, violations: string[]): Explanation {
   return {
     provider: 'template',
-    summary: l === 'tr' ? `Hane ${e.household_id}, air1 kanalı: model referansından sapma.` : `Household ${e.household_id}, air1 channel: deviation from the model reference.`,
+    summary: l === 'tr' ? `Hane ${e.household_id}, ${SUBJECT[e.family].tr}: model referansından sapma.` : `Household ${e.household_id}, ${SUBJECT[e.family].en}: deviation from the model reference.`,
     reasons: e.reasons.map((r) => r.code),
     recommendation: { firstCheck: RECOMMENDATIONS[e.recommendation.code].firstCheck[l], steps: [] },
     limitations: limitations(e, l),

@@ -14,12 +14,14 @@ vakalar üzerinde yaptıklarını (durum, atama, müşteri talebi, kullanıcı y
 | `POST /auth/logout` | oturum | Oturumu kapatır |
 | `GET /me` | oturum | Kullanıcı, izinli ekranlar, yetkiler, `fixture` |
 | `GET /notifications` | oturum | Role göre bildirimler; sentetik vakalar bildirim üretmez |
-| `GET /cases?status=open\|closed\|synthetic\|all` | `queue` ekranı | Liste ve sayılar; sentetik vakalar ayrı sayılır |
+| `GET /cases?status=open\|closed\|synthetic\|all&family=hvac\|refrigeration\|solar` | `queue` ekranı | Liste, sayılar ve aile başına sayı; doğrulama senaryoları (sentetik) ayrı sayılır |
 | `GET /cases/{id}` | kuyruk veya atanmış teknisyen | Vaka, günlük ve 15 dakikalık seri, açıklama, geçmiş |
 | `POST /cases/{id}/review` | `case.assign` | Yeni → incelemede |
 | `POST /cases/{id}/assign` | `case.assign` | `{technicianId}`; teknisyene SMS (simüle) |
 | `POST /cases/{id}/dismiss` | `case.dismiss` | İnceleme gerekmiyor olarak kapatır |
 | `POST /cases/{id}/result` | atanmış teknisyen | `{result: verified\|other\|dismissed, note}` |
+| `POST /cases/{id}/explain` | `case.assign` | `{kind: new_device\|repair\|usage_change\|other, localDate, note}`; vaka "değişiklikle açıklandı" olarak kapanır, değişiklik kaydedilir |
+| `GET /changes` | `data` | Bildirilen değişiklikler (`silentwatt.changes/0.1`); dedektör bir sonraki koşuda bu cihazların referansını yeniden öğrenir |
 | `GET /technicians` | `case.assign` | Atanabilir teknisyenler |
 | `GET /overview` | `overview` | Gözlenen vaka sayıları, sentetik değerlendirme, hane tablosu |
 | `GET /jobs` | `jobs` | Teknisyenin açık işleri ve gelen SMS'ler |
@@ -27,7 +29,7 @@ vakalar üzerinde yaptıklarını (durum, atama, müşteri talebi, kullanıcı y
 | `GET /reports/monthly` · `.csv` | `reports` (CSV: `report.export`) | Köken × tür grupları; CSV Excel için BOM'lu |
 | `GET /data-sources` | `data` | Koşu, dedektör eşikleri ve kaynağı, sentetik plan |
 | `GET /users` · `PATCH /users/{id}` | `users` (değişiklik: `users.manage`) | Rol, ekran ve aktiflik |
-| `GET /public/request/{token}` · `POST` | anonim, jetonla | Müşterinin SMS linkindeki sayfa; IP başına saatte 20 gönderim |
+| `GET /public/request/{token}` · `POST` | anonim, jetonla | Müşterinin SMS linkindeki sayfa; isteğe bağlı `change` ile "yeni cihaz taktırdım" gibi bir değişiklik bildirilir (vakayı kapatmaz, karar operatörde); IP başına saatte 20 gönderim |
 
 Kurallar:
 
@@ -35,6 +37,7 @@ Kurallar:
 - Veri değiştiren her istek `X-Requested-With: silentwatt` başlığı taşır (CSRF).
 - Sentetik vakada inceleme, atama, kapatma ve sonuç `409` döner; müşteri SMS'i ve linki yoktur.
 - Veri sorunu vakasında müşteri SMS'i yoktur: cihaz sinyali değil, ölçüm sorunudur.
+- Cihaz aileleri (klima, buzdolabı, güneş paneli) kanıt sözleşmesi v0.2'den gelir; v0.1 dosyaları tek bir klima ailesi olarak okunur.
 - Kanıt dosyası okunurken şema sürümü, birim ve yeniden oynatma penceresi denetlenir; pencere dışı
   bir tarih (ör. test dönemi) sunucuyu başlatmaz.
 

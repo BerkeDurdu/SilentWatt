@@ -58,5 +58,5 @@ test('state is restored from PostgreSQL and every change is written back', { ski
   const saved = rows[0].state.cases.find((c: { id: string }) => c.id === OBSERVED);
   assert.equal(saved.status, 'assigned');
   assert.equal(saved.techId, 'u-emre');
-  assert.equal(rows[0].state.tokens.length, 1, 'the resident link is stored with the state');
+  assert.equal(rows[0].state.tokens.length, 3, 'the resident links (one per observed device case) are stored with the state');
 });

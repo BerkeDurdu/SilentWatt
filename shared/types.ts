@@ -1,12 +1,13 @@
 // Types shared by the API server and the web client.
-import type { DailyEvidence, EvidenceKind, EvidenceOrigin, EvidenceSeriesPoint } from './evidence';
+import type { ChangeKind, DailyEvidence, EvidenceFamily, EvidenceKind, EvidenceOrigin, EvidenceSeriesPoint } from './evidence';
 
 export type Lang = 'tr' | 'en';
 export type ScreenKey = 'overview' | 'queue' | 'team' | 'reports' | 'data' | 'users' | 'jobs';
 export type Capability = 'case.assign' | 'case.dismiss' | 'case.result' | 'report.export' | 'users.manage';
 export type AddressLevel = 'district' | 'neighbourhood' | 'full';
 export type RoleKey = 'manager' | 'operator' | 'technician' | 'admin';
-export type CaseStatus = 'new' | 'review' | 'assigned' | 'verified' | 'dismissed';
+/** explained: closed because a reported change (new device, repair, usage) accounts for the deviation. */
+export type CaseStatus = 'new' | 'review' | 'assigned' | 'verified' | 'dismissed' | 'explained';
 export type Priority = 1 | 2 | 3;
 export type FieldResult = 'verified' | 'other' | 'dismissed';
 
@@ -37,6 +38,8 @@ export interface CaseSummary {
   priority: Priority;
   /** Synthetic cases are injected scenarios: always labelled, never acted on, counted apart. */
   origin: EvidenceOrigin;
+  family: EvidenceFamily;
+  familyLabel: string;
   kind: EvidenceKind;
   title: string;
   detectorLabel: string;
@@ -54,6 +57,8 @@ export interface CaseSummary {
   firstCheck: string;
   /** True once the resident asked for an inspection from the SMS link. */
   customerRequest: boolean;
+  /** True once someone reported a change (new device, repair, usage) for this household and device. */
+  changeReported: boolean;
   /** Where this user can open the case, or null if they can't. */
   href: string | null;
 }
@@ -61,6 +66,17 @@ export interface CaseSummary {
 export interface CaseList {
   items: CaseSummary[];
   counts: { open: number; closed: number; synthetic: number; all: number };
+  /** Device families present in the run, with how many cases the current status filter shows for each. */
+  families: { key: EvidenceFamily; label: string; count: number }[];
+}
+
+export interface ChangeView {
+  kind: ChangeKind;
+  kindLabel: string;
+  localDate: string;
+  sourceLabel: string;
+  note: string | null;
+  at: string;
 }
 
 /* ── resident notice & service request ─────────────────── */
@@ -88,6 +104,8 @@ export interface CustomerRequest {
   slotLabel: string;
   note: string | null;
   masked: boolean;
+  /** The change the resident reported with the request, if any. */
+  changeLabel: string | null;
 }
 
 export interface RequestReceipt {
@@ -98,6 +116,7 @@ export interface RequestReceipt {
   address: string;
   slotLabel: string;
   note: string | null;
+  changeLabel: string | null;
 }
 
 /** Everything the public request page shows. No household id, no detector internals. */
@@ -114,6 +133,9 @@ export interface RequestPage {
   /** Prefilled from the subscriber record; the resident can change any of it. */
   customer: { name: string; phone: string; email: string; address: string };
   slots: { value: RequestSlot; label: string }[];
+  /** "Did anything change?" choices: a new device explains a deviation better than any model. */
+  changeOptions: { value: ChangeKind; label: string }[];
+  changeQuestion: string;
   submitted: RequestReceipt | null;
 }
 
@@ -142,16 +164,19 @@ export interface CaseDetail extends CaseSummary {
   masked: boolean;
   detectedDate: string;
   upperExceedanceShare: number | null;
+  lowerShortfallShare: number | null;
   /** How the injected scenario was built; null for observed cases. */
   synthetic: { scenarioLabel: string; severity: number | null; durationDays: number; startDate: string } | null;
   daily: DailyPoint[];
   series: EvidenceSeriesPoint[];
   explanation: CaseExplanation;
-  run: { model: string; protocol: string; thresholdProvenance: string };
+  run: { model: string; protocol: string; thresholdProvenance: string; expectedFrom: string; circuit: string };
+  changes: ChangeView[];
   events: CaseEvent[];
   notice: CustomerNotice | null;
   request: CustomerRequest | null;
-  actions: { review: boolean; assign: boolean; dismiss: boolean; result: boolean };
+  actions: { review: boolean; assign: boolean; dismiss: boolean; result: boolean; explain: boolean };
+  changeOptions: { value: ChangeKind; label: string }[];
 }
 
 export interface Notification {
@@ -186,6 +211,7 @@ export interface OverviewData {
     dataFaultsCaughtByQualityGate: number;
     scenarios: ScenarioRow[];
   } | null;
+  familyRows: { key: EvidenceFamily; label: string; circuit: string; households: number; expectedFrom: string; observedOpen: number; observedClosed: number; validation: number }[];
   householdRows: { household: string; observedOpen: number; observedClosed: number; synthetic: number; scoredDays: number; notScoredDays: number }[];
 }
 

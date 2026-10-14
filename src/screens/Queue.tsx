@@ -29,7 +29,8 @@ function QueueList() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>('open');
-  const { data, error, loading, reload } = useApi<CaseList>(`/cases?status=${filter}`);
+  const [family, setFamily] = useState('');
+  const { data, error, loading, reload } = useApi<CaseList>(`/cases?status=${filter}&family=${family}`);
   const readOnly = !me.capabilities.includes('case.assign');
 
   return (
@@ -44,6 +45,18 @@ function QueueList() {
             </button>
           ))}
         </div>
+        {data && data.families.length > 1 && (
+          <div className="filters" role="group" aria-label={t('familyFilterAria')}>
+            <button className="chip" aria-pressed={family === ''} onClick={() => setFamily('')}>
+              {t('fAllFamilies')}<b>{data.families.reduce((n, f) => n + f.count, 0)}</b>
+            </button>
+            {data.families.map((f) => (
+              <button key={f.key} className="chip" aria-pressed={family === f.key} onClick={() => setFamily(f.key)}>
+                {f.label}<b>{f.count}</b>
+              </button>
+            ))}
+          </div>
+        )}
         {error ? (
           <div className="panel-b"><LoadError error={error} onRetry={reload} /></div>
         ) : loading || !data ? (
@@ -89,6 +102,7 @@ function QueueList() {
                     <td>
                       <CaseState status={c.status} origin={c.origin} />
                       {c.customerRequest && <span className="pill req">{t('hasRequest')}</span>}
+                      {c.changeReported && <span className="pill chg">{t('hasChange')}</span>}
                     </td>
                   </tr>
                 ))}

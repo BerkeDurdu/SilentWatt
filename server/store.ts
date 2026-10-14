@@ -2,9 +2,11 @@
 // Swap for a database later; the API shape stays the same.
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
-import type { DetectorName, EvidenceCase, EvidenceKind, EvidenceOrigin } from '../shared/evidence';
 import type {
-  AddressLevel, Capability, CaseDetail, CaseList, CaseStatus, CaseSummary, CustomerNotice, CustomerRequest,
+  ChangeKind, ChangeNotice, DetectorName, EvidenceCase, EvidenceFamily, EvidenceKind, EvidenceOrigin,
+} from '../shared/evidence';
+import type {
+  AddressLevel, Capability, CaseDetail, CaseList, CaseStatus, CaseSummary, ChangeView, CustomerNotice, CustomerRequest,
   DataSourcesData, FieldResult, JobsData, Lang, Me, Notification, OverviewData, Priority,
   ReportData, ReportRow, RequestPage, RequestReceipt, RequestSlot, RoleKey, ScreenKey, TeamMember,
   Technician, UserRow, UsersData,
@@ -109,18 +111,41 @@ const run = evidence.index.run;
 /** Which evidence run is being served; for health checks and request logs. */
 export const evidenceInfo = () => ({ run_id: run.run_id, fixture: evidence.index.fixture, cases: evidence.index.cases.length });
 
-const KIND_TITLE: Record<EvidenceKind, Text> = {
-  consumption_deviation: { tr: 'air1 kanalında tüketim sapması', en: 'air1 channel consumption deviation' },
-  data_issue: { tr: 'air1 kanalında veri sorunu', en: 'air1 channel data issue' },
+const FAMILY_LABEL: Record<EvidenceFamily, Text> = {
+  hvac: { tr: 'Klima', en: 'Air conditioning' },
+  refrigeration: { tr: 'Buzdolabı', en: 'Refrigerator' },
+  solar: { tr: 'Güneş paneli', en: 'Solar panels' },
 };
+const FAMILY_ORDER: EvidenceFamily[] = ['hvac', 'refrigeration', 'solar'];
 const KIND_LABEL: Record<EvidenceKind, Text> = {
   consumption_deviation: { tr: 'tüketim sapması', en: 'consumption deviation' },
+  production_shortfall: { tr: 'üretim açığı', en: 'production shortfall' },
   data_issue: { tr: 'veri sorunu', en: 'data issue' },
 };
+const caseTitle = (e: EvidenceCase, l: Lang) =>
+  `${FAMILY_LABEL[e.family][l]}${e.family === 'hvac' ? ' (air1)' : ''}: ${KIND_LABEL[e.kind][l]}`;
+// Synthetic cases are how the method is validated: scenarios with a known answer.
 const ORIGIN_LABEL: Record<EvidenceOrigin, Text> = {
   observed: { tr: 'Gözlenen', en: 'Observed' },
-  synthetic: { tr: 'Sentetik', en: 'Synthetic' },
+  synthetic: { tr: 'Doğrulama senaryosu', en: 'Validation scenario' },
 };
+const EXPECTED_FROM: Record<string, Text> = {
+  'outdoor_temperature,hour': { tr: 'Dış sıcaklık ve saat', en: 'Outdoor temperature and hour' },
+  'own_june_profile,hour_of_week': { tr: 'Haziran’daki kendi haftalık profili', en: 'Its own weekly profile in June' },
+  'clear_sky_irradiance,capacity': { tr: 'Açık gök ışınımı ve panel kapasitesi', en: 'Clear-sky irradiance and panel capacity' },
+};
+const expectedFromLabel = (code: string, l: Lang) => EXPECTED_FROM[code]?.[l] ?? code;
+const familyRun = (family: EvidenceFamily) => run.families.find((f) => f.family === family)!;
+
+const CHANGE_LABEL: Record<ChangeKind, Text> = {
+  new_device: { tr: 'Yeni cihaz takıldı', en: 'A new device was installed' },
+  repair: { tr: 'Onarım veya bakım yapıldı', en: 'It was repaired or serviced' },
+  usage_change: { tr: 'Kullanım değişti (misafir, tatil, yeni alışkanlık)', en: 'Usage changed (guests, holiday, a new habit)' },
+  other: { tr: 'Başka bir değişiklik', en: 'Another change' },
+};
+const CHANGE_KINDS = Object.keys(CHANGE_LABEL) as ChangeKind[];
+export const isChangeKind = (v: unknown): v is ChangeKind => typeof v === 'string' && CHANGE_KINDS.includes(v as ChangeKind);
+const changeOptions = (l: Lang) => CHANGE_KINDS.map((value) => ({ value, label: CHANGE_LABEL[value][l] }));
 const DETECTOR_LABEL: Record<DetectorName, Text> = {
   acute: { tr: 'Akut kural', en: 'Acute rule' },
   chronic: { tr: 'Kronik kural', en: 'Chronic rule' },
@@ -137,6 +162,7 @@ const SCENARIO_LABEL: Record<string, Text> = {
   outage: { tr: 'Veri kesintisi', en: 'Data outage' },
   freeze: { tr: 'Donmuş ölçüm', en: 'Frozen readings' },
   spike: { tr: 'Ani sıçrama', en: 'Spike' },
+  production_drop: { tr: 'Üretim düşüşü', en: 'Production drop' },
 };
 
 const scenarioLabel = (scenario: string, faultKind: string | null, l: Lang) => SCENARIO_LABEL[faultKind ?? scenario]?.[l] ?? scenario;
@@ -158,7 +184,7 @@ const windowText = (l: Lang) => `${dayText(run.replay_window.start_local_date, l
 
 /* ── cases ─────────────────────────────────────────────── */
 
-type EventType = 'created' | 'review' | 'assigned' | 'opened' | 'requested' | 'verified' | 'other' | 'dismissed';
+type EventType = 'created' | 'review' | 'assigned' | 'opened' | 'requested' | 'verified' | 'other' | 'dismissed' | 'explained';
 
 interface CaseEventRecord {
   type: EventType;
@@ -226,8 +252,8 @@ export const isSynthetic = (c: CaseRecord) => c.evidence.origin === 'synthetic';
 const observedCases = () => cases.filter((c) => !isSynthetic(c));
 // The contract ranks 1 = first; the console's glyph is tallest at 3.
 const priorityOf = (c: CaseRecord) => (4 - c.evidence.priority) as Priority;
-/** A resident hears about a measured deviation on their own circuit, never about a data issue. */
-const hasNotice = (c: CaseRecord) => !isSynthetic(c) && c.evidence.kind === 'consumption_deviation';
+/** A resident hears about a measured deviation on their own device, never about a data issue. */
+const hasNotice = (c: CaseRecord) => !isSynthetic(c) && c.evidence.kind !== 'data_issue';
 
 interface MessageRecord {
   id: string;
@@ -258,10 +284,29 @@ interface RequestRecord {
   addressEdited: boolean;
   slot: RequestSlot;
   note: string;
+  change: ChangeKind | null;
 }
 
 const requests: RequestRecord[] = [];
 const requestFor = (caseId: string) => requests.find((r) => r.caseId === caseId);
+
+/** Reported changes; exported to ML (GET /api/v1/changes) so the next run re-learns the reference. */
+const changes: ChangeNotice[] = [];
+const changesFor = (c: CaseRecord) => changes.filter((n) =>
+  n.household_id === c.evidence.household_id && (n.family === null || n.family === c.evidence.family));
+export const listChanges = (): ChangeNotice[] => [...changes].sort((a, b) => a.recorded_at_utc.localeCompare(b.recorded_at_utc));
+
+function recordChange(c: CaseRecord, kind: ChangeKind, localDate: string, source: ChangeNotice['source'], note: string | null) {
+  // One notice per case and source: a resident correcting the form replaces their earlier answer.
+  const previous = changes.findIndex((n) => n.case_id === c.id && n.source === source);
+  const notice: ChangeNotice = {
+    id: `chg-${c.evidence.household_id}-${c.evidence.circuit}-${localDate}-${source}`,
+    household_id: c.evidence.household_id, family: c.evidence.family, circuit: c.evidence.circuit,
+    kind, local_date: localDate, source, case_id: c.id, note, recorded_at_utc: now(),
+  };
+  if (previous >= 0) changes[previous] = notice;
+  else changes.push(notice);
+}
 
 /* ── saved state ───────────────────────────────────────── */
 
@@ -272,12 +317,13 @@ interface ConsoleState {
   requests: RequestRecord[];
   tokens: [caseId: string, token: string][];
   users: { id: string; role: RoleKey; screens: ScreenKey[]; active: boolean }[];
+  changes?: ChangeNotice[];
 }
 
 function snapshot(): ConsoleState {
   return {
     cases: cases.map(({ id, status, techId, events }) => ({ id, status, techId, events })),
-    messages, requests,
+    messages, requests, changes,
     tokens: [...tokenByCase],
     users: users.map(({ id, role, screens, active }) => ({ id, role, screens, active })),
   };
@@ -300,7 +346,8 @@ async function restore() {
       if (c && !isSynthetic(c)) Object.assign(c, { status: s.status, techId: s.techId && findUser(s.techId) ? s.techId : null, events: s.events });
     }
     messages.push(...saved.messages.filter((m) => getCase(m.caseId) && findUser(m.techId)));
-    requests.push(...saved.requests.filter((r) => getCase(r.caseId)));
+    requests.push(...saved.requests.filter((r) => getCase(r.caseId)).map((r) => ({ ...r, change: r.change ?? null })));
+    changes.push(...(saved.changes ?? []).filter((n) => householdIds.includes(n.household_id)));
     for (const [caseId, token] of saved.tokens) {
       const c = getCase(caseId);
       if (c && hasNotice(c)) {
@@ -333,19 +380,27 @@ const SLOTS = Object.keys(SLOT_LABELS.tr) as RequestSlot[];
 const isSlot = (v: unknown): v is RequestSlot => typeof v === 'string' && SLOTS.includes(v as RequestSlot);
 
 const fullAddress = (c: CaseRecord) => `${c.site.hood} ${c.site.street}, ${c.site.district}`;
-const circuitLabel = (l: Lang) => (l === 'tr' ? 'Klima devresi (air1)' : 'Air-conditioning circuit (air1)');
+/** The resident's device, as they would name it. */
+const DEVICE: Record<EvidenceFamily, { label: Text; on: Text }> = {
+  hvac: { label: { tr: 'Klima devresi (air1)', en: 'Air-conditioning circuit (air1)' }, on: { tr: 'Klima devrenizde', en: 'On your air-conditioning circuit' } },
+  refrigeration: { label: { tr: 'Buzdolabı', en: 'Refrigerator' }, on: { tr: 'Buzdolabınızda', en: 'On your refrigerator' } },
+  solar: { label: { tr: 'Güneş paneli', en: 'Solar panels' }, on: { tr: 'Güneş panelinizde', en: 'On your solar panels' } },
+};
 
 /** What was measured, in the words a resident reads. No unit, no energy, no diagnosis. */
 function measuredText(c: CaseRecord, l: Lang) {
-  const { flagged_days: days, excess_share: excess } = c.evidence;
-  if (l === 'tr') {
-    return excess === null
-      ? `${days} gün boyunca benzer hava koşullarındaki model referansından farklı tüketim ölçtük`
-      : `${days} gün boyunca benzer hava koşullarındaki model referansının ${pct(excess, l)} üzerinde tüketim ölçtük`;
+  const { flagged_days: days, excess_share: share, kind, family } = c.evidence;
+  const tr = l === 'tr';
+  const when = family === 'hvac' ? (tr ? ' benzer hava koşullarındaki' : ' for similar weather') : '';
+  if (share === null) {
+    return tr ? `${days} gün boyunca${when} model referansından farklı bir değer ölçtük` : `for ${days} days we measured values that differ from the model reference${when}`;
   }
-  return excess === null
-    ? `for ${days} days we measured consumption that differs from the model reference for similar weather`
-    : `for ${days} days we measured consumption ${pct(excess, l)} above the model reference for similar weather`;
+  if (kind === 'production_shortfall') {
+    return tr ? `${days} gün boyunca model referansının ${pct(Math.abs(share), l)} altında üretim ölçtük` : `for ${days} days we measured production ${pct(Math.abs(share), l)} below the model reference`;
+  }
+  return tr
+    ? `${days} gün boyunca${when} model referansının ${pct(share, l)} üzerinde tüketim ölçtük`
+    : `for ${days} days we measured consumption ${pct(share, l)} above the model reference${when}`;
 }
 
 /**
@@ -355,8 +410,8 @@ function measuredText(c: CaseRecord, l: Lang) {
 export function customerNotice(c: CaseRecord, level: AddressLevel, l: Lang): CustomerNotice {
   const href = requestHref(c);
   const text = l === 'tr'
-    ? `SilentWatt: Klima devrenizde ${measuredText(c, l)}. Bu bir arıza bildirimi değildir; acil bir durum yok. Ücretsiz kontrol isterseniz:`
-    : `SilentWatt: On your air-conditioning circuit, ${measuredText(c, l)}. This is not a fault report; nothing is urgent. For a free inspection:`;
+    ? `SilentWatt: ${DEVICE[c.evidence.family].on.tr} ${measuredText(c, l)}. Bu bir arıza bildirimi değildir; acil bir durum yok. Yakın zamanda bir değişiklik olduysa veya ücretsiz kontrol isterseniz:`
+    : `SilentWatt: ${DEVICE[c.evidence.family].on.en}, ${measuredText(c, l)}. This is not a fault report; nothing is urgent. If something changed recently, or for a free inspection:`;
   // The resident's page carries their full address and phone. Roles that see masked addresses
   // get neither the link nor the token it contains.
   const full = level === 'full';
@@ -371,12 +426,14 @@ function toCustomerRequest(r: RequestRecord, level: AddressLevel, l: Lang): Cust
     reference: r.reference, at: r.at, name: r.name, phone: r.phone, email: r.email || null,
     address: masked ? address(c, level) : r.address,
     addressEdited: r.addressEdited, slotLabel: SLOT_LABELS[l][r.slot], note: r.note || null, masked,
+    changeLabel: r.change ? CHANGE_LABEL[r.change][l] : null,
   };
 }
 
 const toReceipt = (r: RequestRecord, l: Lang): RequestReceipt => ({
   reference: r.reference, at: r.at, name: r.name, phone: r.phone, address: r.address,
   slotLabel: SLOT_LABELS[l][r.slot], note: r.note || null,
+  changeLabel: r.change ? CHANGE_LABEL[r.change][l] : null,
 });
 
 /** The public page behind the SMS link, or null when the token means nothing. */
@@ -389,19 +446,23 @@ export function requestPage(token: string, l: Lang): RequestPage | null {
   return {
     caseId: c.id,
     noticeAt: c.events[0].at,
-    headline: tr ? 'Klima devrenizde beklenenden farklı bir tüketim görüyoruz' : 'We see unexpected consumption on your air-conditioning circuit',
+    headline: c.evidence.kind === 'production_shortfall'
+      ? (tr ? `${DEVICE[c.evidence.family].on.tr} beklenenden düşük bir üretim görüyoruz` : `We see lower production than expected ${DEVICE[c.evidence.family].on.en.toLowerCase()}`)
+      : (tr ? `${DEVICE[c.evidence.family].on.tr} beklenenden farklı bir tüketim görüyoruz` : `We see unexpected consumption ${DEVICE[c.evidence.family].on.en.toLowerCase()}`),
     body: tr
-      ? `Klima devrenizde ${measured}. Acil bir durum yok; bu yalnızca bir inceleme önerisidir ve karar sizindir.`
-      : `On your air-conditioning circuit, ${measured}. Nothing is urgent; this is only a suggestion to have it looked at, and the decision is yours.`,
+      ? `${DEVICE[c.evidence.family].on.tr} ${measured}. Acil bir durum yok; bu yalnızca bir inceleme önerisidir ve karar sizindir.`
+      : `${DEVICE[c.evidence.family].on.en}, ${measured}. Nothing is urgent; this is only a suggestion to have it looked at, and the decision is yours.`,
     points: tr
-      ? ['Bu bir arıza ihbarı değil, ölçüm verisine dayanan bir ön tespit.', 'Kontrol ücretsizdir ve size uygun bir saatte yapılır.', 'Talep oluşturmak zorunda değilsiniz; istemiyorsanız bu mesajı yok sayabilirsiniz.']
-      : ['This is not a fault report; it is an early finding from measurement data.', 'The inspection is free and happens at a time that suits you.', 'You do not have to ask for one; you can ignore this message.'],
-    equipmentLabel: circuitLabel(l),
+      ? ['Bu bir arıza ihbarı değil, ölçüm verisine dayanan bir ön tespit.', 'Yakın zamanda yeni bir cihaz taktırdıysanız veya kullanımınız değiştiyse aşağıda belirtin; fark bundan kaynaklanıyorsa sistem kendini buna göre ayarlar.', 'Kontrol ücretsizdir ve size uygun bir saatte yapılır; talep oluşturmak zorunda değilsiniz.']
+      : ['This is not a fault report; it is an early finding from measurement data.', 'If you recently had a new device installed or your usage changed, tell us below; if that explains the gap, the system adjusts to it.', 'The inspection is free and happens at a time that suits you; you do not have to ask for one.'],
+    equipmentLabel: DEVICE[c.evidence.family].label[l],
     excessShare: c.evidence.excess_share,
     days: c.evidence.flagged_days,
     closed: !isOpen(c),
     customer: { ...c.site.customer, address: fullAddress(c) },
     slots: SLOTS.map((value) => ({ value, label: SLOT_LABELS[l][value] })),
+    changeOptions: changeOptions(l),
+    changeQuestion: tr ? 'Son zamanlarda bu cihazla ilgili bir değişiklik oldu mu? (isteğe bağlı)' : 'Did anything change with this device recently? (optional)',
     submitted: existing ? toReceipt(existing, l) : null,
   };
 }
@@ -430,6 +491,10 @@ export function submitRequest(token: string, input: RequestInput, l: Lang): Subm
   if (email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) return { ok: false, error: 'invalid_email' };
   if (address.length < 10) return { ok: false, error: 'invalid_address' };
   if (!isSlot(input.slot)) return { ok: false, error: 'invalid_slot' };
+  if (input.change !== undefined && input.change !== null && input.change !== '' && !isChangeKind(input.change)) {
+    return { ok: false, error: 'invalid_change' };
+  }
+  const change = isChangeKind(input.change) ? input.change : null;
 
   const existing = requestFor(c.id);
   const record: RequestRecord = {
@@ -437,11 +502,13 @@ export function submitRequest(token: string, input: RequestInput, l: Lang): Subm
     reference: existing?.reference ?? `TL-${c.evidence.household_id}-${c.evidence.onset_local_date.slice(5).replace('-', '')}`,
     at: now(), name, phone, email, address,
     addressEdited: address !== fullAddress(c),
-    slot: input.slot, note,
+    slot: input.slot, note, change,
   };
   if (existing) Object.assign(existing, record);
   else requests.push(record);
-  c.events.push({ type: 'requested', at: record.at });
+  // The resident cannot date the change against the replay; it is taken to hold from the onset.
+  if (change) recordChange(c, change, c.evidence.onset_local_date, 'resident', note || null);
+  c.events.push({ type: 'requested', at: record.at, note: change ? CHANGE_LABEL[change].tr : undefined });
   save();
   return { ok: true, receipt: toReceipt(record, l) };
 }
@@ -469,8 +536,9 @@ export function toSummary(c: CaseRecord, u: User, l: Lang): CaseSummary {
   const e = c.evidence;
   const dates = e.daily.map((d) => d.local_date);
   return {
-    id: c.id, status: c.status, priority: priorityOf(c), origin: e.origin, kind: e.kind,
-    title: KIND_TITLE[e.kind][l],
+    id: c.id, status: c.status, priority: priorityOf(c), origin: e.origin,
+    family: e.family, familyLabel: FAMILY_LABEL[e.family][l], kind: e.kind,
+    title: caseTitle(e, l),
     detectorLabel: e.detectors.map((d) => DETECTOR_LABEL[d][l]).join(' + '),
     household: householdLabel(e.household_id, l),
     location: address(c, addressLevel(u)),
@@ -487,6 +555,7 @@ export function toSummary(c: CaseRecord, u: User, l: Lang): CaseSummary {
     technicianName: nameOf(c.techId, l),
     firstCheck: firstCheck(c, l),
     customerRequest: Boolean(requestFor(c.id)),
+    changeReported: changesFor(c).length > 0,
     href: caseHref(u, c),
   };
 }
@@ -502,6 +571,7 @@ function eventLabel(e: CaseEventRecord, l: Lang) {
     case 'verified': return tr ? 'Saha sonucu: öneriyle uyumlu bir neden bulundu' : 'Field result: a cause in line with the recommendation was found';
     case 'other': return tr ? 'Saha sonucu: farklı bir neden bulundu' : 'Field result: a different cause was found';
     case 'dismissed': return tr ? 'Kapatıldı: bulgu yok' : 'Closed: nothing found';
+    case 'explained': return tr ? 'Bildirilen değişiklikle açıklandı; referans yeniden öğrenilecek' : 'Explained by a reported change; the reference will be re-learned';
   }
 }
 
@@ -516,6 +586,7 @@ export function toDetail(c: CaseRecord, u: User, l: Lang): CaseDetail {
     masked: level !== 'full',
     detectedDate: e.detected_local_date,
     upperExceedanceShare: e.upper_exceedance_share,
+    lowerShortfallShare: e.lower_shortfall_share ?? null,
     synthetic: e.synthetic && {
       scenarioLabel: scenarioLabel(e.synthetic.scenario, e.synthetic.fault_kind, l),
       severity: e.synthetic.severity, durationDays: e.synthetic.duration_days, startDate: e.synthetic.start_local_date,
@@ -523,7 +594,16 @@ export function toDetail(c: CaseRecord, u: User, l: Lang): CaseDetail {
     daily: e.daily.map((d) => ({ ...d, notScoredLabel: notScoredLabel(d.scored, d.not_scored_reason, l) })),
     series: e.series,
     explanation: { summary, reasons, recommendation, limitations, humanDecisionNote },
-    run: { model: run.model, protocol: run.protocol_version, thresholdProvenance: run.detector.threshold_provenance },
+    run: {
+      model: run.model, protocol: run.protocol_version, circuit: e.circuit,
+      thresholdProvenance: familyRun(e.family).threshold_provenance ?? run.detector.threshold_provenance,
+      expectedFrom: expectedFromLabel(familyRun(e.family).expected_from, l),
+    },
+    changes: changesFor(c).map((n): ChangeView => ({
+      kind: n.kind, kindLabel: CHANGE_LABEL[n.kind][l], localDate: n.local_date,
+      sourceLabel: n.source === 'resident' ? (l === 'tr' ? 'Müşteri bildirdi' : 'Reported by the resident') : (l === 'tr' ? 'Operatör kaydetti' : 'Recorded by an operator'),
+      note: n.note, at: n.recorded_at_utc,
+    })),
     events: c.events.map((ev) => ({ label: eventLabel(ev, l), at: ev.at, note: ev.note ?? null })),
     notice: hasNotice(c) && (can(u, 'case.assign') || c.techId === u.id) ? customerNotice(c, level, l) : null,
     request: (() => {
@@ -535,11 +615,13 @@ export function toDetail(c: CaseRecord, u: User, l: Lang): CaseDetail {
       assign: actionable && can(u, 'case.assign') && triage,
       dismiss: actionable && can(u, 'case.dismiss') && triage,
       result: actionable && can(u, 'case.result') && c.status === 'assigned' && c.techId === u.id,
+      explain: actionable && can(u, 'case.assign') && isOpen(c),
     },
+    changeOptions: changeOptions(l),
   };
 }
 
-export function listCases(u: User, filter: string, l: Lang): CaseList {
+export function listCases(u: User, filter: string, family: string, l: Lang): CaseList {
   const observed = observedCases();
   const counts = {
     open: observed.filter(isOpen).length, closed: observed.filter((c) => !isOpen(c)).length,
@@ -547,11 +629,15 @@ export function listCases(u: User, filter: string, l: Lang): CaseList {
   };
   const wanted = (c: CaseRecord) =>
     filter === 'all' ? true : filter === 'synthetic' ? isSynthetic(c) : !isSynthetic(c) && (filter === 'closed' ? !isOpen(c) : isOpen(c));
-  const items = cases
-    .filter(wanted)
+  const byStatus = cases.filter(wanted);
+  const families = FAMILY_ORDER
+    .filter((key) => run.families.some((f) => f.family === key))
+    .map((key) => ({ key, label: FAMILY_LABEL[key][l], count: byStatus.filter((c) => c.evidence.family === key).length }));
+  const items = byStatus
+    .filter((c) => !family || c.evidence.family === family)
     .sort((a, b) => Number(isOpen(b)) - Number(isOpen(a)) || a.evidence.rank - b.evidence.rank)
     .map((c) => toSummary(c, u, l));
-  return { items, counts };
+  return { items, counts, families };
 }
 
 /* ── case actions ──────────────────────────────────────── */
@@ -578,6 +664,16 @@ export function assignCase(c: CaseRecord, techId: string) {
   messages.push({ id: `m-${messages.length + 1}`, techId: tech.id, caseId: c.id, at: time });
   save();
   return true;
+}
+
+/** Closes a case because a reported change (new device, repair, usage) accounts for it. */
+export function explainByChange(c: CaseRecord, kind: ChangeKind, localDate: string | null, note: string) {
+  const inWindow = localDate !== null && localDate >= run.replay_window.start_local_date && localDate <= windowEnd;
+  const day = inWindow ? localDate : c.evidence.onset_local_date;
+  recordChange(c, kind, day, 'operator', note || null);
+  c.status = 'explained';
+  c.events.push({ type: 'explained', at: now(), note: [CHANGE_LABEL[kind].tr, note].filter(Boolean).join(' · ') });
+  save();
 }
 
 export function dismissCase(c: CaseRecord) {
@@ -641,7 +737,9 @@ export function notificationsFor(u: User, l: Lang): Notification[] {
       if (!c) continue;
       list.push({
         id: `n-req-${c.id}`,
-        text: tr ? `Müşteri kontrol talebi · ${c.id}` : `Resident asked for an inspection · ${c.id}`,
+        text: r.change
+          ? (tr ? `Müşteri değişiklik bildirdi · ${c.id}` : `Resident reported a change · ${c.id}`)
+          : (tr ? `Müşteri kontrol talebi · ${c.id}` : `Resident asked for an inspection · ${c.id}`),
         at: r.at, href: caseHref(u, c),
       });
     }
@@ -677,7 +775,7 @@ export function overview(l: Lang): OverviewData {
     observed: {
       open: observed.filter(isOpen).length,
       closed: observed.filter((c) => !isOpen(c)).length,
-      deviations: observed.filter((c) => c.evidence.kind === 'consumption_deviation').length,
+      deviations: observed.filter((c) => c.evidence.kind !== 'data_issue').length,
       dataIssues: observed.filter((c) => c.evidence.kind === 'data_issue').length,
     },
     syntheticCases: cases.length - observed.length,
@@ -689,10 +787,20 @@ export function overview(l: Lang): OverviewData {
       falseCasesOnCleanData: evaluation.false_cases_on_clean_data,
       dataFaultsCaughtByQualityGate: evaluation.data_faults_caught_by_quality_gate,
       scenarios: evaluation.by_scenario.map((s) => ({
-        label: scenarioLabel(s.scenario, s.fault_kind, l), severity: s.severity, durationDays: s.duration_days,
+        label: `${s.family ? `${FAMILY_LABEL[s.family][l]} · ` : ''}${scenarioLabel(s.scenario, s.fault_kind, l)}`,
+        severity: s.severity, durationDays: s.duration_days,
         injected: s.injected, detected: s.detected, medianDelayDays: s.median_delay_days,
       })),
     },
+    familyRows: FAMILY_ORDER.filter((key) => run.families.some((f) => f.family === key)).map((key) => {
+      const f = familyRun(key);
+      const mine = cases.filter((c) => c.evidence.family === key);
+      const real = mine.filter((c) => !isSynthetic(c));
+      return {
+        key, label: FAMILY_LABEL[key][l], circuit: f.circuit, households: f.households, expectedFrom: expectedFromLabel(f.expected_from, l),
+        observedOpen: real.filter(isOpen).length, observedClosed: real.filter((c) => !isOpen(c)).length, validation: mine.length - real.length,
+      };
+    }),
     householdRows,
   };
 }
@@ -721,25 +829,27 @@ function median(values: number[]): number | null {
 }
 
 const ORIGINS: EvidenceOrigin[] = ['observed', 'synthetic'];
-const KINDS: EvidenceKind[] = ['consumption_deviation', 'data_issue'];
+const KINDS: EvidenceKind[] = ['consumption_deviation', 'production_shortfall', 'data_issue'];
 
 export function report(u: User, l: Lang): ReportData {
   const rows: ReportRow[] = [];
   for (const origin of ORIGINS) {
-    for (const kind of KINDS) {
-      const group = cases.filter((c) => c.evidence.origin === origin && c.evidence.kind === kind);
-      if (group.length === 0) continue;
-      rows.push({
-        label: `${ORIGIN_LABEL[origin][l]} · ${KIND_LABEL[kind][l]}`,
-        synthetic: origin === 'synthetic',
-        cases: group.length,
-        open: group.filter(isOpen).length,
-        withFinding: group.filter((c) => c.status === 'verified').length,
-        noFinding: group.filter((c) => c.status === 'dismissed').length,
-        flaggedDays: group.reduce((total, c) => total + c.evidence.flagged_days, 0),
-        // Null is not zero: cases without an excess share stay out of the median.
-        medianExcessShare: median(group.flatMap((c) => (c.evidence.excess_share === null ? [] : [c.evidence.excess_share]))),
-      });
+    for (const family of FAMILY_ORDER) {
+      for (const kind of KINDS) {
+        const group = cases.filter((c) => c.evidence.origin === origin && c.evidence.family === family && c.evidence.kind === kind);
+        if (group.length === 0) continue;
+        rows.push({
+          label: `${ORIGIN_LABEL[origin][l]} · ${FAMILY_LABEL[family][l]} · ${KIND_LABEL[kind][l]}`,
+          synthetic: origin === 'synthetic',
+          cases: group.length,
+          open: group.filter(isOpen).length,
+          withFinding: group.filter((c) => c.status === 'verified').length,
+          noFinding: group.filter((c) => c.status === 'dismissed' || c.status === 'explained').length,
+          flaggedDays: group.reduce((total, c) => total + c.evidence.flagged_days, 0),
+          // Null is not zero: cases without an excess share stay out of the median.
+          medianExcessShare: median(group.flatMap((c) => (c.evidence.excess_share === null ? [] : [c.evidence.excess_share]))),
+        });
+      }
     }
   }
   return { period: `${windowText(l)} · ${run.run_id}`, rows, canExport: can(u, 'report.export') };
@@ -750,8 +860,8 @@ export function reportCsv(u: User, l: Lang) {
   // Turkish spreadsheet apps expect ';' because ',' is the decimal separator.
   const sep = l === 'tr' ? ';' : ',';
   const header = l === 'tr'
-    ? ['Grup', 'Vaka', 'Açık', 'Saha bulgusu', 'Bulgu yok', 'İşaretli gün', 'Referansa göre medyan fazla (%)']
-    : ['Group', 'Cases', 'Open', 'Field finding', 'Nothing found', 'Flagged days', 'Median excess over reference (%)'];
+    ? ['Grup', 'Vaka', 'Açık', 'Saha bulgusu', 'Bulgu yok', 'İşaretli gün', 'Referansa göre medyan fark (%)']
+    : ['Group', 'Cases', 'Open', 'Field finding', 'Nothing found', 'Flagged days', 'Median difference from reference (%)'];
   const lines = [header.join(sep)];
   for (const r of rows) {
     const excess = r.medianExcessShare === null ? '' : fmt(r.medianExcessShare * 100, 1, l);
@@ -781,6 +891,16 @@ export function dataSources(l: Lang): DataSourcesData {
       ],
     },
     {
+      title: tr ? 'Cihaz aileleri' : 'Device families',
+      rows: [
+        ...run.families.map((f) => ({
+          label: `${FAMILY_LABEL[f.family][l]} · ${f.circuit}`,
+          value: `${tr ? `${f.households} hane` : `${f.households} households`} · ${expectedFromLabel(f.expected_from, l)}`,
+        })),
+        { label: tr ? 'Bildirilen değişiklik (dedektöre aktarılır)' : 'Reported changes (sent to the detector)', value: String(changes.length) },
+      ],
+    },
+    {
       title: tr ? `Dedektör · ${d.version}` : `Detector · ${d.version}`,
       rows: [
         { label: tr ? 'Eşiklerin kaynağı' : 'Where the thresholds come from', value: d.threshold_provenance },
@@ -796,13 +916,13 @@ export function dataSources(l: Lang): DataSourcesData {
   const plan = run.synthetic_plan;
   if (plan) {
     groups.push({
-      title: tr ? 'Sentetik plan' : 'Synthetic plan',
+      title: tr ? 'Doğrulama senaryoları' : 'Validation scenarios',
       rows: [
         { label: 'Plan', value: plan.plan_id },
         { label: tr ? 'Üretici sürümü' : 'Generator version', value: plan.generator_version },
         { label: tr ? 'Tohum' : 'Seed', value: String(plan.seed) },
         ...plan.scenarios.map((s) => ({
-          label: scenarioLabel(s.scenario, s.fault_kind, l),
+          label: `${s.family ? `${FAMILY_LABEL[s.family][l]} · ` : ''}${scenarioLabel(s.scenario, s.fault_kind, l)}`,
           value: [s.severity === null ? null : `+${pct(s.severity, l)}`, tr ? `${s.duration_days} gün` : `${s.duration_days} days`].filter(Boolean).join(' · '),
         })),
       ],
