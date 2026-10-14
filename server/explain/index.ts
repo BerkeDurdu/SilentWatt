@@ -151,7 +151,7 @@ export const FORBIDDEN = [/\bkwh?\b/i, /arıza doğrulandı/i, /kesin arıza/i, 
   /₺|\b(TL|lira|euros?|dollars?)\b/i];
 
 /** Every digit run in a value the evidence itself carries: the only numbers a text may contain. */
-function evidenceNumbers(e: EvidenceCase): Set<string> {
+export function evidenceNumbers(e: EvidenceCase): Set<string> {
   const allowed = new Set<string>(['2018', String(e.household_id), String(e.flagged_days)]);
   const add = (text: string) => { for (const token of text.match(/\d+/g) ?? []) allowed.add(token); };
   for (const iso of [e.onset_local_date, e.last_local_date]) add(String(Number(iso.slice(8))));
@@ -170,7 +170,8 @@ export function guardViolations(texts: string[], humanDecisionNote: string, e: E
   for (const text of texts) {
     for (const pattern of FORBIDDEN) if (pattern.test(text)) violations.push(`forbidden_wording: ${pattern.source}`);
     // Circuit names such as "air1" are names, not measurements.
-    for (const token of text.replace(/\b(air1|furnace1|refrigerator1)\b/g, '').match(/\d+/g) ?? []) {
+    // Case-insensitive: a model may write "Air1" at the start of a sentence.
+    for (const token of text.replace(/\b(air1|furnace1|refrigerator1)\b/gi, '').match(/\d+/g) ?? []) {
       if (!allowed.has(token)) violations.push(`number_not_in_evidence: ${token}`);
     }
   }

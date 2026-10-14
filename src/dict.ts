@@ -154,6 +154,7 @@ export const DICT = {
   aiQ1: { tr: 'Müşteriye bunu nasıl anlatırım?', en: 'How do I explain this to the resident?' },
   aiQ2: { tr: 'Teknisyen sahada önce neye bakmalı?', en: 'What should the technician check first on site?' },
   aiQ3: { tr: 'Bu sapma yeni bir cihazla açıklanabilir mi?', en: 'Could a new device explain this deviation?' },
+  aiQ4: { tr: 'Bu vaka neden bu öncelikte?', en: 'Why does this case have this priority?' },
   aiScope: { tr: 'Model yalnız bu vakanın kanıtını görür; ad, adres veya telefon gönderilmez. Yazdığı her sayı kanıtla karşılaştırılır.', en: 'The model sees only this case’s evidence; no name, address or phone is sent. Every number it writes is checked against the evidence.' },
   explainAction: { tr: 'Bildirilen değişiklikle açıkla', en: 'Explain with a reported change' },
   changeKind: { tr: 'Değişiklik', en: 'Change' },
