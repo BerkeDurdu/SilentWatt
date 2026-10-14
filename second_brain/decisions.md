@@ -1,7 +1,7 @@
 ---
 type: map
 area: process
-updated: 2026-10-06
+updated: 2026-10-14
 ---
 
 # Kararlar ve açık sorular
@@ -63,6 +63,7 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 | Q-17 | Train'deki olağandışı günler (ev boş, çok yüksek tüketim) eğitimden çıkarılsın mı? | kapandı | B+C | — | EDA 02: 21 hanede 33 olağandışı yüksek, 45 sıcakta sıfıra yakın gün (betimleyici tarama). 6 Ekim ölçümü: sıfıra yakın 45 günün hepsi Şubat–Nisan'da, yüksek 33 günün 30'u Mayıs'ta; tarama anomaliyi değil klimanın sezona açılmasını yakalıyor (9019'un günleri yöntem kaynaklı). **Karar (Yusuf, 2026-10-06): çıkarılmaz;** veri kuralı değişmez. Muharrem'e bildirilecek. Kök neden: Q-19 |
 | Q-18 | Sıcaklık desteği dışında birkaç saati olan günler, desteklenen saatleriyle "kısmi gün" olarak puanlansın mı? | açık | C | A-04, DQ-08 | 6 Ekim ölçümü: 226 Temmuz hane-günü yalnız sıcaklık desteği yüzünden düşüyor; 143'ünde yalnız 2–4 saat destek dışında. Bu günlerin desteklenen saatlerinde üst sınır aşımı %6,2 (puanlanan günlerde %12,8). Dedektörün günlük istatistiği (toplam) kısmi günde Haziran'ın tam günleriyle karşılaştırılamaz; ölçek yeniden tasarlanmalı. En sıcak saatler yine kör kalır. Hedef: 30 Ekim |
 | Q-19 | Mevsim kayması: model sıcaklığı ve saati biliyor, mevsimi bilmiyor. Mevsime duyarlı eğitim denensin mi? | açık | C | Q-03, A-04, Q-17, R-06 | 6 Ekim ölçümü: B0'ın ham q95'i Haziran'da %13,7, Temmuz'da %19,6 aşılıyor (hedef %5). Olağandışı train günleri sezon geçişinde. Adaylar: yalnız sezon içi günlerle eğitim, son haftalarla (kayan pencere) eğitim, ısı geçmişi özelliği. Kör test açılmadan Temmuz'da karşılaştırılır. Hedef: 30 Ekim |
+| Q-25 | B0/B1 tarama kuralındaki kapsama (%87–93) ve genişlik (≤ 1,10 × B0) eşikleri doğrulansın mı, değiştirilsin mi? | açık | C (eşik değişikliği: ekip) | KPI-02, KPI-03 | İki sayı da PRD v1.1'den geliyor ve doğrulanmamış. Kodda sabit: `packages/ml/src/silentwatt_ml/models/evaluation.py` (`coverage_ok`, `width_ok`); protokol belgesi kapsama aralığını "PRD's exploratory band" diye anıyor ([P1 protokolü](../docs/architecture/p1-ml-protocol.md)). Bugünkü seçimi etkilemiyor: B1 pinball koşulunda kaybediyor, B0 iki eşik ne olursa olsun korunurdu. Derin öğrenme adayı bu kuralla karşılaştırılacağı için 30 Ekim'den önce karar gerekir; eşik, sonuç görülüp bir modeli seçtirmek için değiştirilmez. (Q-20–Q-24, uçtan uca akış değerlendirmesindeki öneriler için ayrıldı; henüz kaydedilmedi) |
 
 ### Süreç ve araçlar
 
@@ -89,11 +90,16 @@ Kaynak kısaltmaları: **P0** = [P0 karar kaydı](../docs/project-status/p0-data
 
 ## KPI durumu (development taraması; test ölçümü değil)
 
-| KPI | Hedef (PRD §15.2) | Development sonucu (P1) |
+**Hedef sütunu doğrulanmamıştır.** Hedefler PRD v1.1 §15.2'den aynen alındı; PRD v1.1'in sayısal
+değerlerine güvenilmez (alınmış kararlar, 2026-09-28 ve 2026-10-06). "Sağlandı" veya "aralık
+içinde", yalnız bu doğrulanmamış hipoteze göre bir karşılaştırmadır; kabul ölçütü değildir. Kapsama
+(%87–93) ve genişlik (≤ 1,10 × B0) sayıları B0/B1 tarama kuralında da kullanılıyor (Q-25).
+
+| KPI | Hedef (PRD v1.1 §15.2, doğrulanmamış) | Development sonucu (P1) |
 |---|---|---|
 | KPI-01 | B1 pinball < B0 | Sağlanmadı: eşit hane pinball B1 0,2353 > B0 0,1771 (p1-v2, 21 hane) → B0 korunur. p1-v1 (8 hane): B1 0,216709 > B0 0,168172 |
 | KPI-02 | Kalibre kapsama %87–93 | p1-v3 (development taraması, test ölçümü değil): B0 %90,34, B1 %90,76, aralık içinde; üst sınır aşımı B0 %8,20, B1 %9,23 ([p1-v3 raporu](../docs/project-status/p1-v3-results-2026-10-06.md)). Önce p1-v2'de sağlanmadı: B0 %86,25, B1 %83,68. Üst sınır aşımı B0 %12,78, B1 %16,31 (testli metrik, `f660801`) (Q-03) · [p1-v2 raporu](../docs/project-status/p1-v2-results-2026-10-06.md) |
-| KPI-03 | Genişlik ≤ 1,10 × B0 | Kapsama koşulu sağlanmadığı için değerlendirilemez |
+| KPI-03 | Genişlik ≤ 1,10 × B0 | p1-v3 (development taraması, test ölçümü değil): B1 kalibre genişliği 2,2773 ≤ 1,10 × B0 2,1944 = 2,4138, koşul sağlanıyor (`report.json`: `width_within_110pct_b0: true`). p1-v2'de de sağlanıyordu: 2,1322 ≤ 1,10 × 2,0903 = 2,2993. Bu satır önceden "kapsama koşulu sağlanmadığı için değerlendirilemez" diyordu; yanlıştı, kod genişlik koşulunu kapsamadan bağımsız değerlendiriyor (`evaluation.py`; düzeltme 2026-10-14). B0 korunur, çünkü pinball koşulu (KPI-01) sağlanmıyor ([p1-v3 raporu](../docs/project-status/p1-v3-results-2026-10-06.md)) |
 | KPI-04…09 | Olay yakalama, gecikme, alarm yükü, veri hatası, izlenebilirlik, karar akışı | Ölçülmedi (dedektör, benchmark, API yok) |
 
 ## Alınmış kararlar (şu an uygulanan kurallar)
