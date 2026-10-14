@@ -1,4 +1,5 @@
 // Everything the server reads from its environment, in one place. Documented in docs/architecture/api.md.
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,13 +10,24 @@ const flag = (value: string | undefined, fallback: boolean) =>
 
 const prod = process.argv.includes('--prod');
 
+function publishedRun(): string | null {
+  const pointer = path.join(ROOT, 'artifacts/evidence/CURRENT');
+  if (!fs.existsSync(pointer)) return null;
+  const dir = path.resolve(path.dirname(pointer), fs.readFileSync(pointer, 'utf8').trim());
+  return fs.existsSync(path.join(dir, 'index.json')) ? dir : null;
+}
+
 export const config = {
   root: ROOT,
   prod,
   // In development the Vite proxy expects 3001; a host-provided PORT only applies to the production server.
   port: Number(env.API_PORT ?? (prod ? env.PORT : undefined) ?? 3001),
-  /** Detector output to show; without it the committed synthetic fixtures are used. */
-  evidenceDir: env.SILENTWATT_EVIDENCE_DIR || path.join(ROOT, 'shared/fixtures/evidence'),
+  /**
+   * Detector output to show: SILENTWATT_EVIDENCE_DIR, else the run named in artifacts/evidence/CURRENT
+   * (written by `silentwatt-ml detect --set-current`; the readings stay on this machine), else the
+   * committed synthetic fixtures.
+   */
+  evidenceDir: env.SILENTWATT_EVIDENCE_DIR || publishedRun() || path.join(ROOT, 'shared/fixtures/evidence'),
   /** PostgreSQL for the workflow state (Huawei Cloud RDS for PostgreSQL / GaussDB, or the compose db). Wins over the file. */
   databaseUrl: env.SILENTWATT_DATABASE_URL || null,
   /** CA certificate of the database server, for TLS to a managed database. */

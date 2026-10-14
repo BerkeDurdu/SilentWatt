@@ -152,8 +152,9 @@ def _check_cohort(cohort: dict) -> None:
 
 def _check_p1(p1: dict) -> None:
     """P1 protocol: version, daily quality gates, calibration and quantile model settings."""
-    # p1-v2 adds the target dead band; p1-v1 results stay reproducible from their own commit.
-    if p1["protocol_version"] != "p1-v2":
+    # p1-v2 adds the target dead band; p1-v3 calibrates the lower and upper bound apart (Q-03).
+    # p1-v1 results stay reproducible from their own commit.
+    if p1["protocol_version"] not in ("p1-v2", "p1-v3"):
         raise ValueError("Unsupported P1 protocol_version")
     quality = p1["daily_quality"]
     calibration = p1["calibration"]

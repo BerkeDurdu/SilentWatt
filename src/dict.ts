@@ -68,7 +68,7 @@ export const DICT = {
   kpiHouseholds: { tr: 'Değerlendirilen hane', en: 'Households replayed' },
   kpiSynth: { tr: 'Doğrulama senaryosu yakalama', en: 'Validation scenarios caught' },
   kpiSynthP: { tr: 'Cevabı bilinen {n} senaryodan yakalanan; yöntemin ölçüsü bu. Ekrandaki doğrulama vakası: {s}.', en: 'Caught out of {n} scenarios with a known answer; this is how the method is measured. Validation cases on screen: {s}.' },
-  kpiClean: { tr: 'Temiz veride yanlış vaka', en: 'False cases on clean data' },
+  kpiClean: { tr: 'Değiştirilmemiş veride vaka', en: 'Cases on unmodified data' },
   kpiCleanP: { tr: '{n} temiz hane-günde · kalite kapısının yakaladığı veri hatası: {g}', en: 'in {n} clean household-days · data faults caught by the quality gate: {g}' },
   noEvaluation: { tr: 'Bu koşuda sentetik değerlendirme yok.', en: 'This run has no synthetic evaluation.' },
   fixtureNote: { tr: 'Bu ekranlar depodaki örnek kanıt dosyalarını gösteriyor. Sayılar uydurmadır; bir değerlendirme sonucu değildir.', en: 'These screens show the example evidence files in the repository. The numbers are made up; they are not an evaluation result.' },

@@ -55,6 +55,13 @@ Only devices whose expected behaviour can be predicted are fault targets. Usage-
 | `refrigeration` | `refrigerator1` | `own_june_profile,hour_of_week` | `consumption_deviation` | `REFRIGERATOR_PERSISTENT_INCREASE` |
 | `solar` | `solar` | `clear_sky_irradiance,capacity` | `production_shortfall` | `SOLAR_PRODUCTION_SHORTFALL` |
 
+The table shows the fixtures' codes. The detector run (`silentwatt-ml detect`) writes what it actually
+built: `outdoor_temperature,hour,june_level,peers` for HVAC and refrigeration (temperature × hour model,
+scaled to the device's June level and to the same day's common shift of the other households) and
+`neighbour_systems,capacity,june_level` for solar (capacity × median normalised production of the other
+systems at the same slot). The console labels every code; an unknown code is shown as written.
+See [the run report](../project-status/detector-run-2026-10-14.md).
+
 Any family can also have `data_issue` cases (`DATA_SOURCE_CHECK`). `furnace1` is reserved for
 the HVAC family once the indoor fan is modelled. Every family keeps the same chain: expected
 behaviour → calibrated band → persistent deviation → evidence → human decision.

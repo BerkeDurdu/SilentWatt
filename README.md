@@ -62,6 +62,12 @@ silentwatt-ml audit --data-dir ../dataset \
   --output artifacts/data-audit.json
 ```
 
+Dedektör koşusu gerçek veriden konsolun okuduğu kanıt dosyalarını üretir. `--set-current` ile yerel konsol bu koşuyu açar; ölçümler `artifacts/` altında kalır ve depoya girmez. Yöntem ve sonuçlar: [dedektör koşusu](docs/project-status/detector-run-2026-10-14.md).
+
+```bash
+silentwatt-ml detect --data-dir ../dataset --output artifacts/evidence/<run-id> --set-current
+```
+
 Rol sahipleri:
 
 - Berke Durdu: UX/UI ve frontend
