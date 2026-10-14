@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
-import { OBSERVED, SYNTHETIC, startApi } from './helpers';
+import { ALL_CASES, OBSERVED, SYNTHETIC, startApi } from './helpers';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sw-restore-'));
 const file = path.join(dir, 'state.json');
@@ -48,9 +48,7 @@ test('saved case state and the resident link come back after a restart', async (
 
 test('a case that is no longer in the evidence is dropped, and user access is restored', async () => {
   const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-  assert.deepEqual(saved.state.cases.map((c: { id: string }) => c.id).sort(), [
-    'SW-HVAC-90003-20180703-ACU', 'SW-SYN-HVAC-90001-20180707-ACU', 'SW-SYN-HVAC-90002-20180722-CHR', 'SW-SYN-HVAC-90004-20180724-DQ',
-  ]);
+  assert.deepEqual(saved.state.cases.map((c: { id: string }) => c.id).sort(), [...ALL_CASES].sort());
   const login = await api.call('/auth/login', { method: 'POST', body: { email: 'emre@silentwatt.demo', password: 'SilentWatt2026!' } });
   assert.equal(login.status, 401, 'a deactivated user stays deactivated');
 });

@@ -130,6 +130,12 @@ h1, h2, h3 { text-wrap: balance; }
 .st-assigned { background: var(--sunk); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line-2); }
 .st-verified { background: var(--brand-soft); color: var(--brand-strong); }
 .st-dismissed { background: var(--sunk); color: var(--muted); }
+.st-explained { background: var(--brand-soft); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--brand-edge); }
+.pill.chg { background: var(--amber-soft); color: var(--amber-ink); margin-left: 6px; }
+.filters .sep { width: 1px; background: var(--line-2); margin: 0 6px; }
+.changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.changes li b { display: block; }
+.changes .sub { margin-top: 2px; }
 .pill.req { background: var(--brand-soft); color: var(--brand-ink); margin-left: 6px; }
 .pill.syn { background: transparent; color: var(--violet); box-shadow: inset 0 0 0 1px var(--violet); }
 .pill.syn::before { display: none; }

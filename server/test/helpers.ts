@@ -6,6 +6,13 @@ import type { AddressInfo } from 'node:net';
 
 export const OBSERVED = 'SW-HVAC-90003-20180703-ACU';
 export const SYNTHETIC = 'SW-SYN-HVAC-90001-20180707-ACU';
+export const FRIDGE = 'SW-REF-90005-20180709-CHR';
+export const SOLAR = 'SW-SOL-90008-20180725-ACU';
+/** Every case in the committed fixtures, by rank. */
+export const ALL_CASES = [
+  'SW-SYN-SOL-90007-20180710-ACU', 'SW-SYN-HVAC-90001-20180707-ACU', 'SW-SYN-HVAC-90002-20180722-CHR', SOLAR,
+  'SW-HVAC-90003-20180703-ACU', FRIDGE, 'SW-SYN-REF-90006-20180716-ACU', 'SW-SYN-HVAC-90004-20180724-DQ',
+];
 const HEADERS = { 'Content-Type': 'application/json', 'X-Requested-With': 'silentwatt' };
 
 export async function startApi() {

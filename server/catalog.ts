@@ -30,14 +30,14 @@ export const ROLES: Record<RoleKey, RolePreset> = {
     screens: ['overview', 'queue', 'reports'],
     capabilities: ['report.export'],
     addressLevel: 'district',
-    scopeNote: { tr: 'air1 kanalı · Temmuz 2018 yeniden oynatma · adresler ilçe düzeyinde', en: 'air1 channel · July 2018 replay · addresses at district level' },
+    scopeNote: { tr: 'Klima, buzdolabı, güneş paneli · Temmuz 2018 yeniden oynatma · adresler ilçe düzeyinde', en: 'AC, refrigerator, solar · July 2018 replay · addresses at district level' },
   },
   operator: {
     label: { tr: 'Operatör', en: 'Operator' },
     screens: ['queue', 'team', 'data'],
     capabilities: ['case.assign', 'case.dismiss'],
     addressLevel: 'neighbourhood',
-    scopeNote: { tr: 'air1 kanalı · Temmuz 2018 yeniden oynatma · adresler mahalle düzeyinde', en: 'air1 channel · July 2018 replay · addresses at neighbourhood level' },
+    scopeNote: { tr: 'Klima, buzdolabı, güneş paneli · Temmuz 2018 yeniden oynatma · adresler mahalle düzeyinde', en: 'AC, refrigerator, solar · July 2018 replay · addresses at neighbourhood level' },
   },
   technician: {
     label: { tr: 'Saha Teknisyeni', en: 'Field Technician' },

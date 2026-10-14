@@ -7,7 +7,8 @@ import type { FieldResult } from '../shared/types';
 import { authenticate, csrfGuard, endSessionsFor, langOf, login, logout, notFound, requireCapability, requireScreen, sweep } from './auth';
 import { config } from './config';
 import {
-  assignCase, canViewCase, dataSources, dismissCase, evidenceInfo, getCase, isSynthetic, jobsFor, listCases, listTechnicians, markOpened,
+  assignCase, canViewCase, dataSources, dismissCase, evidenceInfo, explainByChange, getCase, isChangeKind, isSynthetic, jobsFor, listCases,
+  listChanges, listTechnicians, markOpened,
   notificationsFor, overview, recordResult, report, reportCsv, requestPage, reviewCase, submitRequest, team,
   toDetail, toMe, updateUser, usersData, type CaseRecord,
 } from './store';
@@ -110,7 +111,7 @@ const conflict = (res: Response) => res.status(409).json({ error: 'invalid_state
 const isTriage = (c: CaseRecord) => !isSynthetic(c) && (c.status === 'new' || c.status === 'review');
 
 api.get('/cases', requireScreen('queue'), (req, res) => {
-  res.json(listCases(req.user!, String(req.query.status ?? 'open'), langOf(req)));
+  res.json(listCases(req.user!, String(req.query.status ?? 'open'), String(req.query.family ?? ''), langOf(req)));
 });
 
 api.get('/cases/:id', (req, res) => {
@@ -144,6 +145,21 @@ api.post('/cases/:id/dismiss', requireCapability('case.dismiss'), (req, res) => 
   if (!c) return;
   if (!isTriage(c)) return void conflict(res);
   dismissCase(c);
+  res.json(toDetail(c, req.user!, langOf(req)));
+});
+
+/** A reported change (new device, repair, usage) explains the deviation; the case closes and ML re-learns. */
+api.post('/cases/:id/explain', requireCapability('case.assign'), (req, res) => {
+  const c = visibleCase(req, res);
+  if (!c) return;
+  if (isSynthetic(c) || !['new', 'review', 'assigned'].includes(c.status)) return void conflict(res);
+  if (!isChangeKind(req.body?.kind)) {
+    res.status(400).json({ error: 'invalid_change' });
+    return;
+  }
+  const localDate = typeof req.body?.localDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.body.localDate) ? req.body.localDate : null;
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 300) : '';
+  explainByChange(c, req.body.kind, localDate, note);
   res.json(toDetail(c, req.user!, langOf(req)));
 });
 
@@ -194,6 +210,11 @@ api.get('/reports/monthly.csv', requireScreen('reports'), requireCapability('rep
 
 api.get('/data-sources', requireScreen('data'), (req, res) => {
   res.json(dataSources(langOf(req)));
+});
+
+/** Console → ML: every reported change, for the next detector run to re-learn those references. */
+api.get('/changes', requireScreen('data'), (_req, res) => {
+  res.json({ schema_version: 'silentwatt.changes/0.1', changes: listChanges() });
 });
 
 api.get('/users', requireScreen('users'), (req, res) => {

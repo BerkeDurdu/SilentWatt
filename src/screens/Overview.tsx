@@ -21,17 +21,8 @@ export default function Overview() {
       {me.fixture && <p className="readonly note"><Icon name="eye" />{t('fixtureNote')}</p>}
       <div className="stack">
         <section className="panel kpis" aria-label={t('kpiAria')}>
+          {/* The method is measured where the answer is known; that number leads. */}
           <div className="kpi hero-kpi">
-            <span className="eyebrow">{t('kpiOpen')}</span>
-            <span className="v">{observed.open}</span>
-            <p>{t('kpiOpenP', { d: observed.deviations, q: observed.dataIssues, c: observed.closed })}</p>
-          </div>
-          <div className="kpi">
-            <span className="eyebrow">{t('kpiHouseholds')}</span>
-            <span className="v">{num(data.households)}</span>
-            <p>{shortDay(data.window.start)} – {shortDay(data.window.end)}</p>
-          </div>
-          <div className="kpi">
             <span className="eyebrow">{t('kpiSynth')}</span>
             <span className="v">{evaluation ? `${evaluation.syntheticDetected} / ${evaluation.syntheticCases}` : '—'}</span>
             <p>{evaluation ? t('kpiSynthP', { n: evaluation.syntheticCases, s: data.syntheticCases }) : t('noEvaluation')}</p>
@@ -41,6 +32,44 @@ export default function Overview() {
             <span className="v">{evaluation ? evaluation.falseCasesOnCleanData : '—'}</span>
             <p>{evaluation ? t('kpiCleanP', { n: num(evaluation.cleanHouseholdDays), g: evaluation.dataFaultsCaughtByQualityGate }) : t('noEvaluation')}</p>
           </div>
+          <div className="kpi">
+            <span className="eyebrow">{t('kpiOpen')}</span>
+            <span className="v">{observed.open}</span>
+            <p>{t('kpiOpenP', { d: observed.deviations, q: observed.dataIssues, c: observed.closed })}</p>
+          </div>
+          <div className="kpi">
+            <span className="eyebrow">{t('kpiHouseholds')}</span>
+            <span className="v">{num(data.households)}</span>
+            <p>{shortDay(data.window.start)} – {shortDay(data.window.end)}</p>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-h"><h2>{t('famTitle')}</h2></div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('thDevice')}</th><th>{t('thCircuit')}</th><th>{t('thExpectedFrom')}</th><th className="r">{t('thHousehold')}</th>
+                  <th className="r">{t('thOpen')}</th><th className="r">{t('thClosed')}</th><th className="r">{t('thSynthetic')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.familyRows.map((f) => (
+                  <tr key={f.key}>
+                    <td>{f.label}</td>
+                    <td className="mono">{f.circuit}</td>
+                    <td>{f.expectedFrom}</td>
+                    <td className="r mono">{f.households}</td>
+                    <td className="r mono">{f.observedOpen}</td>
+                    <td className="r mono">{f.observedClosed}</td>
+                    <td className="r mono">{f.validation}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="panel-b footnote">{t('famHint')}</p>
         </section>
 
         {evaluation && (
