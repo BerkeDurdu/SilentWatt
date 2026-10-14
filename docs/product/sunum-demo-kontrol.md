@@ -6,7 +6,7 @@ Sunumdan yaklaşık 15 dakika önce, demoyu yapacak bilgisayarda:
    güncellemeyi şimdi yapın; sunum sırasında kendini güncellerse kapanır.
 2. **Temiz durum.** Önceki denemelerden kalan atama ve kapatmaları silmek için `.data/` klasörünü silin.
 3. **Başlatın.** `npm run dev` komutunu çalıştırın. Terminalde sırasıyla `Assistant: qwen2.5:7b at …`
-   ve yaklaşık bir dakika sonra `Assistant: 8 case summaries ready` satırları görünmeli. Bu satırlardan
+   ve birkaç dakika sonra `Assistant: 30 case summaries ready` satırları görünmeli. Bu satırlardan
    sonra vaka özetleri anında açılır.
 4. **Giriş.** http://localhost:5173 adresini açın ve `operator@silentwatt.demo` ile girin; parola giriş
    sayfasındaki demo hesapları listesinde.
