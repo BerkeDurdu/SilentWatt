@@ -37,7 +37,7 @@ Docker ile:
 docker compose up --build
 ```
 
-Gerçek dedektör çıktısını göstermek için `SILENTWATT_EVIDENCE_DIR` ile kanıt klasörünü verin. Tüm ortam değişkenleri, uçlar, hesap dosyası ve saklama: [API belgesi](docs/architecture/api.md). API testleri: `npm test`.
+Gerçek dedektör çıktısını göstermek için `SILENTWATT_EVIDENCE_DIR` ile kanıt klasörünü verin. Tüm ortam değişkenleri, uçlar, hesap dosyası ve saklama: [API belgesi](docs/architecture/api.md). Huawei Cloud'a taşıma: [deploy/huawei/README.md](deploy/huawei/README.md). API testleri: `npm test`.
 
 ## AI/ML geliştirme
 

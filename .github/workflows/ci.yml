@@ -11,6 +11,18 @@ permissions:
 jobs:
   web:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,6 +33,28 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+        env:
+          SILENTWATT_TEST_DATABASE_URL: postgres://postgres:ci@127.0.0.1:5432/postgres
+
+  deploy-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Console image builds
+        run: docker build -t silentwatt-console:ci .
+      - name: Cloud compose file is valid
+        run: |
+          printf 'SILENTWATT_SITE=:80\nPOSTGRES_PASSWORD=ci\n' > deploy/.env
+          docker compose -f deploy/compose.cloud.yml --profile localdb config --quiet
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+      - name: Terraform is formatted and valid
+        working-directory: deploy/huawei/terraform
+        run: |
+          terraform fmt -check
+          terraform init -backend=false -input=false
+          terraform validate
 
   ml:
     runs-on: ubuntu-latest
