@@ -6,9 +6,9 @@ import { useMe } from '../auth';
 import { CaseDetailView } from '../components/CaseDetailView';
 import { Sparkline } from '../components/charts';
 import { Icon } from '../components/icons';
-import { GoHome, LoadError, Loading, PageHead, Priority, StatusPill } from '../components/ui';
+import { CaseState, GoHome, LoadError, Loading, PageHead, Priority } from '../components/ui';
 import type { DictKey } from '../dict';
-import { isOpenStatus, num, pct, signedPct } from '../format';
+import { isOpenStatus, shortDay, signedShare } from '../format';
 import { useI18n } from '../i18n';
 
 export default function Queue() {
@@ -21,15 +21,16 @@ export default function Queue() {
   );
 }
 
-type Filter = 'open' | 'closed' | 'all';
-const FILTERS: [Filter, DictKey][] = [['open', 'fOpen'], ['closed', 'fClosed'], ['all', 'fAll']];
+type Filter = 'open' | 'closed' | 'synthetic' | 'all';
+const FILTERS: [Filter, DictKey][] = [['open', 'fOpen'], ['closed', 'fClosed'], ['synthetic', 'fSynthetic'], ['all', 'fAll']];
 
 function QueueList() {
   const me = useMe();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>('open');
-  const { data, error, loading, reload } = useApi<CaseList>(`/cases?status=${filter}`);
+  const [family, setFamily] = useState('');
+  const { data, error, loading, reload } = useApi<CaseList>(`/cases?status=${filter}&family=${family}`);
   const readOnly = !me.capabilities.includes('case.assign');
 
   return (
@@ -44,6 +45,18 @@ function QueueList() {
             </button>
           ))}
         </div>
+        {data && data.families.length > 1 && (
+          <div className="filters" role="group" aria-label={t('familyFilterAria')}>
+            <button className="chip" aria-pressed={family === ''} onClick={() => setFamily('')}>
+              {t('fAllFamilies')}<b>{data.families.reduce((n, f) => n + f.count, 0)}</b>
+            </button>
+            {data.families.map((f) => (
+              <button key={f.key} className="chip" aria-pressed={family === f.key} onClick={() => setFamily(f.key)}>
+                {f.label}<b>{f.count}</b>
+              </button>
+            ))}
+          </div>
+        )}
         {error ? (
           <div className="panel-b"><LoadError error={error} onRetry={reload} /></div>
         ) : loading || !data ? (
@@ -55,8 +68,8 @@ function QueueList() {
             <table>
               <thead>
                 <tr>
-                  <th>{t('thPriority')}</th><th>{t('thCase')}</th><th>{t('thLocation')}</th><th>{t('thCause')}</th>
-                  <th className="r">{t('thDeviation')}</th><th>{t('th30d')}</th><th className="r">{t('thDuration')}</th><th>{t('thStatus')}</th>
+                  <th>{t('thPriority')}</th><th>{t('thCase')}</th><th>{t('thFinding')}</th>
+                  <th className="r">{t('thExcess')}</th><th>{t('thMonth')}</th><th className="r">{t('thFlagged')}</th><th>{t('thStatus')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -69,21 +82,27 @@ function QueueList() {
                     onKeyDown={(e) => e.key === 'Enter' && c.href && navigate(c.href)}
                   >
                     <td><Priority priority={c.priority} /></td>
-                    <td><span className="mono">{c.id}</span><span className="sub">{t(`equipment_${c.equipment}`)}</span></td>
-                    <td>{c.location}</td>
+                    <td><span className="mono nowrap">{c.id}</span><span className="sub">{c.household}</span></td>
                     <td>
-                      {c.topCause.label}
-                      <span className="sub mono">{pct(c.topCause.p * 100)}{c.secondCause && ` · ${c.secondCause.label}`}</span>
+                      {c.title}
+                      <span className="sub">{c.detectorLabel} · {shortDay(c.onsetDate)} – {shortDay(c.lastDate)}</span>
                     </td>
                     <td className="r">
-                      <span className={c.deviation < 0 ? 'mono strong bad' : 'mono strong warn'}>{signedPct(c.deviation)}</span>
-                      <span className="sub mono">{num(c.lossKwhMonth)} {t('kwhMonth')}</span>
+                      {c.excessShare === null
+                        ? <span className="muted">{t(c.kind === 'data_issue' ? 'dataIssueShort' : 'notComputed')}</span>
+                        : <span className="mono strong warn">{signedShare(c.excessShare)}</span>}
                     </td>
-                    <td><Sparkline act={c.spark.act} ref={c.spark.ref} onset={c.spark.onset} closed={!isOpenStatus(c.status)} /></td>
-                    <td className="r mono">{t('days', { n: c.days })}</td>
                     <td>
-                      <StatusPill status={c.status} />
+                      <Sparkline
+                        observed={c.spark.observed} reference={c.spark.reference} from={c.spark.from} to={c.spark.to}
+                        muted={c.origin === 'synthetic' || !isOpenStatus(c.status)}
+                      />
+                    </td>
+                    <td className="r mono">{t('days', { n: c.flaggedDays })}</td>
+                    <td>
+                      <CaseState status={c.status} origin={c.origin} />
                       {c.customerRequest && <span className="pill req">{t('hasRequest')}</span>}
+                      {c.changeReported && <span className="pill chg">{t('hasChange')}</span>}
                     </td>
                   </tr>
                 ))}

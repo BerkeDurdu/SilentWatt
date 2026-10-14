@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import type { Capability, Lang, ScreenKey } from '../shared/types';
+import { config } from './config';
 import { verifyPassword } from './password';
 import { can, findUser, findUserByEmail, toMe, type User } from './store';
 
@@ -17,12 +18,20 @@ const COOKIE = 'sw_sid';
 const SESSION_TTL = 8 * 60 * 60 * 1000;
 const ATTEMPT_WINDOW = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
-const PROD = process.argv.includes('--prod');
 
 const sessions = new Map<string, { userId: string; expires: number }>();
 const attempts = new Map<string, { count: number; reset: number }>();
 // Used so an unknown e-mail costs the same time as a wrong password.
 const DUMMY = { salt: randomBytes(16).toString('hex'), hash: randomBytes(64).toString('hex') };
+
+/** Drops entries whose time ran out, so long-running servers don't keep every old session and attempt. */
+export function sweep(...maps: Map<string, { expires?: number; reset?: number }>[]) {
+  const t = Date.now();
+  for (const map of maps) {
+    for (const [key, entry] of map) if ((entry.expires ?? entry.reset ?? 0) <= t) map.delete(key);
+  }
+}
+setInterval(() => sweep(sessions, attempts), 10 * 60 * 1000).unref();
 
 function readCookie(req: Request, name: string) {
   for (const part of (req.headers.cookie ?? '').split(';')) {
@@ -74,7 +83,7 @@ export function login(req: Request, res: Response) {
   attempts.delete(key);
   const sid = randomBytes(32).toString('base64url');
   sessions.set(sid, { userId: user.id, expires: t + SESSION_TTL });
-  res.cookie(COOKIE, sid, { httpOnly: true, sameSite: 'lax', secure: PROD, maxAge: SESSION_TTL, path: '/' });
+  res.cookie(COOKIE, sid, { httpOnly: true, sameSite: 'lax', secure: config.secureCookies, maxAge: SESSION_TTL, path: '/' });
   res.json(toMe(user, langOf(req)));
 }
 

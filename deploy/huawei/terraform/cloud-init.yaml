@@ -1,0 +1,16 @@
+#cloud-config
+# First boot of the console VM: Docker with the compose plugin, obsutil, folders and the backup cron.
+# The app itself is copied or cloned to /srv/silentwatt/app afterwards (deploy/huawei/README.md, step 4).
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+  - ca-certificates
+runcmd:
+  - systemctl enable --now docker
+  - mkdir -p /srv/silentwatt/app /srv/silentwatt/evidence /srv/silentwatt/backups
+  - curl -fsSL -o /tmp/obsutil.tar.gz https://obs-community-intl.obs.ap-southeast-1.myhuaweicloud.com/obsutil/current/obsutil_linux_amd64.tar.gz
+  - tar -xzf /tmp/obsutil.tar.gz -C /tmp
+  - sh -c 'install -m 0755 /tmp/obsutil_linux_amd64_*/obsutil /usr/local/bin/obsutil'
+  - sh -c "echo '15 3 * * * root /srv/silentwatt/app/deploy/scripts/backup-db.sh >> /var/log/silentwatt-backup.log 2>&1' > /etc/cron.d/silentwatt-backup"

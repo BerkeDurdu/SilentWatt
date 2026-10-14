@@ -7,6 +7,8 @@ dist/
 
 # environment and secrets
 .env
+users.json
+.data/
 .env.*
 !.env.example
 
@@ -24,3 +26,28 @@ desktop.ini
 
 # sunum ciktilari
 output/
+
+# Python / AI-ML
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Local datasets and generated ML artifacts
+data/raw/
+data/interim/
+data/processed/
+dataset/
+1minute_data_austin.csv
+15minute_data_austin.csv
+15minutes_data_austin.csv
+open-meteo-30.26N97.69W157m*
+artifacts/*
+!artifacts/README.md
+*.joblib
+*.pkl
+*.parquet

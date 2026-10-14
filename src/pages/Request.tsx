@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
+import type { ChangeKind } from '../../shared/evidence';
 import type { RequestPage, RequestReceipt, RequestSlot } from '../../shared/types';
 import { api, ApiError, useApi } from '../api';
 import { Icon, Logo, Wordmark } from '../components/icons';
 import { LangToggle, Loading } from '../components/ui';
 import type { DictKey } from '../dict';
-import { dateTime, num } from '../format';
+import { dateTime, signedShare } from '../format';
 import { useI18n } from '../i18n';
 
 /**
@@ -86,7 +87,7 @@ function Notice({ data }: { data: RequestPage }) {
       <p className="pub-lead">{data.body}</p>
 
       <dl className="pub-facts">
-        <div><dt>{t('pubLoss')}</dt><dd className="mono">≈ {num(data.lossKwhMonth)} {t('kwhMonth')}</dd></div>
+        {data.excessShare !== null && <div><dt>{t('pubExcess')}</dt><dd className="mono">{signedShare(data.excessShare)}</dd></div>}
         <div><dt>{t('pubDuration')}</dt><dd className="mono">{t('days', { n: data.days })}</dd></div>
         <div><dt>{t('pubEquipment')}</dt><dd>{data.equipmentLabel}</dd></div>
       </dl>
@@ -107,6 +108,7 @@ const ERRORS: Record<string, DictKey> = {
   invalid_email: 'pubErrEmail',
   invalid_address: 'pubErrAddress',
   invalid_slot: 'pubErrSlot',
+  invalid_change: 'pubErrChange',
   too_many_requests: 'pubErrTooMany',
 };
 
@@ -121,6 +123,7 @@ function RequestForm(
   const [address, setAddress] = useState(current?.address ?? data.customer.address);
   const [slot, setSlot] = useState<RequestSlot>(data.slots[0].value);
   const [note, setNote] = useState(current?.note ?? '');
+  const [change, setChange] = useState<ChangeKind | ''>('');
   const [error, setError] = useState<DictKey | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -131,7 +134,7 @@ function RequestForm(
     try {
       const receipt = await api<RequestReceipt>(`/public/request/${encodeURIComponent(token)}`, {
         method: 'POST',
-        body: { name, phone, email, address, slot, note },
+        body: { name, phone, email, address, slot, note, change },
       });
       onDone(receipt);
     } catch (err) {
@@ -177,6 +180,14 @@ function RequestForm(
         </label>
 
         <label className="field">
+          <span>{data.changeQuestion}</span>
+          <select value={change} onChange={(e) => setChange(e.target.value as ChangeKind | '')}>
+            <option value="">{t('pubChangeNone')}</option>
+            {data.changeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+
+        <label className="field">
           <span>{t('pubNote')}</span>
           <textarea maxLength={400} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('pubNotePh')} />
         </label>
@@ -203,6 +214,7 @@ function Receipt({ data, receipt, onEdit }: { data: RequestPage; receipt: Reques
         <dt>{t('pubSlot')}</dt><dd>{receipt.slotLabel}</dd>
         <dt>{t('pubDoneAddress')}</dt><dd>{receipt.address}</dd>
         {receipt.note && <><dt>{t('pubNote')}</dt><dd>{receipt.note}</dd></>}
+        {receipt.changeLabel && <><dt>{t('custChange')}</dt><dd>{receipt.changeLabel}</dd></>}
         <dt>{t('pubEquipment')}</dt><dd>{data.equipmentLabel}</dd>
       </dl>
       <button className="btn" onClick={onEdit}>{t('pubEditAgain')}</button>

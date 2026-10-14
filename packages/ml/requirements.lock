@@ -1,0 +1,9 @@
+# Foundation runtime and build backend; validated with Python 3.12.
+# Install before the editable package, with --no-build-isolation below.
+setuptools==84.0.0
+numpy==2.3.5
+pandas==2.2.3
+python-dateutil==2.9.0.post0
+pytz==2026.3.post1
+tzdata==2026.3
+six==1.17.0

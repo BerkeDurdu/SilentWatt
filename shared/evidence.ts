@@ -1,0 +1,214 @@
+// Evidence contract v0.2: the files ML writes and the API reads.
+// Field meanings and the rules every consumer follows: docs/architecture/evidence-contract.md
+// v0.1 files (HVAC only) are still read; the API fills in the v0.2 fields for them.
+
+export const EVIDENCE_SCHEMA_VERSION = 'silentwatt.evidence/0.2';
+export const EVIDENCE_SCHEMA_VERSIONS = ['silentwatt.evidence/0.1', EVIDENCE_SCHEMA_VERSION] as const;
+export type EvidenceSchemaVersion = (typeof EVIDENCE_SCHEMA_VERSIONS)[number];
+
+export type EvidenceOrigin = 'observed' | 'synthetic';
+/** Equipment families whose expected behaviour can be modelled; usage-driven devices are context only. */
+export type EvidenceFamily = 'hvac' | 'refrigeration' | 'solar';
+export type EvidenceCircuit = 'air1' | 'furnace1' | 'refrigerator1' | 'solar';
+/** Consumption above the reference, production below it, or a data problem (not a device signal). */
+export type EvidenceKind = 'consumption_deviation' | 'production_shortfall' | 'data_issue';
+export type DetectorName = 'acute' | 'chronic' | 'data_quality';
+export type SyntheticScenario = 'step_increase' | 'ramp_increase' | 'production_drop' | 'data_fault';
+export type DataFaultKind = 'outage' | 'freeze' | 'spike';
+
+export type ReasonCode =
+  | 'DAILY_EXCESS_Z'
+  | 'UPPER_BOUND_EXCEEDANCE'
+  | 'LOWER_BOUND_SHORTFALL'
+  | 'CONSECUTIVE_FLAGGED_DAYS'
+  | 'PERSISTENT_CUSUM'
+  | 'EXCESS_OVER_REFERENCE'
+  | 'SHORTFALL_BELOW_REFERENCE'
+  | 'DAYS_NOT_SCORED'
+  | 'MISSING_READINGS'
+  | 'FROZEN_READINGS';
+
+export type RecommendationCode =
+  | 'HVAC_PERSISTENT_INCREASE'
+  | 'REFRIGERATOR_PERSISTENT_INCREASE'
+  | 'SOLAR_PRODUCTION_SHORTFALL'
+  | 'DATA_SOURCE_CHECK';
+
+/** Thresholds the detector used and where they come from (shown to users). */
+export interface DetectorSettings {
+  version: string;
+  acute: { z_threshold: number; exceedance_share_threshold: number; consecutive_days: number };
+  chronic: { k: number; h: number; positive_days: number; window_days: number };
+  data_issue: { consecutive_days: number };
+  threshold_provenance: string;
+}
+
+/** One modelled family in the run: which circuit, how many households, what the reference depends on. */
+export interface FamilyRun {
+  family: EvidenceFamily;
+  circuit: EvidenceCircuit;
+  households: number;
+  /** e.g. "outdoor_temperature,hour", "own_june_profile,hour_of_week", "clear_sky_irradiance,capacity" */
+  expected_from: string;
+  /** Overrides run.detector.threshold_provenance when this family's thresholds were set differently. */
+  threshold_provenance: string | null;
+}
+
+export interface SyntheticPlan {
+  plan_id: string;
+  generator_version: string;
+  seed: number;
+  scenarios: {
+    family?: EvidenceFamily;
+    scenario: SyntheticScenario;
+    fault_kind: DataFaultKind | null;
+    severity: number | null;
+    duration_days: number;
+  }[];
+}
+
+export interface EvidenceRun {
+  run_id: string;
+  source_run: string;
+  dataset_id: string;
+  protocol_version: string;
+  model: 'B0' | 'B1';
+  replay_window: { split: 'development'; start_local_date: string; end_local_date: string };
+  unit: 'source_unit_unverified';
+  households: number;
+  /** v0.2; a v0.1 file is read as one HVAC family on air1. */
+  families: FamilyRun[];
+  detector: DetectorSettings;
+  synthetic_plan: SyntheticPlan | null;
+}
+
+export interface ScenarioResult {
+  family?: EvidenceFamily;
+  scenario: SyntheticScenario;
+  fault_kind: DataFaultKind | null;
+  severity: number | null;
+  duration_days: number;
+  injected: number;
+  detected: number;
+  median_delay_days: number | null;
+}
+
+export interface EvidenceEvaluation {
+  clean_household_days: number;
+  false_cases_on_clean_data: number;
+  synthetic_cases: number;
+  synthetic_detected: number;
+  by_scenario: ScenarioResult[];
+  data_faults_caught_by_quality_gate: number;
+}
+
+/** One case as listed in index.json. */
+export interface EvidenceCaseSummary {
+  case_id: string;
+  origin: EvidenceOrigin;
+  household_id: number;
+  family: EvidenceFamily;
+  circuit: EvidenceCircuit;
+  kind: EvidenceKind;
+  detectors: DetectorName[];
+  onset_local_date: string;
+  detected_local_date: string;
+  last_local_date: string;
+  flagged_days: number;
+  /** observed / reference − 1 over the flagged days (negative for a production shortfall); null when not computed. */
+  excess_share: number | null;
+  upper_exceedance_share: number | null;
+  /** v0.2: share of valid slots below the calibrated lower bound on the flagged days (production shortfall). */
+  lower_shortfall_share?: number | null;
+  rank: number;
+  rank_basis: string;
+  priority: 1 | 2 | 3;
+  recommendation_code: RecommendationCode;
+}
+
+export interface EvidenceIndex {
+  schema_version: EvidenceSchemaVersion;
+  generated_at_utc: string;
+  /** True only for the committed synthetic fixtures. */
+  fixture: boolean;
+  run: EvidenceRun;
+  evaluation: EvidenceEvaluation | null;
+  cases: EvidenceCaseSummary[];
+}
+
+export interface SyntheticInjection {
+  scenario: SyntheticScenario;
+  fault_kind: DataFaultKind | null;
+  severity: number | null;
+  duration_days: number;
+  start_local_date: string;
+  seed: number;
+  generator_version: string;
+}
+
+export interface DailyEvidence {
+  local_date: string;
+  scored: boolean;
+  not_scored_reason: string | null;
+  valid_slots: number;
+  expected_slots: number;
+  /** 0.25 × Σ observed over valid slots, in source unit × hours (never kWh). */
+  observed_unit_hours: number | null;
+  /** 0.25 × Σ q50 over the same slots: the model reference. */
+  reference_unit_hours: number | null;
+  excess_share: number | null;
+  upper_exceedance_share: number | null;
+  lower_shortfall_share?: number | null;
+  z: number | null;
+  cusum: number | null;
+  flagged: boolean;
+  max_temperature_c: number | null;
+}
+
+export interface EvidenceSeriesPoint {
+  ts_utc: string;
+  observed: number | null;
+  reference: number | null;
+  lower: number | null;
+  upper: number | null;
+  temperature_c: number | null;
+  scored: boolean;
+}
+
+export interface EvidenceReason {
+  code: ReasonCode;
+  value: number | null;
+}
+
+/** The full evidence of one case (cases/<case_id>.json). */
+export interface EvidenceCase extends EvidenceCaseSummary {
+  schema_version: EvidenceSchemaVersion;
+  synthetic: SyntheticInjection | null;
+  daily: DailyEvidence[];
+  series: EvidenceSeriesPoint[];
+  reasons: EvidenceReason[];
+  recommendation: { code: RecommendationCode; library_version: string };
+}
+
+/* ── console → ML ─────────────────────────────────────── */
+
+export type ChangeKind = 'new_device' | 'repair' | 'usage_change' | 'other';
+
+/**
+ * A change in a household that explains a deviation (e.g. "I had a new air conditioner installed").
+ * The console exports these (GET /api/v1/changes); the next detector run re-learns the reference
+ * of that circuit from local_date and raises no case for the re-learning period.
+ */
+export interface ChangeNotice {
+  id: string;
+  household_id: number;
+  family: EvidenceFamily | null;
+  circuit: EvidenceCircuit | null;
+  kind: ChangeKind;
+  /** Day the change took effect, in household local time; for the replay it lies in the replay window. */
+  local_date: string;
+  source: 'resident' | 'operator';
+  case_id: string | null;
+  note: string | null;
+  recorded_at_utc: string;
+}

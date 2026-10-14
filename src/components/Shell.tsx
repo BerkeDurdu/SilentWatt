@@ -50,7 +50,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       <main className="main" id="main">
         <div className="scope">
-          <span className="tag">{t('exampleData')}</span>
+          <span className="tag">{t(me.fixture ? 'tagFixture' : 'tagRun')}</span>
           <span><Icon name="eye" />{me.scopeNote}</span>
         </div>
         {children}

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
+import type { EvidenceOrigin } from '../../shared/evidence';
 import type { CaseStatus, Priority as PriorityLevel } from '../../shared/types';
 import type { ApiError } from '../api';
 import { useI18n } from '../i18n';
@@ -7,6 +8,13 @@ import { useI18n } from '../i18n';
 export function StatusPill({ status }: { status: CaseStatus }) {
   const { t } = useI18n();
   return <span className={`pill st-${status}`}>{t(`status_${status}`)}</span>;
+}
+
+/** A synthetic case shows what it is instead of a workflow status: nobody acts on it. */
+export function CaseState({ status, origin }: { status: CaseStatus; origin: EvidenceOrigin }) {
+  const { t } = useI18n();
+  if (origin === 'synthetic') return <span className="pill syn">{t('originSynthetic')}</span>;
+  return <StatusPill status={status} />;
 }
 
 /** A small step: the taller it is, the higher the priority. */
