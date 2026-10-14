@@ -1,8 +1,11 @@
-"""Evidence files of the contract silentwatt.evidence/0.1 (docs/architecture/evidence-contract.md).
+"""Evidence files of the contract silentwatt.evidence/0.2 (docs/architecture/evidence-contract.md).
 
 build_case turns one detected case into the case file; validate_case checks a case file
 against the contract rules before anything is written. Missing values are written as JSON
 null, never as 0, and no date may leave the replay window.
+
+v0.2 adds device families: hvac (air1), refrigeration (refrigerator1) and solar (solar), and the
+production_shortfall kind for solar. HVAC callers that pass no family write the same case as before.
 """
 from __future__ import annotations
 
@@ -13,16 +16,33 @@ from pathlib import Path
 
 import pandas as pd
 
-SCHEMA_VERSION = "silentwatt.evidence/0.1"
-LIBRARY_VERSION = "rec-0.1"
-RANK_BASIS = "excess_unit_hours_desc,flagged_days_desc,case_id_asc"
+SCHEMA_VERSION = "silentwatt.evidence/0.2"
+LIBRARY_VERSION = "rec-0.2"
+RANK_BASIS = "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc"
 DETECTOR_SUFFIX = {"acute": "ACU", "chronic": "CHR", "data_quality": "DQ"}
-RECOMMENDATION_BY_KIND = {"consumption_deviation": "HVAC_PERSISTENT_INCREASE", "data_issue": "DATA_SOURCE_CHECK"}
-REASON_CODES = {"DAILY_EXCESS_Z", "UPPER_BOUND_EXCEEDANCE", "CONSECUTIVE_FLAGGED_DAYS", "PERSISTENT_CUSUM",
-                "EXCESS_OVER_REFERENCE", "DAYS_NOT_SCORED", "MISSING_READINGS", "FROZEN_READINGS"}
+FAMILIES = {
+    "hvac": {"circuit": "air1", "prefix": "HVAC"},
+    "refrigeration": {"circuit": "refrigerator1", "prefix": "REF"},
+    "solar": {"circuit": "solar", "prefix": "SOL"},
+}
+KINDS = {"consumption_deviation", "production_shortfall", "data_issue"}
+RECOMMENDATIONS = {
+    ("hvac", "consumption_deviation"): "HVAC_PERSISTENT_INCREASE",
+    ("refrigeration", "consumption_deviation"): "REFRIGERATOR_PERSISTENT_INCREASE",
+    ("solar", "production_shortfall"): "SOLAR_PRODUCTION_SHORTFALL",
+}
+
+
+def recommendation_for(family: str, kind: str) -> str | None:
+    """The rec-0.2 code of a case; a data issue is never a device signal, whatever the family."""
+    return "DATA_SOURCE_CHECK" if kind == "data_issue" else RECOMMENDATIONS.get((family, kind))
+REASON_CODES = {"DAILY_EXCESS_Z", "UPPER_BOUND_EXCEEDANCE", "LOWER_BOUND_SHORTFALL", "CONSECUTIVE_FLAGGED_DAYS",
+                "PERSISTENT_CUSUM", "EXCESS_OVER_REFERENCE", "SHORTFALL_BELOW_REFERENCE", "DAYS_NOT_SCORED",
+                "MISSING_READINGS", "FROZEN_READINGS"}
 SUMMARY_FIELDS = ["case_id", "origin", "household_id", "family", "circuit", "kind", "detectors",
                   "onset_local_date", "detected_local_date", "last_local_date", "flagged_days", "excess_share",
-                  "upper_exceedance_share", "rank", "rank_basis", "priority", "recommendation_code"]
+                  "upper_exceedance_share", "lower_shortfall_share", "rank", "rank_basis", "priority",
+                  "recommendation_code"]
 # Days of context shown before the onset and after the last flagged day.
 SERIES_DAYS_BEFORE = 3
 SERIES_DAYS_AFTER = 1
@@ -38,8 +58,9 @@ def json_number(value, digits: int = 4):
     return round(value, digits)
 
 
-def case_id(household_id: int, onset: str, detectors: list[str], origin: str) -> str:
-    prefix = "SW-SYN-HVAC" if origin == "synthetic" else "SW-HVAC"
+def case_id(household_id: int, onset: str, detectors: list[str], origin: str, family: str = "hvac") -> str:
+    family_prefix = FAMILIES[family]["prefix"]
+    prefix = f"SW-SYN-{family_prefix}" if origin == "synthetic" else f"SW-{family_prefix}"
     suffix = "-".join(DETECTOR_SUFFIX[name] for name in detectors)
     return f"{prefix}-{household_id:04d}-{onset.replace('-', '')}-{suffix}"
 
@@ -50,25 +71,32 @@ def _shift(day: str, days: int) -> str:
 
 def build_case(household_id: int, case: dict, daily_table: pd.DataFrame, slots: pd.DataFrame, origin: str,
                synthetic: dict | None, rank: int, priority: int, replay_window: dict,
-               excess_reference_floor: float) -> dict:
+               excess_reference_floor: float, family: str = "hvac") -> dict:
     """The case file of one detected case.
 
-    daily_table: the household's daily table with z, cusum and flagged columns.
+    daily_table: the household's daily table with z, cusum and flagged columns; for solar also
+    lower_shortfall_slots (valid slots below the calibrated lower bound).
     slots: the household's prediction rows (development), used for the chart series.
     """
     development = daily_table.loc[daily_table["split"].eq("development")].sort_values("local_date")
     in_window = development["local_date"].between(case["onset"], case["last"])
     window = development.loc[in_window]
 
-    if case["kind"] == "consumption_deviation":
+    lower_share = None
+    if case["kind"] in ("consumption_deviation", "production_shortfall"):
         flagged = window.loc[window["flagged"].astype(bool) & window["scored"].astype(bool)]
         flagged_days = int(len(flagged))
         observed = flagged["observed_unit_hours"].sum()
         reference = flagged["reference_unit_hours"].sum()
         excess_share = observed / reference - 1 if reference >= excess_reference_floor else None
         used = flagged["used_slots"].sum()
-        upper_share = flagged["upper_exceedance_slots"].sum() / used if used else None
-        reasons = _consumption_reasons(case, flagged, development, excess_share, upper_share)
+        if case["kind"] == "consumption_deviation":
+            upper_share = flagged["upper_exceedance_slots"].sum() / used if used else None
+            reasons = _consumption_reasons(case, flagged, development, excess_share, upper_share)
+        else:
+            upper_share = None
+            lower_share = flagged["lower_shortfall_slots"].sum() / used if used else None
+            reasons = _shortfall_reasons(case, flagged, development, excess_share, lower_share)
     else:
         flagged_days = int(len(window))
         excess_share = None
@@ -76,11 +104,11 @@ def build_case(household_id: int, case: dict, daily_table: pd.DataFrame, slots: 
         reasons = _data_issue_reasons(window, slots, case)
 
     summary = {
-        "case_id": case_id(household_id, case["onset"], case["detectors"], origin),
+        "case_id": case_id(household_id, case["onset"], case["detectors"], origin, family),
         "origin": origin,
         "household_id": int(household_id),
-        "family": "hvac",
-        "circuit": "air1",
+        "family": family,
+        "circuit": FAMILIES[family]["circuit"],
         "kind": case["kind"],
         "detectors": list(case["detectors"]),
         "onset_local_date": case["onset"],
@@ -89,10 +117,11 @@ def build_case(household_id: int, case: dict, daily_table: pd.DataFrame, slots: 
         "flagged_days": flagged_days,
         "excess_share": json_number(excess_share),
         "upper_exceedance_share": json_number(upper_share),
+        "lower_shortfall_share": json_number(lower_share),
         "rank": int(rank),
         "rank_basis": RANK_BASIS,
         "priority": int(priority),
-        "recommendation_code": RECOMMENDATION_BY_KIND[case["kind"]],
+        "recommendation_code": recommendation_for(family, case["kind"]),
     }
     return {
         "schema_version": SCHEMA_VERSION,
@@ -126,6 +155,26 @@ def _consumption_reasons(case: dict, flagged: pd.DataFrame, development: pd.Data
     return reasons
 
 
+def _shortfall_reasons(case: dict, flagged: pd.DataFrame, development: pd.DataFrame,
+                       excess_share, lower_share) -> list[dict]:
+    """Production below the reference (solar): the mirror of _consumption_reasons."""
+    reasons = []
+    if lower_share is not None:
+        reasons.append({"code": "LOWER_BOUND_SHORTFALL", "value": json_number(lower_share)})
+    if "acute" in case["detectors"]:
+        reasons.append({"code": "CONSECUTIVE_FLAGGED_DAYS", "value": int(len(flagged))})
+    if "chronic" in case["detectors"]:
+        in_case = development["local_date"].between(case["onset"], case["last"])
+        reasons.append({"code": "PERSISTENT_CUSUM", "value": json_number(development.loc[in_case, "cusum"].max(), 2)})
+    if excess_share is not None:
+        reasons.append({"code": "SHORTFALL_BELOW_REFERENCE", "value": json_number(excess_share)})
+    context = development["local_date"].between(_shift(case["onset"], -SERIES_DAYS_BEFORE), case["last"])
+    not_scored = int((~development.loc[context, "scored"].astype(bool)).sum())
+    if not_scored:
+        reasons.append({"code": "DAYS_NOT_SCORED", "value": not_scored})
+    return reasons
+
+
 def _data_issue_reasons(window: pd.DataFrame, slots: pd.DataFrame, case: dict) -> list[dict]:
     missing_share = 1 - window["valid_slots"].sum() / window["expected_slots"].sum()
     reasons = [{"code": "MISSING_READINGS", "value": json_number(missing_share)}]
@@ -149,6 +198,7 @@ def _daily_row(row: pd.Series) -> dict:
         "reference_unit_hours": json_number(row["reference_unit_hours"], 3),
         "excess_share": json_number(row["excess_share"]),
         "upper_exceedance_share": json_number(row["upper_exceedance_share"]),
+        "lower_shortfall_share": json_number(row.get("lower_shortfall_share")),
         "z": json_number(row["z"], 2),
         "cusum": json_number(row["cusum"], 2),
         "flagged": bool(row["flagged"]),
@@ -194,10 +244,16 @@ def validate_case(case: dict, replay_window: dict, timezone: str = "America/Chic
         errors.append("synthetic details must be present exactly for synthetic cases")
     if case["origin"] == "synthetic" and not case["case_id"].startswith("SW-SYN-"):
         errors.append("synthetic case_id must start with SW-SYN-")
-    if case["kind"] not in RECOMMENDATION_BY_KIND:
+    if case["family"] not in FAMILIES:
+        errors.append(f"unknown family {case['family']!r}")
+    elif case["circuit"] != FAMILIES[case["family"]]["circuit"]:
+        errors.append(f"circuit {case['circuit']!r} does not belong to {case['family']}")
+    if case["kind"] not in KINDS:
         errors.append(f"unknown kind {case['kind']!r}")
-    elif case["recommendation_code"] != RECOMMENDATION_BY_KIND[case["kind"]]:
-        errors.append("recommendation does not match the kind")
+    elif case["family"] in FAMILIES and recommendation_for(case["family"], case["kind"]) is None:
+        errors.append(f"{case['family']} has no {case['kind']} cases")
+    elif case["family"] in FAMILIES and case["recommendation_code"] != recommendation_for(case["family"], case["kind"]):
+        errors.append("recommendation does not match the family and kind")
     if any(name not in DETECTOR_SUFFIX for name in case["detectors"]):
         errors.append("unknown detector")
     if any(reason["code"] not in REASON_CODES for reason in case["reasons"]):
