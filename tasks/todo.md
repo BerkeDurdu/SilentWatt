@@ -235,6 +235,9 @@ okumaz; gerekçe ve öneri kodları v0.1'de dondurulur.
       Durum (7 Ekim): 14 commit dalında (`worktree-agent-a45223e274b9dab5b`), agent raporuna göre
       124 test geçiyor; p1-v2 deneme koşusu `artifacts/detector-dev-2026-10-06/run03/`. Reviewer
       oturum kapanırken durduruldu; sonraki oturumda yeniden başlatılır, sonra birleştirme.
+      Birleştirmede: dal `acute_candidates`, `cusum_series` ve `data_issue_candidates`'a zorunlu
+      `split=` ekliyor; `make_evidence_fixtures.py` bu üç çağrıya `split="development"` almalı
+      (`test_evidence_fixtures.py` aksi hâlde merge gate'te kırılır).
 - [ ] Yusuf'un kararını bekleyen 7 konu (öneriler parantez içinde): (1) Temmuz'da mevsim
       kayması, 10 hanede 12 vaka (MVP'de olduğu gibi raporla, sınırlama; mevsime duyarlı referans
       30 Ekim); (2) eşik ızgarası ve yapı ayarları (onay; en hassas uca z 1,0 / pay 0,05 ekle);
