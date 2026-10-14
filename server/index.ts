@@ -9,6 +9,11 @@ import {
   notificationsFor, overview, recordResult, report, reportCsv, requestPage, reviewCase, submitRequest, team,
   toDetail, toMe, updateUser, usersData, type CaseRecord,
 } from './store';
+import { db, transaction } from './db';
+import { getCircuitQualitySummary, ingestReadingsWindow, ingestWeatherObservations } from './qualityGates';
+import { enrichTimeSeries } from './features';
+import { getEvidencePackage, runDiagnosisForEvent } from './diagnosis';
+import { evaluateDispatchEconomics, executeOperatorDecision, runTriage } from './decision';
 
 const PROD = process.argv.includes('--prod');
 // In development the Vite proxy expects 3001; a host-provided PORT only applies to the production server.
@@ -186,7 +191,151 @@ api.patch('/users/:id', requireScreen('users'), requireCapability('users.manage'
   res.json(result.user);
 });
 
+/* ── M1 & M2: Veri Alım, Kalite Kapıları ve Öznitelikler ───── */
+
+api.post('/v1/ingest/readings', (req, res) => {
+  const readings = Array.isArray(req.body?.readings) ? req.body.readings : [];
+  if (readings.length === 0) {
+    return void res.status(400).json({ error: 'invalid_readings_array' });
+  }
+  const result = ingestReadingsWindow(readings, req.body?.options ?? {});
+  res.json(result);
+});
+
+api.post('/v1/ingest/weather', (req, res) => {
+  const observations = Array.isArray(req.body?.observations) ? req.body.observations : [];
+  if (observations.length === 0) {
+    return void res.status(400).json({ error: 'invalid_observations_array' });
+  }
+  const count = ingestWeatherObservations(observations);
+  res.json({ ok: true, count });
+});
+
+api.get('/v1/circuits/:id/quality', (req, res) => {
+  const summary = getCircuitQualitySummary(String(req.params.id));
+  res.json(summary);
+});
+
+api.get('/v1/circuits/:id/features', (req, res) => {
+  const circuitId = String(req.params.id);
+  const rows = db.prepare(`
+    SELECT r.ts, r.power_kw as powerKw, w.temp_c as tempC, w.rel_humidity as relHumidity, w.ghi
+    FROM reading r
+    LEFT JOIN weather_obs w ON r.ts = w.ts
+    WHERE r.circuit_id = ?
+    ORDER BY r.ts ASC
+    LIMIT 200
+  `).all(circuitId) as any[];
+
+  const features = enrichTimeSeries(rows);
+  res.json({ circuitId, count: features.length, features });
+});
+
+/* ── M5: Teşhis, İmza Kütüphanesi ve Kanıt Paketi ─────────── */
+
+api.post('/v1/cases/:id/diagnose', (req, res) => {
+  try {
+    const report = runDiagnosisForEvent(String(req.params.id));
+    res.json(report);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+api.get('/v1/cases/:id/evidence', (req, res) => {
+  const pkg = getEvidencePackage(String(req.params.id), langOf(req));
+  if (!pkg) return void notFound(res);
+  res.json(pkg);
+});
+
+api.get('/v1/signatures', (req, res) => {
+  const version = req.query.version ? String(req.query.version) : undefined;
+  const rows = version
+    ? db.prepare('SELECT * FROM signature_def WHERE version = ?').all(version)
+    : db.prepare('SELECT * FROM signature_def').all();
+  res.json(rows);
+});
+
+/* ── M6: Karar Akışı, Triyaj ve Deterministik Guardrail ───── */
+
+api.post('/v1/cases/:id/triage', (req, res) => {
+  try {
+    const result = runTriage(String(req.params.id));
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+api.get('/v1/cases/:id/economics', (req, res) => {
+  try {
+    const tariff = req.query.tariff ? Number(req.query.tariff) : undefined;
+    const dispatchCost = req.query.dispatchCost ? Number(req.query.dispatchCost) : undefined;
+    const horizonMonths = req.query.horizonMonths ? Number(req.query.horizonMonths) : undefined;
+    const result = evaluateDispatchEconomics(String(req.params.id), { tariff, dispatchCost, horizonMonths });
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+api.post('/v1/cases/:id/decision', requireCapability('case.assign'), (req, res) => {
+  try {
+    const decision = executeOperatorDecision(
+      String(req.params.id),
+      req.body ?? {},
+      req.user!
+    );
+    res.json(decision);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+api.post('/v1/work-orders/:id/label', (req, res) => {
+  const woId = String(req.params.id);
+  const outcome = req.body?.outcome;
+  if (!['confirmed', 'rejected', 'inconclusive'].includes(outcome)) {
+    return void res.status(400).json({ error: 'invalid_outcome' });
+  }
+  const actualFault = req.body?.actualFault || null;
+  const note = req.body?.note || null;
+  const time = new Date().toISOString();
+
+  const wo = db.prepare('SELECT * FROM work_order WHERE wo_id = ?').get(woId) as any;
+  const eventId = wo?.event_id ?? woId;
+
+  const labelId = `lbl-${Date.now()}`;
+  transaction(() => {
+    db.prepare(`
+      INSERT INTO label (label_id, work_order_id, event_id, outcome, actual_fault, technician_note, closed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(labelId, woId, eventId, outcome, actualFault, note, time);
+
+    if (wo) {
+      db.prepare('UPDATE work_order SET status = ? WHERE wo_id = ?').run('closed', woId);
+    }
+
+    db.prepare('UPDATE event SET status = ? WHERE event_id = ?').run(
+      outcome === 'confirmed' ? 'verified' : outcome === 'rejected' ? 'dismissed' : 'closed',
+      eventId
+    );
+
+    db.prepare('INSERT INTO case_events (case_id, type, at, note) VALUES (?, ?, ?, ?)').run(
+      eventId,
+      outcome === 'confirmed' ? 'verified' : outcome === 'rejected' ? 'dismissed' : 'other',
+      time,
+      note || `Saha sonucu: ${outcome}`
+    );
+  });
+
+  res.json({ ok: true, labelId, outcome, closedAt: time });
+});
+
 api.use((_req, res) => notFound(res));
+
+
+
 app.use('/api', api);
 
 if (PROD) {

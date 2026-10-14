@@ -1,0 +1,130 @@
+================================================================================
+SILENTWATT - BACKEND GELİŞTİRME VE MİMARİ DEĞİŞİKLİK RAPORU
+Tarih: 14 Ekim 2026
+Referans Doküman: SilentWatt PRD v0.9 (Faz 1 · MVP Şartnamesi)
+Geliştirici Rolü: Backend Ekibi
+================================================================================
+
+1. GENEL ÖZET
+--------------------------------------------------------------------------------
+SilentWatt projesinin backend katmanı, PRD v0.9 ürün ve sistem şartnamesine uygun 
+olarak in-memory (RAM) mock yapıdan; kalıcı, endüstriyel standartta, PRD veri modeline 
+tam uyumlu SQLite veritabanına taşınmış ve M1, M2, M5, M6 modülleri uçtan uca 
+çalışır vaziyette inşa edilmiştir.
+
+
+2. OLUŞTURULAN YENİ MODÜLLER VE DOSYALAR
+--------------------------------------------------------------------------------
+* server/db.ts:
+  - Node 22 yerleşik 'node:sqlite' motoru ile sıfır dış bağımlılıklı SQLite entegrasyonu.
+  - WAL (Write-Ahead Logging) modu ile yüksek eşzamanlılık ve Foreign Key desteği.
+  - PRD Bölüm 3.2'deki tüm tablolar eksiksiz oluşturuldu:
+    * Ölçüm Tarafı: household, circuit, reading, weather_obs
+    * Model & İmza Tarafı: model_version, calibration_profile, signature_def
+    * Karar Tarafı: event, triage, diagnosis, hypothesis, work_order, label
+    * Operasyon & Müşteri: users, case_events, technician_messages, customers, customer_requests
+  - Başlangıç tohumlama (seeding): 5 demo kullanıcısı, 9 vaka, 6 arıza imzası, model sürümleri.
+
+* server/qualityGates.ts (PRD M1 Modülü):
+  - FR-101: 15 dakikalık ve 1 dakikalık ölçüm penceresi alımı.
+  - FR-102: Kalite kapısı kontrolleri:
+    * Eksik veri oranı kontrolü (missingRatio <= %5)
+    * Donmuş sensör kontrolü (stuck sensor: 60 ardışık sabit değer tespiti)
+    * Fiziksel sınır kontrolü (out of bounds: aşırı güç sıçramaları ve negatif tüketim)
+  - FR-103: Kalite kapısını geçemeyen pencerelerin 'data_fault' olarak etiketlenip 
+    otomatik veri arızası olayına (event/triage) dönüştürülmesi.
+  - FR-104: Harici hava durumu gözlemleri (sıcaklık, nem, GHI, POA ışınımı) alımı.
+
+* server/features.ts (PRD M2 Modülü):
+  - FR-105: Türetilmiş öznitelik mühendisliği:
+    * Soğutma Derece-Günü (CDD = max(0, T - 18°C)) ve Isıtma Derece-Günü (HDD = max(0, 18°C - T))
+    * Takvim öznitelikleri (saat, gün, haftasonu, döngüsel sin/cos saat bileşenleri)
+    * Gecikmeli değerler (lag1, lag4, lag96) ve 4 saatlik hareketli istatistikler (rollingMean, rollingStd)
+
+* server/diagnosis.ts (PRD M5 Modülü):
+  - FR-301: Devre ayrıştırması (toplam sapmanın alt devrelere yüzdesel katkı dağılımı, toplam = %100).
+  - FR-302: 1-dakikalık davranış imzaları çıkarımı:
+    * Çalışma oranı (duty cycle)
+    * Saatlik çevrim frekansı (cycles per hour)
+    * Ortalama açık kalma süresi (mean run time)
+    * Derece-gün başına çalışma süresi (runtime per degree-day)
+    * Basamak (step) vs kademeli sürüklenme (drift) tespiti
+  - FR-303 & FR-305: signature_def tablosuyla kütüphane eşleştirme, güven skoru hesaplama,
+    destekleyen/karşı kanıtlar üretimi ve sıralı hipotez listesi.
+  - FR-502: Operatör kanıt paketi oluşturma servisi.
+
+* server/decision.ts (PRD M6 Modülü):
+  - FR-401: Açık durumlu durum makinesi (new -> triaged -> diagnosed -> dispatched -> closed).
+  - FR-402: Erken çıkış yolları (veri hatası veya bölgesel eşzamanlı şebeke/hava olaylarında otomatik eleme).
+  - FR-405: Deterministik ekonomik sevk analizi:
+    * Formül: Beklenen Tasarruf = Yıllık Kayıp (kWh) * Tarife (TL) * Güven Skoru - Sevk Maliyeti
+    * Değişmez kural: Negatif beklenen faydalı hiçbir vaka sevk edilemez.
+  - FR-406: İnsan onayı guardrail'ı (maliyetli saha sevki sadece operatör onayıyla 'work_order' üretir).
+  - FR-601: Saha teknisyeni teyit/ret sonucu etiketleme döngüsü (label kaydı).
+
+* server/seedPecanStreet.ts:
+  - Pecan Street 2018 formatında sentetik zaman serisi ölçümleri ve hava durumu gözlemleri üreticisi.
+  - Kalite kapısı doğrulama testleri (sağlıklı pencere, donmuş sensör penceresi, eksik veri penceresi).
+
+* docs/SilentWatt-PRD-v0.9.md:
+  - Ürün ve sistem şartnamesi proje dokümantasyonuna eklendi.
+
+
+3. GÜNCELLENEN MEVCUT DOSYALAR
+--------------------------------------------------------------------------------
+* server/store.ts:
+  - Bellek içi (RAM) değişkenler yerine doğrudan SQLite veritabanına bağlı CRUD katmanı.
+  - Tüm okuma ve yazma işlemlerinde atomik SQLite transaction'ları kullanıldı.
+  - Kullanıcı, oturum, ekran maskeleme (ilçe/mahalle/tam adres) yetki mimarisi korundu.
+
+* server/index.ts:
+  - PRD Bölüm 3.3 REST API sözleşmelerine uygun yeni uçlar eklendi:
+    * POST /api/v1/ingest/readings
+    * POST /api/v1/ingest/weather
+    * GET  /api/v1/circuits/:id/quality
+    * GET  /api/v1/circuits/:id/features
+    * POST /api/v1/cases/:id/diagnose
+    * GET  /api/v1/cases/:id/evidence
+    * GET  /api/v1/signatures
+    * POST /api/v1/cases/:id/triage
+    * GET  /api/v1/cases/:id/economics
+    * POST /api/v1/cases/:id/decision
+    * POST /api/v1/work-orders/:id/label
+
+* shared/types.ts:
+  - CaseStatus tipine 'triaged' ve 'diagnosed' durumları eklendi.
+
+* src/dict.ts, src/format.ts, src/styles.css:
+  - Yeni vaka durumları için arayüz etiketleri, renk stilleri ve açık vaka mantığı güncellendi.
+
+* .gitignore:
+  - SQLite veritabanı dosyaları (silentwatt.db, wal, shm) git geçmişine girmemesi için eklendi.
+
+
+4. TEST VE DOĞRULAMA ÇIKTILARI
+--------------------------------------------------------------------------------
+1. Veritabanı Kalıcılığı:
+   - Operatör girişi, vaka ataması ve durum güncellemeleri SQLite 'event', 'case_events' 
+     ve 'technician_messages' tablolarına atomik olarak yazıldı ve sunucu yeniden 
+     başlatıldığında verinin korunduğu doğrulandı.
+
+2. Kalite Kapıları Testi:
+   - 672 ölçümlük sağlıklı seri 'valid' olarak kabul edildi.
+   - 66 ardışık sabit ölçüm 'Donmuş sensör' olarak yakalandı ve 'data_fault' olayı üretildi.
+   - %16.7 eksik veri 'Eksik veri oranı' kuralıyla yakalandı ve 'data_fault' olayı üretildi.
+
+3. Teşhis ve Hipotez Testi (SW-F-24817):
+   - %100 devre ayrıştırması, davranış imzaları çıkarıldı.
+   - Sıralı hipotezler (Top-1: Hava debisi kısıtı, Top-2: Düşük soğutucu şarjı) kanıtlarıyla üretildi.
+
+4. Karar ve Ekonomik Sevk Testi (SW-F-24809):
+   - Triyaj adımı: verdict 'valid', nextStatus 'triaged'.
+   - Ekonomik analiz: 204 kWh aylık kayıp -> 2.433 TL kurtarılabilir değer, 650 TL sevk maliyeti 
+     -> +1.783,30 TL net fayda (ROI: 3.74x) -> 'dispatch_recommended'.
+   - İnsan onayıyla iş emri (WO-24809-MV8GDT90) oluşturuldu ve teknisyene sevk edildi.
+   - Saha teknisyeni etiket kaydı: 'confirmed' ("Yedek ısıtıcı rölesi takılı kalmış, değiştirildi.") 
+     ile vaka 'verified' olarak kapatıldı.
+
+5. TypeScript Tip Güvenliği:
+   - 'npm run typecheck' komutu sıfır hata ile tamamlandı.
+================================================================================

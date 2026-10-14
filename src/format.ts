@@ -21,4 +21,4 @@ export const signedPct = (n: number) => `${n > 0 ? '+' : '−'}${pct(Math.abs(n)
 export const dateTime = (iso: string) =>
   new Intl.DateTimeFormat(locale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 
-export const isOpenStatus = (s: CaseStatus) => s === 'new' || s === 'review' || s === 'assigned';
+export const isOpenStatus = (s: CaseStatus) => s === 'new' || s === 'review' || s === 'assigned' || s === 'triaged' || s === 'diagnosed';

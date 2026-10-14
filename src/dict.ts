@@ -22,6 +22,8 @@ export const DICT = {
   consoleName: { tr: 'Operasyon Konsolu', en: 'Operations Console' },
 
   status_new: { tr: 'Yeni', en: 'New' },
+  status_triaged: { tr: 'Triyaj Yapıldı', en: 'Triaged' },
+  status_diagnosed: { tr: 'Teşhis Edildi', en: 'Diagnosed' },
   status_review: { tr: 'İncelemede', en: 'In review' },
   status_assigned: { tr: 'Atandı', en: 'Assigned' },
   status_verified: { tr: 'Doğrulandı', en: 'Confirmed' },
