@@ -60,6 +60,7 @@ Kurallar:
 | `SILENTWATT_LLM_BASE_URL` | `ollama` için `http://127.0.0.1:11434/v1` | `/chat/completions` ve `/models` uçlarının kökü |
 | `SILENTWATT_LLM_MODEL` | `ollama` için `qwen2.5:7b` | Model adı (ör. ModelArts'ta Qwen veya DeepSeek modelinin adı) |
 | `SILENTWATT_LLM_API_KEY` | — | Bulut model için API anahtarı (`Authorization: Bearer`); yereldeki Ollama istemez |
+| `SILENTWATT_LLM_WARM` | `on` | `off`: açılışta vaka özetleri önceden yazılmaz |
 | `SILENTWATT_LLM_TIMEOUT_MS` | `120000` | Tek bir model çağrısının süre sınırı |
 | `PORT` / `API_PORT` | `3001` | Canlıda `PORT`, geliştirmede `API_PORT` |
 
