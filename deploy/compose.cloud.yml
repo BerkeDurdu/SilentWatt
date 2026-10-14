@@ -1,0 +1,67 @@
+# Production run on one cloud VM (Huawei Cloud ECS), PRD §6.1: console + PostgreSQL + TLS proxy.
+#   cd deploy && cp .env.example .env   (fill it in)
+#   docker compose -f compose.cloud.yml --profile localdb up -d     # PostgreSQL on the same VM
+# With a managed database (RDS for PostgreSQL / GaussDB), set SILENTWATT_DATABASE_URL in .env and
+# leave the profile out:  docker compose -f compose.cloud.yml up -d
+services:
+  console:
+    image: ${SILENTWATT_IMAGE:-silentwatt-console:latest}
+    build: ..
+    env_file: .env
+    environment:
+      SILENTWATT_DATABASE_URL: ${SILENTWATT_DATABASE_URL:-postgres://silentwatt:${POSTGRES_PASSWORD}@db:5432/silentwatt}
+      SILENTWATT_USERS_FILE: /config/users.json
+      SILENTWATT_EVIDENCE_DIR: ${SILENTWATT_EVIDENCE_DIR:-/evidence}
+      SILENTWATT_TRUST_PROXY: uniquelocal
+      SILENTWATT_COOKIE_SECURE: "on"
+    volumes:
+      - ./users.json:/config/users.json:ro
+      - ${SILENTWATT_EVIDENCE_HOST_DIR:-/srv/silentwatt/evidence}:/evidence:ro
+    expose:
+      - "3001"
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  db:
+    image: postgres:16-alpine
+    profiles: [localdb]
+    environment:
+      POSTGRES_DB: silentwatt
+      POSTGRES_USER: silentwatt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U silentwatt -d silentwatt"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Terminates HTTPS. With a domain name Caddy gets and renews the certificate itself;
+  # SILENTWATT_SITE=:80 serves plain HTTP for a first check (then SILENTWATT_COOKIE_SECURE must be off).
+  proxy:
+    image: caddy:2-alpine
+    environment:
+      SILENTWATT_SITE: ${SILENTWATT_SITE:?set SILENTWATT_SITE in deploy/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - console
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

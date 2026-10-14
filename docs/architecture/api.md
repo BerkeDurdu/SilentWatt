@@ -43,6 +43,8 @@ Kurallar:
 | Değişken | Varsayılan | Anlamı |
 |---|---|---|
 | `SILENTWATT_EVIDENCE_DIR` | `shared/fixtures/evidence` | Gösterilecek dedektör çıktısı (`index.json` + `cases/`) |
+| `SILENTWATT_DATABASE_URL` | — | PostgreSQL (RDS for PostgreSQL, GaussDB veya compose `db`); verilirse durum dosyası yerine kullanılır |
+| `SILENTWATT_DATABASE_CA` | — | Yönetilen veritabanının CA sertifikası (TLS) |
 | `SILENTWATT_STATE_FILE` | `.data/console-state.json` (Docker: `/data/console-state.json`) | Konsol durumu; `off` bellekte tutar |
 | `SILENTWATT_USERS_FILE` | — | Gerçek hesaplar; canlıda demo hesapları kapalıyken zorunlu |
 | `SILENTWATT_DEMO_ACCOUNTS` | geliştirmede `on`, canlıda `off` | Ortak parolalı demo hesapları |
@@ -66,11 +68,10 @@ npm run hash-password -- u-ayse operator ayse@kurum.com.tr "Ayşe Yılmaz" < par
 
 ## Saklama
 
-Konsol durumu tek bir JSON dosyasıdır; her değişiklikten sonra geçici dosyaya yazılıp yeniden
+`SILENTWATT_DATABASE_URL` verilirse durum PostgreSQL'de `console_state` tablosunda tek satır (jsonb) olarak tutulur; yazmalar sıraya alınır, en son durum kazanır, kapanışta (`SIGTERM`) bekleyen yazma tamamlanır. Veritabanı yoksa konsol durumu tek bir JSON dosyasıdır; her değişiklikten sonra geçici dosyaya yazılıp yeniden
 adlandırılır, yarım dosya kalmaz. Yeniden başlatmada yalnızca hâlâ kanıtta bulunan vakalar ve hâlâ var
 olan kullanıcılar geri yüklenir; müşteri linkleri aynı kalır. Oturumlar bellekte tutulur, yeniden
-başlatmada kullanıcı tekrar giriş yapar. Geliştirmede baştan başlamak için `.data/` klasörünü silin. PRD §11.1'deki PostgreSQL şeması sonraki adımdır; değişiklik
-`server/persist.ts` içindeki iki fonksiyonla sınırlıdır.
+başlatmada kullanıcı tekrar giriş yapar. Geliştirmede baştan başlamak için `.data/` klasörünü silin. PRD §11.1'deki ayrıntılı tablo şeması (karar kaydı, kanıt anlık görüntüsü) sonraki adımdır; değişiklik `server/persist.ts` ile sınırlıdır.
 
 ## Docker
 
@@ -84,6 +85,8 @@ kalır, `HEALTHCHECK` `/api/health` uçunu yoklar. Gerçek kanıt ve hesap dosya
 `docker-compose.yml` içindeki yorumlu satırlarla salt okunur bağlanır. İnternete açmadan önce önüne
 TLS sonlandıran bir vekil (ör. Caddy) konur ve `SILENTWATT_COOKIE_SECURE` açık kalır.
 
+Bulut kurulumu (Huawei Cloud ECS, OBS, SWR, isteğe bağlı RDS; HTTPS vekili, yedekler): [deploy/huawei/README.md](../../deploy/huawei/README.md).
+
 ## Testler
 
 ```bash
@@ -91,5 +94,6 @@ npm test
 ```
 
 `server/test/`: sağlık ucu, yetki gizleme, CSRF, sentetik vakada işlem engeli, uçtan uca iş akışı ve
-kaydı, yeniden başlatmada geri yükleme, hesap dosyası, canlıda hesapsız açılmama, kanıt doğrulaması ve
-açıklama kalkanı. CI'da derlemeden sonra çalışır.
+kaydı, yeniden başlatmada geri yükleme, hesap dosyası, canlıda hesapsız açılmama, kanıt doğrulaması,
+açıklama kalkanı ve PostgreSQL deposu (`SILENTWATT_TEST_DATABASE_URL` verilince; CI'da bir postgres
+servisiyle). CI ayrıca Docker imajını derler, bulut compose dosyasını ve Terraform'u doğrular.
