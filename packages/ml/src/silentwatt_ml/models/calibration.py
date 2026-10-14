@@ -37,12 +37,41 @@ def calibrate(predictions: pd.DataFrame, settings: dict) -> dict:
     return result
 
 
+def calibrate_asymmetric(predictions: pd.DataFrame, settings: dict) -> dict:
+    """p1-v3: the lower and the upper bound are calibrated apart, each at alpha / 2.
+
+    Symmetric CQR takes one margin for both sides, so misses pile up above the band when the
+    model errs upward (Q-03). Here each side gets its own conformal margin (Romano et al. 2019,
+    asymmetric variant). A margin is never negative: the band does not shrink.
+    """
+    selected = predictions.loc[predictions['eligible']]
+    values = selected[['target', *QUANTILES]].to_numpy(dtype=float)
+    if not np.isfinite(values).all() or (values < 0).any():
+        raise ValueError('Calibration rows must be finite and nonnegative')
+    n, days = len(selected), int(selected['local_date'].nunique())
+    alpha = settings['alpha']
+    rank = math.ceil((n + 1) * (1 - alpha / 2))
+    result = {'status': 'calibration_pending', 'method': 'asymmetric', 'slots': n, 'days': days,
+              'alpha': alpha, 'rank': rank, 'qhat_lower': None, 'qhat_upper': None}
+    if n < settings['minimum_slots'] or days < settings['minimum_days'] or rank > n:
+        result['reason'] = 'insufficient_calibration_support'
+        return result
+    below = values[:, 1] - values[:, 0]   # how far the reading lies under q05
+    above = values[:, 0] - values[:, 3]   # how far it lies over q95
+    result.update(status='calibrated', reason='ok',
+                  qhat_lower=max(0.0, float(np.partition(below, rank - 1)[rank - 1])),
+                  qhat_upper=max(0.0, float(np.partition(above, rank - 1)[rank - 1])))
+    return result
+
+
 def apply_calibration(predictions: pd.DataFrame, profile: dict) -> pd.DataFrame:
     result = predictions.copy()
     result['lower'] = np.nan
     result['upper'] = np.nan
     result['calibration_status'] = profile['status']
     if profile['status'] == 'calibrated':
-        result['lower'] = (result['q05'] - profile['qhat']).clip(lower=0)
-        result['upper'] = result['q95'] + profile['qhat']
+        lower_margin = profile.get('qhat_lower', profile.get('qhat'))
+        upper_margin = profile.get('qhat_upper', profile.get('qhat'))
+        result['lower'] = (result['q05'] - lower_margin).clip(lower=0)
+        result['upper'] = result['q95'] + upper_margin
     return result

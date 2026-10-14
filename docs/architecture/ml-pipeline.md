@@ -22,7 +22,7 @@ leakage-safe feature table
               household/month development comparison
                     |
                     v
-            acute/chronic detection                [next milestone]
+            acute/chronic detection                silentwatt-ml detect
                     |
                     v
              versioned evidence JSON

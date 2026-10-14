@@ -134,6 +134,14 @@ const EXPECTED_FROM: Record<string, Text> = {
   'outdoor_temperature,hour': { tr: 'Dış sıcaklık ve saat', en: 'Outdoor temperature and hour' },
   'own_june_profile,hour_of_week': { tr: 'Haziran’daki kendi haftalık profili', en: 'Its own weekly profile in June' },
   'clear_sky_irradiance,capacity': { tr: 'Açık gök ışınımı ve panel kapasitesi', en: 'Clear-sky irradiance and panel capacity' },
+  'outdoor_temperature,hour,june_level,peers': {
+    tr: 'Dış sıcaklık ve saat; cihazın Haziran düzeyi ve komşu hanelerin aynı günkü ortak değişimi',
+    en: 'Outdoor temperature and hour; the device’s June level and the same day’s common shift of neighbouring households',
+  },
+  'neighbour_systems,capacity,june_level': {
+    tr: 'Panel kapasitesi ve aynı anda komşu sistemlerin üretimi; sistemin Haziran düzeyi',
+    en: 'Panel capacity and neighbouring systems at the same time; the system’s June level',
+  },
 };
 const expectedFromLabel = (code: string, l: Lang) => EXPECTED_FROM[code]?.[l] ?? code;
 const familyRun = (family: EvidenceFamily) => run.families.find((f) => f.family === family)!;
@@ -167,6 +175,27 @@ const SCENARIO_LABEL: Record<string, Text> = {
 };
 
 const scenarioLabel = (scenario: string, faultKind: string | null, l: Lang) => SCENARIO_LABEL[faultKind ?? scenario]?.[l] ?? scenario;
+/** A production drop lowers the readings: its severity reads as a negative share. */
+const signedSeverity = (scenario: string, severity: number | null) =>
+  severity === null ? null : scenario === 'production_drop' ? -severity : severity;
+
+/**
+ * Where the thresholds come from, in the reader's language. A detector run writes e.g.
+ * "june-calibrated: … acute z>1.5, share>0.1, 2 days; chronic k 1.0, h 5.0"; other texts pass through.
+ */
+function provenanceLabel(text: string | null | undefined, l: Lang): string {
+  if (!text) return '—';
+  if (!text.startsWith('june-calibrated')) return text;
+  const tr = l === 'tr';
+  const acute = text.match(/acute z>([\d.]+), share>([\d.]+), (\d+) days/);
+  const chronic = text.match(/chronic k ([\d.]+), h ([\d.]+)/);
+  const notMet = text.includes('budget not met');
+  if (!acute || !chronic) return tr ? 'Haziran’da alarm bütçesine göre seçildi' : 'Chosen on June within the alarm budget';
+  const share = (v: string) => (tr ? `%${Math.round(Number(v) * 100)}` : `${Math.round(Number(v) * 100)}%`);
+  return tr
+    ? `Haziran’da alarm bütçesine (aile başına ayda en çok 1 akut, 1 kronik vaka) uyan en hassas değerler: akut z > ${acute[1].replace('.', ',')}, aşım payı > ${share(acute[2])}, ${acute[3]} gün; kronik k ${chronic[1].replace('.', ',')}, h ${chronic[2].replace('.', ',')}${notMet ? ' · bütçe Haziran’da sağlanamadı' : ''}`
+    : `The most sensitive values inside the June alarm budget (at most 1 acute and 1 chronic case per family-month): acute z > ${acute[1]}, exceedance share > ${share(acute[2])}, ${acute[3]} days; chronic k ${chronic[1]}, h ${chronic[2]}${notMet ? ' · budget not met in June' : ''}`;
+}
 const householdLabel = (id: number, l: Lang) => `${l === 'tr' ? 'Hane' : 'Household'} ${id}`;
 
 function notScoredLabel(scored: boolean, reason: string | null, l: Lang): string | null {
@@ -531,7 +560,8 @@ function address(c: CaseRecord, level: AddressLevel) {
 }
 
 const nameOf = (id: string | null | undefined, l: Lang) => (id ? findUser(id)?.name ?? (l === 'tr' ? 'Bilinmeyen' : 'Unknown') : null);
-const firstCheck = (c: CaseRecord, l: Lang) => explainCase(c.evidence, l).recommendation.firstCheck;
+const explainOf = (e: EvidenceCase, l: Lang) => explainCase(e, l, familyRun(e.family).expected_from);
+const firstCheck = (c: CaseRecord, l: Lang) => explainOf(c.evidence, l).recommendation.firstCheck;
 
 export function toSummary(c: CaseRecord, u: User, l: Lang): CaseSummary {
   const e = c.evidence;
@@ -581,7 +611,7 @@ export function toDetail(c: CaseRecord, u: User, l: Lang): CaseDetail {
   const level = addressLevel(u);
   const actionable = !isSynthetic(c);
   const triage = c.status === 'new' || c.status === 'review';
-  const { summary, reasons, recommendation, limitations, humanDecisionNote } = explainCase(e, l);
+  const { summary, reasons, recommendation, limitations, humanDecisionNote } = explainOf(e, l);
   return {
     ...toSummary(c, u, l),
     masked: level !== 'full',
@@ -590,14 +620,14 @@ export function toDetail(c: CaseRecord, u: User, l: Lang): CaseDetail {
     lowerShortfallShare: e.lower_shortfall_share ?? null,
     synthetic: e.synthetic && {
       scenarioLabel: scenarioLabel(e.synthetic.scenario, e.synthetic.fault_kind, l),
-      severity: e.synthetic.severity, durationDays: e.synthetic.duration_days, startDate: e.synthetic.start_local_date,
+      severity: signedSeverity(e.synthetic.scenario, e.synthetic.severity), durationDays: e.synthetic.duration_days, startDate: e.synthetic.start_local_date,
     },
     daily: e.daily.map((d) => ({ ...d, notScoredLabel: notScoredLabel(d.scored, d.not_scored_reason, l) })),
     series: e.series,
     explanation: { summary, reasons, recommendation, limitations, humanDecisionNote },
     run: {
       model: run.model, protocol: run.protocol_version, circuit: e.circuit,
-      thresholdProvenance: familyRun(e.family).threshold_provenance ?? run.detector.threshold_provenance,
+      thresholdProvenance: provenanceLabel(familyRun(e.family).threshold_provenance ?? run.detector.threshold_provenance, l),
       expectedFrom: expectedFromLabel(familyRun(e.family).expected_from, l),
     },
     changes: changesFor(c).map((n): ChangeView => ({
@@ -638,7 +668,7 @@ const STATUS_FACT: Record<CaseStatus, Text> = {
  */
 export function assistantInput(c: CaseRecord, l: Lang, question: string | null): AssistantInput {
   const e = c.evidence;
-  const x = explainCase(e, l);
+  const x = explainOf(e, l);
   const tr = l === 'tr';
   const facts = [
     `${tr ? 'Vaka' : 'Case'}: ${caseTitle(e, l)} · ${ORIGIN_LABEL[e.origin][l]} · ${tr ? 'durum' : 'status'}: ${isSynthetic(c) ? (tr ? 'yalnız okunur doğrulama senaryosu' : 'read-only validation scenario') : STATUS_FACT[c.status][l]}`,
@@ -841,7 +871,9 @@ export function overview(l: Lang): OverviewData {
       dataIssues: observed.filter((c) => c.evidence.kind === 'data_issue').length,
     },
     syntheticCases: cases.length - observed.length,
-    thresholdProvenance: run.detector.threshold_provenance,
+    thresholdProvenance: run.families.some((f) => f.threshold_provenance)
+      ? (l === 'tr' ? 'Haziran’da, her cihaz ailesi için alarm bütçesine göre seçildi' : 'Chosen on June within the alarm budget, per device family')
+      : provenanceLabel(run.detector.threshold_provenance, l),
     evaluation: evaluation && {
       syntheticCases: evaluation.synthetic_cases,
       syntheticDetected: evaluation.synthetic_detected,
@@ -850,7 +882,7 @@ export function overview(l: Lang): OverviewData {
       dataFaultsCaughtByQualityGate: evaluation.data_faults_caught_by_quality_gate,
       scenarios: evaluation.by_scenario.map((s) => ({
         label: `${s.family ? `${FAMILY_LABEL[s.family][l]} · ` : ''}${scenarioLabel(s.scenario, s.fault_kind, l)}`,
-        severity: s.severity, durationDays: s.duration_days,
+        severity: signedSeverity(s.scenario, s.severity), durationDays: s.duration_days,
         injected: s.injected, detected: s.detected, medianDelayDays: s.median_delay_days,
       })),
     },
@@ -965,7 +997,11 @@ export function dataSources(l: Lang): DataSourcesData {
     {
       title: tr ? `Dedektör · ${d.version}` : `Detector · ${d.version}`,
       rows: [
-        { label: tr ? 'Eşiklerin kaynağı' : 'Where the thresholds come from', value: d.threshold_provenance },
+        { label: tr ? 'Eşiklerin kaynağı' : 'Where the thresholds come from', value: provenanceLabel(d.threshold_provenance, l) },
+        ...run.families.filter((f) => f.threshold_provenance).map((f) => ({
+          label: tr ? `${FAMILY_LABEL[f.family].tr}: eşikler` : `${FAMILY_LABEL[f.family].en}: thresholds`,
+          value: provenanceLabel(f.threshold_provenance, l),
+        })),
         { label: tr ? 'Akut: z eşiği' : 'Acute: z threshold', value: fmt(d.acute.z_threshold, 2, l) },
         { label: tr ? 'Akut: üst sınır aşım payı eşiği' : 'Acute: upper-bound exceedance share', value: pct(d.acute.exceedance_share_threshold, l) },
         { label: tr ? 'Akut: art arda gün' : 'Acute: consecutive days', value: fmt(d.acute.consecutive_days, 0, l) },
@@ -985,7 +1021,7 @@ export function dataSources(l: Lang): DataSourcesData {
         { label: tr ? 'Tohum' : 'Seed', value: String(plan.seed) },
         ...plan.scenarios.map((s) => ({
           label: `${s.family ? `${FAMILY_LABEL[s.family][l]} · ` : ''}${scenarioLabel(s.scenario, s.fault_kind, l)}`,
-          value: [s.severity === null ? null : `+${pct(s.severity, l)}`, tr ? `${s.duration_days} gün` : `${s.duration_days} days`].filter(Boolean).join(' · '),
+          value: [s.severity === null ? null : `${s.scenario === 'production_drop' ? '−' : '+'}${pct(s.severity, l)}`, tr ? `${s.duration_days} gün` : `${s.duration_days} days`].filter(Boolean).join(' · '),
         })),
       ],
     });

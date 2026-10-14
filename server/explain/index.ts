@@ -83,6 +83,18 @@ const REFERENCE_FROM: Record<EvidenceFamily, Text> = {
   solar: { tr: 'Referans, açık gök ışınımı ve panel kapasitesinden beklenen üretimdir.', en: 'The reference is the production expected from clear-sky irradiance and panel capacity.' },
 };
 
+/** The same sentence for references a detector run builds in another way (run.families[].expected_from). */
+const REFERENCE_FROM_CODE: Record<string, Text> = {
+  'outdoor_temperature,hour,june_level,peers': {
+    tr: 'Referans, aynı dış sıcaklık ve saatte beklenen tüketimdir; cihazın Haziran’daki kendi düzeyine ve komşu hanelerin aynı günkü ortak değişimine göre ayarlanır, yani sıcak bir gün herkesi birlikte yükseltirse bu vaka sayılmaz.',
+    en: 'The reference is the consumption expected at the same outdoor temperature and hour, set to the device’s own June level and to the same day’s common shift of neighbouring households, so a hot day that lifts everyone does not count.',
+  },
+  'neighbour_systems,capacity,june_level': {
+    tr: 'Referans, panel kapasitesi ile aynı anda komşu sistemlerin üretiminden beklenen üretimdir; bulutlu bir gün herkesi birlikte düşürdüğü için vaka sayılmaz.',
+    en: 'The reference is the production expected from the panel capacity and neighbouring systems at the same time, so a cloudy day that lowers everyone does not count.',
+  },
+};
+
 function reasonText(reason: EvidenceReason, l: Lang): string {
   const tr = l === 'tr';
   const v = reason.value;
@@ -111,7 +123,7 @@ function reasonText(reason: EvidenceReason, l: Lang): string {
   }
 }
 
-function summaryText(e: EvidenceCase, l: Lang): string {
+function summaryText(e: EvidenceCase, l: Lang, expectedFrom?: string): string {
   const tr = l === 'tr';
   const span = `${day(e.onset_local_date, l)} – ${day(e.last_local_date, l)}`;
   const subject = SUBJECT[e.family][l];
@@ -130,9 +142,10 @@ function summaryText(e: EvidenceCase, l: Lang): string {
     : e.kind === 'production_shortfall'
       ? (tr ? ` Bu günlerde ölçülen üretim model referansının ${pct(Math.abs(share), l)} altında.` : ` On those days measured production is ${pct(Math.abs(share), l)} below the model reference.`)
       : (tr ? ` Bu günlerde ölçülen değer model referansının ${pct(share, l)} üzerinde.` : ` On those days the measured value is ${pct(share, l)} above the model reference.`);
+  const reference = (expectedFrom && REFERENCE_FROM_CODE[expectedFrom]?.[l]) || REFERENCE_FROM[e.family][l];
   return prefix + (tr
-    ? `${who}: ${span} arasında ${e.flagged_days} gün günlük sapma koşulunu sağladı.${measured} ${REFERENCE_FROM[e.family][l]}`
-    : `${who}: ${e.flagged_days} days between ${span} met the daily deviation condition.${measured} ${REFERENCE_FROM[e.family][l]}`);
+    ? `${who}: ${span} arasında ${e.flagged_days} gün günlük sapma koşulunu sağladı.${measured} ${reference}`
+    : `${who}: ${e.flagged_days} days between ${span} met the daily deviation condition.${measured} ${reference}`);
 }
 
 function limitations(e: EvidenceCase, l: Lang): string[] {
@@ -192,11 +205,11 @@ function fallback(e: EvidenceCase, l: Lang, violations: string[]): Explanation {
   };
 }
 
-export function explainCase(evidence: EvidenceCase, lang: Lang): Explanation {
+export function explainCase(evidence: EvidenceCase, lang: Lang, expectedFrom?: string): Explanation {
   const recommendation = RECOMMENDATIONS[evidence.recommendation.code];
   const explanation: Explanation = {
     provider: 'template',
-    summary: summaryText(evidence, lang),
+    summary: summaryText(evidence, lang, expectedFrom),
     reasons: evidence.reasons.map((reason) => reasonText(reason, lang)),
     recommendation: { firstCheck: recommendation.firstCheck[lang], steps: recommendation.steps[lang] },
     limitations: limitations(evidence, lang),

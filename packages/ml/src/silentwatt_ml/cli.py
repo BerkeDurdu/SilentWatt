@@ -84,6 +84,28 @@ def _compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _detect(args: argparse.Namespace) -> int:
+    from silentwatt_ml.detection.pipeline import run_detection, write_run
+
+    config = load_config(args.config)
+    if "detector" not in config.raw:
+        raise ValueError("The config has no detector section (see configs/ml/austin-2018-detect.json)")
+    data_dir = Path(args.data_dir).expanduser().resolve()
+    output = _output_path(args.output, data_dir)
+    index, files, report = run_detection(config, data_dir, args.run_id or output.name)
+    write_run(output, index, files, report)
+    if args.set_current:
+        # The console reads this pointer when SILENTWATT_EVIDENCE_DIR is not set (server/config.ts).
+        pointer = output.parent / "CURRENT"
+        pointer.write_text(output.name + "\n", encoding="utf-8")
+        print(f"Console pointer: {pointer} -> {output.name}")
+    evaluation = index["evaluation"]
+    print(f"Evidence written to {output}")
+    print(f"Observed cases: {sum(1 for c in index['cases'] if c['origin'] == 'observed')} · "
+          f"validation scenarios detected: {evaluation['synthetic_detected']}/{evaluation['synthetic_cases']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="silentwatt-ml")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -108,6 +130,13 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--config", default=os.getenv("SILENTWATT_ML_CONFIG", "configs/ml/austin-2018.json"))
     compare.add_argument("--output-dir", required=True)
     compare.set_defaults(handler=_compare)
+    detect = subparsers.add_parser("detect", help="Run the detector on June/July and write evidence files (v0.2)")
+    detect.add_argument("--config", default=os.environ.get("SILENTWATT_ML_CONFIG", "configs/ml/austin-2018-detect.json"))
+    detect.add_argument("--data-dir", default=os.environ.get("SILENTWATT_DATA_DIR", "../dataset"))
+    detect.add_argument("--output", required=True, help="New evidence directory, e.g. artifacts/evidence/<run-id>")
+    detect.add_argument("--run-id", default=None)
+    detect.add_argument("--set-current", action="store_true", help="Point the local console at this run (artifacts/evidence/CURRENT)")
+    detect.set_defaults(handler=_detect)
     return parser
 
 

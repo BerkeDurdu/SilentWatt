@@ -8,6 +8,8 @@ There are no labelled real faults, so the detector is tested on known injected c
 - data_fault outage: every reading of the window is removed.
 - data_fault freeze: every reading of the window repeats one positive value.
 - data_fault spike: four fixed afternoon slots per day are set to ten times the reading.
+- production_drop (solar): every reading of the window is multiplied by 1 - severity, as
+  soiling, shade or a failed string would lower it.
 
 Only the target column of a copy changes; June, the model and its band stay as they are, and
 the source files are never touched. A window must lie inside the replay month.
@@ -51,6 +53,8 @@ def inject(slots: pd.DataFrame, scenario: dict, running_threshold: float) -> pd.
         window_length = pd.Timedelta(days=scenario["duration_days"])
         progress = (pd.to_datetime(slots.loc[running, "ts_utc"], utc=True) - window_start) / window_length
         slots.loc[running, "target"] = slots.loc[running, "target"] * (1 + scenario["severity"] * progress)
+    elif kind == "production_drop":
+        slots.loc[inside, "target"] = slots.loc[inside, "target"] * (1 - scenario["severity"])
     elif kind == "data_fault":
         _apply_data_fault(slots, inside, running, scenario["fault_kind"], running_threshold)
     else:

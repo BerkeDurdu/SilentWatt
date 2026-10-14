@@ -304,10 +304,11 @@ def write_evidence(directory: Path, index: dict, cases: list[dict]) -> None:
 def rank_and_prioritize(entries: list[dict]) -> list[dict]:
     """Order cases as the contract says and give priorities by thirds of the deviation ranking.
 
-    entries: dicts with case_id, kind, excess_unit_hours (positive delta, may be None) and
-    flagged_days. Data issues rank after every consumption deviation and get priority 3.
+    entries: dicts with case_id, kind, excess_unit_hours (size of the deviation in unit-hours,
+    positive for a shortfall as well; may be None) and flagged_days. Consumption deviations and
+    production shortfalls rank together by size; data issues rank after them and get priority 3.
     """
-    deviations = [e for e in entries if e["kind"] == "consumption_deviation"]
+    deviations = [e for e in entries if e["kind"] in ("consumption_deviation", "production_shortfall")]
     data_issues = [e for e in entries if e["kind"] == "data_issue"]
     deviations.sort(key=lambda e: (-(e["excess_unit_hours"] or 0.0), -e["flagged_days"], e["case_id"]))
     data_issues.sort(key=lambda e: e["case_id"])

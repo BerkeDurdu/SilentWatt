@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { fileURLToPath } from 'node:url';
 
 export const OBSERVED = 'SW-HVAC-90003-20180703-ACU';
 export const SYNTHETIC = 'SW-SYN-HVAC-90001-20180707-ACU';
@@ -15,6 +16,8 @@ export const ALL_CASES = [
 ];
 // Tests never reach a real language model; assistant.test.ts starts its own fake one.
 process.env.SILENTWATT_LLM_PROVIDER ??= 'off';
+// The expected counts below come from the committed fixtures, not from a local detector run.
+process.env.SILENTWATT_EVIDENCE_DIR ??= fileURLToPath(new URL('../../shared/fixtures/evidence', import.meta.url));
 
 const HEADERS = { 'Content-Type': 'application/json', 'X-Requested-With': 'silentwatt' };
 
