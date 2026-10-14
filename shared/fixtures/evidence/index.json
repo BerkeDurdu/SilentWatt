@@ -1,9 +1,9 @@
 {
-  "schema_version": "silentwatt.evidence/0.1",
-  "generated_at_utc": "2026-10-06T00:00:00Z",
+  "schema_version": "silentwatt.evidence/0.2",
+  "generated_at_utc": "2026-10-14T00:00:00Z",
   "fixture": true,
   "run": {
-    "run_id": "fixture-0.1",
+    "run_id": "fixture-0.2",
     "source_run": "fixture (made-up values)",
     "dataset_id": "fixture",
     "protocol_version": "p1-v2",
@@ -14,9 +14,32 @@
       "end_local_date": "2018-08-01"
     },
     "unit": "source_unit_unverified",
-    "households": 4,
+    "households": 8,
+    "families": [
+      {
+        "family": "hvac",
+        "circuit": "air1",
+        "households": 4,
+        "expected_from": "outdoor_temperature,hour",
+        "threshold_provenance": null
+      },
+      {
+        "family": "refrigeration",
+        "circuit": "refrigerator1",
+        "households": 2,
+        "expected_from": "own_june_profile,hour_of_week",
+        "threshold_provenance": null
+      },
+      {
+        "family": "solar",
+        "circuit": "solar",
+        "households": 2,
+        "expected_from": "clear_sky_irradiance,capacity",
+        "threshold_provenance": null
+      }
+    ],
     "detector": {
-      "version": "detector-0.1",
+      "version": "detector-0.2",
       "acute": {
         "z_threshold": 2.0,
         "exceedance_share_threshold": 0.2,
@@ -39,33 +62,51 @@
       "seed": 100,
       "scenarios": [
         {
+          "family": "hvac",
           "scenario": "step_increase",
           "fault_kind": null,
           "severity": 0.3,
           "duration_days": 7
         },
         {
+          "family": "hvac",
           "scenario": "ramp_increase",
           "fault_kind": null,
           "severity": 0.2,
           "duration_days": 14
         },
         {
+          "family": "hvac",
           "scenario": "data_fault",
           "fault_kind": "outage",
           "severity": null,
           "duration_days": 3
+        },
+        {
+          "family": "refrigeration",
+          "scenario": "step_increase",
+          "fault_kind": null,
+          "severity": 0.4,
+          "duration_days": 5
+        },
+        {
+          "family": "solar",
+          "scenario": "production_drop",
+          "fault_kind": null,
+          "severity": 0.35,
+          "duration_days": 7
         }
       ]
     }
   },
   "evaluation": {
-    "clean_household_days": 40,
+    "clean_household_days": 60,
     "false_cases_on_clean_data": 1,
-    "synthetic_cases": 3,
-    "synthetic_detected": 3,
+    "synthetic_cases": 5,
+    "synthetic_detected": 5,
     "by_scenario": [
       {
+        "family": "hvac",
         "scenario": "step_increase",
         "fault_kind": null,
         "severity": 0.3,
@@ -75,6 +116,7 @@
         "median_delay_days": 1
       },
       {
+        "family": "hvac",
         "scenario": "ramp_increase",
         "fault_kind": null,
         "severity": 0.2,
@@ -84,10 +126,31 @@
         "median_delay_days": 9
       },
       {
+        "family": "hvac",
         "scenario": "data_fault",
         "fault_kind": "outage",
         "severity": null,
         "duration_days": 3,
+        "injected": 1,
+        "detected": 1,
+        "median_delay_days": 1
+      },
+      {
+        "family": "refrigeration",
+        "scenario": "step_increase",
+        "fault_kind": null,
+        "severity": 0.4,
+        "duration_days": 5,
+        "injected": 1,
+        "detected": 1,
+        "median_delay_days": 1
+      },
+      {
+        "family": "solar",
+        "scenario": "production_drop",
+        "fault_kind": null,
+        "severity": 0.35,
+        "duration_days": 7,
         "injected": 1,
         "detected": 1,
         "median_delay_days": 1
@@ -96,6 +159,28 @@
     "data_faults_caught_by_quality_gate": 1
   },
   "cases": [
+    {
+      "case_id": "SW-SYN-SOL-90007-20180710-ACU",
+      "origin": "synthetic",
+      "household_id": 90007,
+      "family": "solar",
+      "circuit": "solar",
+      "kind": "production_shortfall",
+      "detectors": [
+        "acute"
+      ],
+      "onset_local_date": "2018-07-10",
+      "detected_local_date": "2018-07-11",
+      "last_local_date": "2018-07-16",
+      "flagged_days": 7,
+      "excess_share": -0.35,
+      "upper_exceedance_share": null,
+      "lower_shortfall_share": 0.62,
+      "rank": 1,
+      "rank_basis": "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 1,
+      "recommendation_code": "SOLAR_PRODUCTION_SHORTFALL"
+    },
     {
       "case_id": "SW-SYN-HVAC-90001-20180707-ACU",
       "origin": "synthetic",
@@ -112,8 +197,9 @@
       "flagged_days": 4,
       "excess_share": 0.31,
       "upper_exceedance_share": 0.41,
-      "rank": 1,
-      "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "lower_shortfall_share": null,
+      "rank": 2,
+      "rank_basis": "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc",
       "priority": 1,
       "recommendation_code": "HVAC_PERSISTENT_INCREASE"
     },
@@ -133,10 +219,33 @@
       "flagged_days": 10,
       "excess_share": 0.12,
       "upper_exceedance_share": 0.41,
-      "rank": 2,
-      "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
-      "priority": 2,
+      "lower_shortfall_share": null,
+      "rank": 3,
+      "rank_basis": "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 1,
       "recommendation_code": "HVAC_PERSISTENT_INCREASE"
+    },
+    {
+      "case_id": "SW-SOL-90008-20180725-ACU",
+      "origin": "observed",
+      "household_id": 90008,
+      "family": "solar",
+      "circuit": "solar",
+      "kind": "production_shortfall",
+      "detectors": [
+        "acute"
+      ],
+      "onset_local_date": "2018-07-25",
+      "detected_local_date": "2018-07-26",
+      "last_local_date": "2018-07-29",
+      "flagged_days": 5,
+      "excess_share": -0.18,
+      "upper_exceedance_share": null,
+      "lower_shortfall_share": 0.62,
+      "rank": 4,
+      "rank_basis": "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 2,
+      "recommendation_code": "SOLAR_PRODUCTION_SHORTFALL"
     },
     {
       "case_id": "SW-HVAC-90003-20180703-ACU",
@@ -154,10 +263,55 @@
       "flagged_days": 3,
       "excess_share": 0.18,
       "upper_exceedance_share": 0.41,
-      "rank": 3,
-      "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
-      "priority": 3,
+      "lower_shortfall_share": null,
+      "rank": 5,
+      "rank_basis": "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 2,
       "recommendation_code": "HVAC_PERSISTENT_INCREASE"
+    },
+    {
+      "case_id": "SW-REF-90005-20180709-CHR",
+      "origin": "observed",
+      "household_id": 90005,
+      "family": "refrigeration",
+      "circuit": "refrigerator1",
+      "kind": "consumption_deviation",
+      "detectors": [
+        "chronic"
+      ],
+      "onset_local_date": "2018-07-09",
+      "detected_local_date": "2018-07-14",
+      "last_local_date": "2018-07-21",
+      "flagged_days": 13,
+      "excess_share": 0.27,
+      "upper_exceedance_share": 0.41,
+      "lower_shortfall_share": null,
+      "rank": 6,
+      "rank_basis": "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 3,
+      "recommendation_code": "REFRIGERATOR_PERSISTENT_INCREASE"
+    },
+    {
+      "case_id": "SW-SYN-REF-90006-20180716-ACU",
+      "origin": "synthetic",
+      "household_id": 90006,
+      "family": "refrigeration",
+      "circuit": "refrigerator1",
+      "kind": "consumption_deviation",
+      "detectors": [
+        "acute"
+      ],
+      "onset_local_date": "2018-07-16",
+      "detected_local_date": "2018-07-17",
+      "last_local_date": "2018-07-20",
+      "flagged_days": 5,
+      "excess_share": 0.4,
+      "upper_exceedance_share": 0.41,
+      "lower_shortfall_share": null,
+      "rank": 7,
+      "rank_basis": "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "priority": 3,
+      "recommendation_code": "REFRIGERATOR_PERSISTENT_INCREASE"
     },
     {
       "case_id": "SW-SYN-HVAC-90004-20180724-DQ",
@@ -175,8 +329,9 @@
       "flagged_days": 3,
       "excess_share": null,
       "upper_exceedance_share": null,
-      "rank": 4,
-      "rank_basis": "excess_unit_hours_desc,flagged_days_desc,case_id_asc",
+      "lower_shortfall_share": null,
+      "rank": 8,
+      "rank_basis": "abs_deviation_unit_hours_desc,flagged_days_desc,case_id_asc",
       "priority": 3,
       "recommendation_code": "DATA_SOURCE_CHECK"
     }

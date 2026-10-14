@@ -291,6 +291,39 @@ class EvidenceTests(unittest.TestCase):
         case = self.build()
         self.assertTrue(all(row["cusum"] is None for row in case["daily"]))
 
+    def test_a_refrigerator_case_carries_its_family_circuit_and_recommendation(self):
+        case = self.build(family="refrigeration")
+        self.assertEqual(case["case_id"], "SW-REF-0661-20180704-ACU")
+        self.assertEqual((case["family"], case["circuit"]), ("refrigeration", "refrigerator1"))
+        self.assertEqual(case["recommendation_code"], "REFRIGERATOR_PERSISTENT_INCREASE")
+        self.assertEqual(validate_case(case, REPLAY_WINDOW), [])
+
+    def test_a_solar_shortfall_reports_the_share_below_the_lower_bound(self):
+        days = [(july(d), "development") for d in range(4, 8)]
+        slots = slot_table(days, 0.5, q50=1.0, lower=0.8, upper=1.2)
+        table = household_daily_table(slots, day_table(days), excess_reference_floor=0.3)
+        table["z"] = -3.0
+        table["cusum"] = np.nan
+        table["flagged"] = True
+        table["lower_shortfall_slots"] = table["used_slots"]
+        table["lower_shortfall_share"] = 1.0
+        case = {"kind": "production_shortfall", "detectors": ["acute"], "onset": "2018-07-04",
+                "detected": "2018-07-05", "last": "2018-07-07"}
+        built = self.build(case=case, daily_table=table, slots=slots, family="solar")
+        self.assertEqual(built["case_id"], "SW-SOL-0661-20180704-ACU")
+        self.assertAlmostEqual(built["excess_share"], -0.5)
+        self.assertAlmostEqual(built["lower_shortfall_share"], 1.0)
+        self.assertIsNone(built["upper_exceedance_share"])
+        self.assertEqual([r["code"] for r in built["reasons"]],
+                         ["LOWER_BOUND_SHORTFALL", "CONSECUTIVE_FLAGGED_DAYS", "SHORTFALL_BELOW_REFERENCE"])
+        self.assertEqual(built["recommendation_code"], "SOLAR_PRODUCTION_SHORTFALL")
+        self.assertEqual(validate_case(built, REPLAY_WINDOW), [])
+
+    def test_validator_rejects_a_family_without_that_kind(self):
+        case = self.build(family="refrigeration")
+        case["kind"] = "production_shortfall"
+        self.assertTrue(any("has no production_shortfall" in error for error in validate_case(case, REPLAY_WINDOW)))
+
 
 if __name__ == "__main__":
     unittest.main()
