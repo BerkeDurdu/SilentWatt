@@ -16,7 +16,11 @@ export const config = {
   port: Number(env.API_PORT ?? (prod ? env.PORT : undefined) ?? 3001),
   /** Detector output to show; without it the committed synthetic fixtures are used. */
   evidenceDir: env.SILENTWATT_EVIDENCE_DIR || path.join(ROOT, 'shared/fixtures/evidence'),
-  /** Workflow state (case status, assignments, requests, user access) survives restarts here; "off" keeps it in memory. */
+  /** PostgreSQL for the workflow state (Huawei Cloud RDS for PostgreSQL / GaussDB, or the compose db). Wins over the file. */
+  databaseUrl: env.SILENTWATT_DATABASE_URL || null,
+  /** CA certificate of the database server, for TLS to a managed database. */
+  databaseCa: env.SILENTWATT_DATABASE_CA || null,
+  /** Without a database, workflow state survives restarts in this file; "off" keeps it in memory. */
   stateFile: env.SILENTWATT_STATE_FILE === 'off' ? null : env.SILENTWATT_STATE_FILE || path.join(ROOT, '.data/console-state.json'),
   /** Accounts with hashed passwords (see scripts/hash-password.ts). Required in production unless demo accounts are on. */
   usersFile: env.SILENTWATT_USERS_FILE || null,
