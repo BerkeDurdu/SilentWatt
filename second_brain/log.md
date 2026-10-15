@@ -9,6 +9,12 @@ updated: 2026-10-06
 En yeni kayıt üstte. Her kayıt 2–4 satır ve bağlantılardan oluşur. Commit'e dönüşmeyen
 analizler de buraya yazılır.
 
+## 2026-10-15
+
+- Uzak depo: Berke 14 Ekim'de `main`'e uçtan uca MVP'yi gönderdi (gerçek veride dedektör, kanıt v0.2, konsol,
+  sunucu, Huawei Cloud kurulumu, LLM asistanı); `main` ML testleri 93/93. Yerel `feat/mvp` (28 commit) `main`'de yok.
+  Karar: sunum `main` ile, birleştirme sunumdan sonra. Kritik görevler raporu: [HTML](../docs/project-status/kritik-gorevler-2026-10-15.html).
+
 ## 2026-10-14
 
 - Durum kontrolü: `feat/mvp`'de 133 ML testi, typecheck ve build geçiyor; dedektör dalı kendi

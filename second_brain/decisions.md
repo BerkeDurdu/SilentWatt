@@ -1,7 +1,7 @@
 ---
 type: map
 area: process
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # Kararlar ve açık sorular
@@ -143,6 +143,7 @@ içinde", yalnız bu doğrulanmamış hipoteze göre bir karşılaştırmadır; 
 | 2026-10-06 | Alarm bütçesi: değiştirilmemiş veride 21 hane için ayda en fazla 2 tüketim sapması vakası (hane başına yılda yaklaşık 1); akut ve kronik dedektöre ayrı ayrı en fazla 1. Eşik Haziran'da bu bütçeyi aşmayan en hassas değer olarak seçilir; Temmuz'da değiştirilmez, vaka sayısı ve sentetik yakalama oranı olduğu gibi raporlanır. Veri sorunu vakaları bütçeye girmez, ayrı raporlanır. Bütçe dedektör sonuçları görülmeden belirlendi (Yusuf) | sohbet, 2026-10-06 · alarm yükü KPI'ı (PRD v2.0) · Q-19 |
 | 2026-10-08 | MVP sunumu 16 Ekim'de (önceki hedef 9 Ekim). Teknik sunum 30 Ekim'de kalıyor (Yusuf) | sohbet, 2026-10-08 |
 | 2026-10-08 | Agent düzeni: tanımlar `.claude/agents/` (`sw-implementer` Opus, `sw-reviewer` Opus 5.5 yüksek akıl yürütme), ilk komut `preflight.py`, iş başına devir dosyası, her birleştirmeden önce `merge_gate.py`, aynı anda en fazla 2 agent (Yusuf) | sohbet, 2026-10-08 · [tasks/agents](../tasks/agents/README.md) · [AGENTS.md](../AGENTS.md) §2 |
+| 2026-10-15 | MVP sunumu (16 Ekim) `main`'deki çalışan sürümle yapılır (Berke'nin 14 Ekim dedektör koşusu, konsol, sunucu). Yusuf'un yerel `feat/mvp` çalışması (p1-v3, açıklama kataloğu, örnek dosya düzeltmesi, kayıtlar; 28 commit) sunumdan önce birleştirilmez: birleştirme demoyu riske atar. Sunumdan sonra iki uygulama (kalibrasyon, dedektör hattı, kanıt sözleşmesi v0.1/v0.2, karar numaraları) karşılaştırılıp planlı birleştirilir (Yusuf) | sohbet, 2026-10-15 · [kritik görevler](../docs/project-status/kritik-gorevler-2026-10-15.html) |
 
 ## Kanıtı olan riskler (tam liste: PRD §19.1)
 
