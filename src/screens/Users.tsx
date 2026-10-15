@@ -39,6 +39,7 @@ export default function Users() {
 const ERRORS: Record<string, DictKey> = {
   self_lockout: 'errSelf',
   invalid_screens: 'errScreens',
+  screen_not_allowed: 'errScreenRole',
   invalid_role: 'errRole',
 };
 
@@ -53,7 +54,8 @@ function UserEditor({ row, data, onSaved }: { row: UserRow; data: UsersData; onS
 
   const same = (a: ScreenKey[], b: ScreenKey[]) => [...a].sort().join() === [...b].sort().join();
   const dirty = role !== row.role || active !== row.active || !same(screens, row.screens);
-  const locked = (k: ScreenKey) => row.isSelf && k === 'users';
+  const allowed = data.roles.find((r) => r.key === role)?.allowedScreens ?? [];
+  const locked = (k: ScreenKey) => (row.isSelf && k === 'users') || !allowed.includes(k);
 
   function changeRole(next: RoleKey) {
     setRole(next);

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
-import { ALL_CASES, OBSERVED, SYNTHETIC, startApi } from './helpers';
+import { ALL_CASES, FRIDGE, OBSERVED, SYNTHETIC, startApi } from './helpers';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sw-restore-'));
 const file = path.join(dir, 'state.json');
@@ -21,7 +21,8 @@ fs.writeFileSync(file, JSON.stringify({
     ],
     messages: [{ id: 'm-1', techId: 'u-deniz', caseId: OBSERVED, at }],
     requests: [],
-    tokens: [[OBSERVED, 'saved-token-123']],
+    // An old save has no issue time; a link issued long ago no longer opens.
+    tokens: [[OBSERVED, 'saved-token-123'], [FRIDGE, 'old-token-456', '2020-01-01T00:00:00.000Z']],
     users: [{ id: 'u-emre', role: 'technician', screens: ['jobs'], active: false }],
   },
 }));
@@ -41,6 +42,7 @@ test('saved case state and the resident link come back after a restart', async (
   assert.equal(detail.json.status, 'assigned');
   assert.equal(detail.json.technicianName, 'Deniz Tunç');
   assert.equal((await api.call('/public/request/saved-token-123')).status, 200);
+  assert.equal((await api.call('/public/request/old-token-456')).status, 410, 'a link past its days has expired');
 
   const synthetic = await api.call(`/cases/${SYNTHETIC}`, { cookie: operator });
   assert.equal(synthetic.json.status, 'new');

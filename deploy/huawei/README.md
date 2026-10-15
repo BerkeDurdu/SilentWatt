@@ -65,15 +65,22 @@ Kayıtları bir JSON dizisine koyup `users.json` olarak kaydedin. Bu dosya Git'e
 ## 4. Sunucuyu hazırla
 
 ```bash
-ssh root@<public_ip>
+ssh silentwatt@<public_ip>                  # root ile ve parolayla giriş kapalı; yalnızca anahtar
+sudo -i
 cloud-init status --wait                    # Docker ve obsutil kurulumu bitsin
 cd /srv/silentwatt/app                       # depoyu buraya kopyalayın veya klonlayın
-cp deploy/.env.example deploy/.env           # SILENTWATT_SITE, POSTGRES_PASSWORD, OBS_BUCKET, SILENTWATT_IMAGE
-scp users.json root@<public_ip>:/srv/silentwatt/app/deploy/users.json   # bilgisayardan
+cp deploy/.env.example deploy/.env           # SILENTWATT_SITE, POSTGRES_PASSWORD, BACKUP_PASSPHRASE, OBS_BUCKET, SILENTWATT_IMAGE
+chmod 600 deploy/.env
+scp users.json silentwatt@<public_ip>:/tmp/users.json   # bilgisayardan; sonra sunucuda deploy/ altına taşıyın
 obsutil config -i=<AK> -k=<SK> -e=obs.<bölge>.myhuaweicloud.com
 ```
 
-OBS için yalnızca bu bucket'a yazma izni olan ayrı bir IAM kullanıcısı kullanın.
+OBS için yalnızca bu bucket'a yazma izni olan ayrı bir IAM kullanıcısı kullanın; ana hesabın anahtarını
+sunucuya koymayın. Anahtar `~/.obsutilconfig` dosyasında durur, izinleri `600` olmalıdır.
+
+**Terraform durumu sır taşır.** `terraform.tfstate` veritabanı parolasını ve kaynak kimliklerini düz metin
+olarak tutar. Dosya Git'e girmez (`.gitignore`); ekipte paylaşılacaksa şifreli bir OBS bucket'ında
+`backend "s3"` ile saklayın, parolayı `TF_VAR_db_password` ortam değişkeniyle verin.
 
 ## 5. Başlat
 
@@ -120,10 +127,12 @@ pencere dışı tarih) açılmaz; bu durumda betik önceki kanıta geri döner.
 ## 7. Yedekler
 
 `cloud-init` her gece 03:15'te `backup-db.sh` çalıştıracak cron kaydını kurar: yerelde 14 gün,
-OBS'te 30 gün saklanır. Geri yükleme:
+OBS'te 30 gün saklanır. Döküm diske yazılmadan önce `BACKUP_PASSPHRASE` ile AES-256 şifrelenir; OBS
+bucket'ı ve RDS diski ayrıca KMS anahtarıyla şifrelidir. Parolanın bir kopyasını sunucu dışında saklayın,
+o olmadan yedek açılmaz. Geri yükleme:
 
 ```bash
-deploy/scripts/restore-db.sh obs://<bucket>/backups/silentwatt-<tarih>.sql.gz
+deploy/scripts/restore-db.sh obs://<bucket>/backups/silentwatt-<tarih>.sql.gz.enc
 ```
 
 ## Kapatma

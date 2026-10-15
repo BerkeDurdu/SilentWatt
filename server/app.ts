@@ -10,7 +10,7 @@ import { askAssistant, assistantStatus } from './explain/llm';
 import {
   assignCase, assistantInput, canViewCase, dataSources, dismissCase, evidenceInfo, explainByChange, getCase, isChangeKind, isSynthetic, jobsFor, listCases,
   listChanges, listTechnicians, markOpened,
-  notificationsFor, overview, recordResult, report, reportCsv, requestPage, reviewCase, submitRequest, team,
+  notificationsFor, openRequest, overview, recordResult, report, reportCsv, requestGate, reviewCase, submitRequest, team,
   toDetail, toMe, updateUser, usersData, type CaseRecord,
 } from './store';
 
@@ -36,7 +36,14 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: '20kb' }));
+// The console loads its own scripts and styles, plus the Google Fonts stylesheet and font files.
+const CSP = [
+  "default-src 'self'", "script-src 'self'", "style-src 'self' https://fonts.googleapis.com", "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data:", "connect-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",
+].join('; ');
+
 app.use((_req, res, next) => {
+  res.setHeader('Content-Security-Policy', CSP);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -55,32 +62,54 @@ api.use(csrfGuard);
 api.post('/auth/login', login);
 api.post('/auth/logout', logout);
 
-/* resident-facing pages: no account, no session — the token in the SMS link is the only key */
+/*
+ * Resident-facing pages: no account, no session. The token in the SMS link finds the case, and the last
+ * four digits of the subscriber number open it; the bare link answers only "give the code" or "expired".
+ */
 
-const submitAttempts = new Map<string, { count: number; reset: number }>();
-const SUBMIT_WINDOW = 60 * 60 * 1000;
-const MAX_SUBMITS = 20;
-setInterval(() => sweep(submitAttempts), SUBMIT_WINDOW).unref();
+const publicAttempts = new Map<string, { count: number; reset: number }>();
+const PUBLIC_WINDOW = 60 * 60 * 1000;
+const MAX_PUBLIC = 30;
+setInterval(() => sweep(publicAttempts), PUBLIC_WINDOW).unref();
+
+/** Per address: opening and sending together, so many links cannot be tried from one place. */
+function publicLimit(req: Request, res: Response) {
+  const t = Date.now();
+  const seen = publicAttempts.get(req.ip ?? '');
+  const entry = seen && seen.reset > t ? seen : { count: 0, reset: t + PUBLIC_WINDOW };
+  if (entry.count >= MAX_PUBLIC) {
+    res.status(429).json({ error: 'too_many_requests' });
+    return false;
+  }
+  entry.count += 1;
+  publicAttempts.set(req.ip ?? '', entry);
+  return true;
+}
+
+const PUBLIC_STATUS: Record<string, number> = { expired: 410, wrong_code: 403, locked: 429, too_many_updates: 429 };
+function publicError(res: Response, error: string) {
+  if (error === 'not_found') return notFound(res);
+  res.status(PUBLIC_STATUS[error] ?? 400).json({ error });
+}
 
 api.get('/public/request/:token', (req, res) => {
-  const page = requestPage(String(req.params.token), langOf(req));
-  if (!page) return void notFound(res);
-  res.json(page);
+  const gate = requestGate(String(req.params.token));
+  if (!gate) return void notFound(res);
+  if (gate === 'expired') return void publicError(res, 'expired');
+  res.json({ verify: true });
+});
+
+api.post('/public/request/:token/open', (req, res) => {
+  if (!publicLimit(req, res)) return;
+  const result = openRequest(String(req.params.token), req.body?.code, langOf(req));
+  if (!result.ok) return void publicError(res, result.error);
+  res.json(result.page);
 });
 
 api.post('/public/request/:token', (req, res) => {
-  const t = Date.now();
-  const seen = submitAttempts.get(req.ip ?? '');
-  const entry = seen && seen.reset > t ? seen : { count: 0, reset: t + SUBMIT_WINDOW };
-  if (entry.count >= MAX_SUBMITS) return void res.status(429).json({ error: 'too_many_requests' });
-  entry.count += 1;
-  submitAttempts.set(req.ip ?? '', entry);
-
+  if (!publicLimit(req, res)) return;
   const result = submitRequest(String(req.params.token), req.body ?? {}, langOf(req));
-  if (!result.ok) {
-    if (result.error === 'not_found') return void notFound(res);
-    return void res.status(400).json({ error: result.error });
-  }
+  if (!result.ok) return void publicError(res, result.error);
   res.json(result.receipt);
 });
 

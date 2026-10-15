@@ -86,12 +86,23 @@ resource "huaweicloud_compute_eip_associate" "console" {
   instance_id = huaweicloud_compute_instance.console.id
 }
 
-# Evidence (obs://<bucket>/evidence/<run-id>/) and database backups (obs://<bucket>/backups/). Private, versioned.
+# One KMS key encrypts what holds residents' data at rest: the OBS bucket and the RDS disk.
+resource "huaweicloud_kms_key" "data" {
+  key_alias    = "${var.name}-data"
+  key_usage    = "ENCRYPT_DECRYPT"
+  pending_days = "7"
+}
+
+# Evidence (obs://<bucket>/evidence/<run-id>/) and database backups (obs://<bucket>/backups/).
+# Private, versioned and encrypted on the server side with the KMS key.
 resource "huaweicloud_obs_bucket" "data" {
   bucket        = var.bucket_name
   acl           = "private"
   storage_class = "STANDARD"
   versioning    = true
+  encryption    = true
+  sse_algorithm = "kms"
+  kms_key_id    = huaweicloud_kms_key.data.id
 
   lifecycle_rule {
     name    = "expire-old-backups"
@@ -141,8 +152,9 @@ resource "huaweicloud_rds_instance" "db" {
   }
 
   volume {
-    type = "CLOUDSSD"
-    size = 40
+    type               = "CLOUDSSD"
+    size               = 40
+    disk_encryption_id = huaweicloud_kms_key.data.id
   }
 
   backup_strategy {

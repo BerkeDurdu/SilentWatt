@@ -6,6 +6,14 @@ dist/
 *.tsbuildinfo
 
 # environment and secrets
+# Terraform state and variables hold the database password and resource ids.
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+users.json
+*.pem
 .env
 users.json
 .data/

@@ -4,7 +4,7 @@ output "public_ip" {
 }
 
 output "ssh" {
-  value = "ssh root@${huaweicloud_vpc_eip.console.address}"
+  value = "ssh silentwatt@${huaweicloud_vpc_eip.console.address}"
 }
 
 output "obs_bucket" {

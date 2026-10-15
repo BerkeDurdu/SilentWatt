@@ -21,6 +21,9 @@ process.env.SILENTWATT_EVIDENCE_DIR ??= fileURLToPath(new URL('../../shared/fixt
 
 const HEADERS = { 'Content-Type': 'application/json', 'X-Requested-With': 'silentwatt' };
 
+/** The code that opens a resident's link, read from the hint the assigned technician sees. */
+export const codeOf = (detail: { notice: { codeHint: string | null } }) => detail.notice.codeHint!.replace(/\D/g, '');
+
 export async function startApi() {
   const { app } = await import('../app');
   const server: Server = await new Promise((resolve) => {

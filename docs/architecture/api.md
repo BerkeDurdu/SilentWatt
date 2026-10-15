@@ -10,7 +10,7 @@ vakalar üzerinde yaptıklarını (durum, atama, müşteri talebi, kullanıcı y
 | Yöntem ve yol | Kim | Ne yapar |
 |---|---|---|
 | `GET /health` | herkes | `status`, `run_id`, `fixture`, `cases`, `uptime_s`; hassas içerik yok |
-| `POST /auth/login` | anonim | Oturum çerezi; hatalı girişte genel `401`, 10 dakikada 5 hatadan sonra `429` |
+| `POST /auth/login` | anonim | Oturum çerezi; hatalı girişte genel `401`. 10 dakikada IP+e-posta için 5, IP için 20, hesap için 10 hatadan sonra `429`. Oturum 30 dakika boşta kalınca veya 8 saatte biter |
 | `POST /auth/logout` | oturum | Oturumu kapatır |
 | `GET /me` | oturum | Kullanıcı, izinli ekranlar, yetkiler, `fixture` |
 | `GET /notifications` | oturum | Role göre bildirimler; sentetik vakalar bildirim üretmez |
@@ -31,7 +31,9 @@ vakalar üzerinde yaptıklarını (durum, atama, müşteri talebi, kullanıcı y
 | `GET /reports/monthly` · `.csv` | `reports` (CSV: `report.export`) | Köken × tür grupları; CSV Excel için BOM'lu |
 | `GET /data-sources` | `data` | Koşu, dedektör eşikleri ve kaynağı, sentetik plan |
 | `GET /users` · `PATCH /users/{id}` | `users` (değişiklik: `users.manage`) | Rol, ekran ve aktiflik |
-| `GET /public/request/{token}` · `POST` | anonim, jetonla | Müşterinin SMS linkindeki sayfa; isteğe bağlı `change` ile "yeni cihaz taktırdım" gibi bir değişiklik bildirilir (vakayı kapatmaz, karar operatörde); IP başına saatte 20 gönderim |
+| `GET /public/request/{token}` | anonim, jetonla | Yalnızca `{verify: true}`; kişisel bilgi yok. Vaka kapandıysa veya link `SILENTWATT_RESIDENT_LINK_DAYS` günden eskiyse `410 expired`, bilinmeyen jeton `404` |
+| `POST /public/request/{token}/open` | anonim, jeton + kod | `{code}`: faturadaki abone numarasının son 4 hanesi. Doğruysa müşteri sayfası; yanlışsa `403 wrong_code`, 5 yanlıştan sonra 30 dakika `429 locked` |
+| `POST /public/request/{token}` | anonim, jeton + kod | Kontrol talebi (`code` dahil). İsteğe bağlı `change` ("yeni cihaz taktırdım") talepte görünür; dedektöre ancak operatör `/cases/{id}/explain` ile onaylarsa gider. Talep en fazla 5 kez güncellenir (`429 too_many_updates`); açma ve gönderim birlikte IP başına saatte 30 |
 
 Kurallar:
 
@@ -49,10 +51,15 @@ Kurallar:
 |---|---|---|
 | `SILENTWATT_EVIDENCE_DIR` | `shared/fixtures/evidence` | Gösterilecek dedektör çıktısı (`index.json` + `cases/`) |
 | `SILENTWATT_DATABASE_URL` | — | PostgreSQL (RDS for PostgreSQL, GaussDB veya compose `db`); verilirse durum dosyası yerine kullanılır |
-| `SILENTWATT_DATABASE_CA` | — | Yönetilen veritabanının CA sertifikası (TLS) |
+| `SILENTWATT_DATABASE_CA` | — | Yönetilen veritabanının CA sertifikası (TLS). Başka bir makinedeki veritabanı için zorunlu; yoksa sunucu başlamaz |
+| `SILENTWATT_DATABASE_TLS` | `on` | `off`: CA olmadan TLS'siz bağlantıya bilerek izin verir (yalnızca özel ağ) |
 | `SILENTWATT_STATE_FILE` | `.data/console-state.json` (Docker: `/data/console-state.json`) | Konsol durumu; `off` bellekte tutar |
 | `SILENTWATT_USERS_FILE` | — | Gerçek hesaplar; canlıda demo hesapları kapalıyken zorunlu |
 | `SILENTWATT_DEMO_ACCOUNTS` | geliştirmede `on`, canlıda `off` | Ortak parolalı demo hesapları |
+| `SILENTWATT_DEMO_PASSWORD` | `SilentWatt2026!` | Demo hesaplarının şifresi; canlıda demo hesapları açıksa zorunlu |
+| `SILENTWATT_RESIDENT_LINK_DAYS` | `30` | Müşteri linkinin geçerli kaldığı gün sayısı (vaka kapanınca da kapanır) |
+| `SILENTWATT_REQUEST_RETENTION_DAYS` | `180` | Müşteri taleplerinin (ad, telefon, adres) saklandığı gün sayısı |
+| `SILENTWATT_SESSION_IDLE_MINUTES` | `30` | Oturumun boşta kalınca bittiği dakika |
 | `SILENTWATT_COOKIE_SECURE` | canlıda `on` | `Secure` çerez; HTTPS arkasında açık kalmalı |
 | `SILENTWATT_TRUST_PROXY` | `loopback` | Ters vekil arkasında istemci IP'si için (ör. `uniquelocal`) |
 | `SILENTWATT_REQUEST_LOG` | `on` | İstek başına bir JSON satırı: `request_id`, `run_id`, yol, durum, süre, kullanıcı |

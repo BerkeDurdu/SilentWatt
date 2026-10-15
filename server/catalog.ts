@@ -18,6 +18,11 @@ export const SCREEN_ORDER: ScreenKey[] = ['overview', 'queue', 'team', 'reports'
 export interface RolePreset {
   label: Text;
   screens: ScreenKey[];
+  /**
+   * Screens an admin may give this role on top of the preset. A role's address level is fixed, so a
+   * screen that lists every case may only go to a role that sees masked addresses.
+   */
+  allowedScreens: ScreenKey[];
   capabilities: Capability[];
   addressLevel: AddressLevel;
   scopeNote: Text;
@@ -28,6 +33,7 @@ export const ROLES: Record<RoleKey, RolePreset> = {
   manager: {
     label: { tr: 'Yönetim', en: 'Management' },
     screens: ['overview', 'queue', 'reports'],
+    allowedScreens: ['overview', 'queue', 'reports', 'team'],
     capabilities: ['report.export'],
     addressLevel: 'district',
     scopeNote: { tr: 'Klima, buzdolabı, güneş paneli · Temmuz 2018 yeniden oynatma · adresler ilçe düzeyinde', en: 'AC, refrigerator, solar · July 2018 replay · addresses at district level' },
@@ -35,6 +41,7 @@ export const ROLES: Record<RoleKey, RolePreset> = {
   operator: {
     label: { tr: 'Operatör', en: 'Operator' },
     screens: ['queue', 'team', 'data'],
+    allowedScreens: ['queue', 'team', 'data', 'overview', 'reports'],
     capabilities: ['case.assign', 'case.dismiss'],
     addressLevel: 'neighbourhood',
     scopeNote: { tr: 'Klima, buzdolabı, güneş paneli · Temmuz 2018 yeniden oynatma · adresler mahalle düzeyinde', en: 'AC, refrigerator, solar · July 2018 replay · addresses at neighbourhood level' },
@@ -42,6 +49,8 @@ export const ROLES: Record<RoleKey, RolePreset> = {
   technician: {
     label: { tr: 'Saha Teknisyeni', en: 'Field Technician' },
     screens: ['jobs'],
+    // Full addresses: only the technician's own work orders, never the whole queue.
+    allowedScreens: ['jobs'],
     capabilities: ['case.result'],
     addressLevel: 'full',
     scopeNote: { tr: 'Size atanan iş emirleri · tam adres görünür', en: 'Work orders assigned to you · full address visible' },
@@ -49,6 +58,7 @@ export const ROLES: Record<RoleKey, RolePreset> = {
   admin: {
     label: { tr: 'Sistem Yöneticisi', en: 'System Administrator' },
     screens: ['users', 'data'],
+    allowedScreens: ['users', 'data'],
     capabilities: ['users.manage'],
     addressLevel: 'district',
     scopeNote: { tr: 'Kullanıcı erişimi ve kanıt kaynağı', en: 'User access and the evidence source' },

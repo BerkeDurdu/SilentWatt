@@ -38,6 +38,16 @@ export const config = {
   usersFile: env.SILENTWATT_USERS_FILE || null,
   /** The shared-password demo accounts. On in development, off in production unless asked for. */
   demoAccounts: flag(env.SILENTWATT_DEMO_ACCOUNTS, !prod),
+  /** Password of the demo accounts. The default is printed in the README, so production needs its own. */
+  demoPassword: env.SILENTWATT_DEMO_PASSWORD || null,
+  /** Days a resident's SMS link stays valid after it is issued; it also closes when the case closes. */
+  residentLinkDays: Number(env.SILENTWATT_RESIDENT_LINK_DAYS || 30),
+  /** Days a resident's request (name, phone, address) is kept before it is deleted. */
+  requestRetentionDays: Number(env.SILENTWATT_REQUEST_RETENTION_DAYS || 180),
+  /** A signed-in session ends after this many idle minutes, and after 8 hours in any case. */
+  sessionIdleMinutes: Number(env.SILENTWATT_SESSION_IDLE_MINUTES || 30),
+  /** "off" allows a database connection without TLS; only for a database on the same host or network. */
+  databaseTls: (env.SILENTWATT_DATABASE_TLS === 'off' ? 'off' : 'on') as 'on' | 'off',
   /** Session cookies need HTTPS in production; turn off only for a plain-HTTP demo on a private network. */
   secureCookies: flag(env.SILENTWATT_COOKIE_SECURE, prod),
   /** Express "trust proxy": loopback by default, e.g. "uniquelocal" behind a reverse-proxy container. */

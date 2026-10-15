@@ -10,20 +10,34 @@ import { dateTime, signedShare } from '../format';
 import { useI18n } from '../i18n';
 
 /**
- * The page behind the link in the resident's SMS. No account and no sign-in:
- * the token in the address is the whole key, and it only ever opens this one case.
+ * The page behind the link in the resident's SMS. No account and no sign-in, but the link alone shows
+ * nothing personal: the resident first types the last four digits of the subscriber number on their bill.
  */
 export default function RequestPageView() {
   const { token = '' } = useParams();
-  const { t } = useI18n();
-  const { data, error, loading, reload } = useApi<RequestPage>(`/public/request/${encodeURIComponent(token)}`);
+  const { t, lang } = useI18n();
+  const path = `/public/request/${encodeURIComponent(token)}`;
+  const gate = useApi<{ verify: true }>(path);
+  const [code, setCode] = useState<string | null>(null);
+  const [data, setData] = useState<RequestPage | null>(null);
+  const [lost, setLost] = useState<'expired' | 'locked' | null>(null);
   const [receipt, setReceipt] = useState<RequestReceipt | null>(null);
   const [editing, setEditing] = useState(false);
 
-  // A language switch refetches the page; keep the receipt in that language too.
+  // A language switch fetches the opened page again in that language, receipt included.
+  useEffect(() => {
+    if (!code) return;
+    api<RequestPage>(`${path}/open`, { method: 'POST', body: { code } })
+      .then(setData)
+      .catch((e: unknown) => e instanceof ApiError && (e.code === 'expired' || e.code === 'locked') && setLost(e.code));
+  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (data) setReceipt(data.submitted);
   }, [data]);
+
+  const error = gate.error;
+  const expired = lost === 'expired' || error?.status === 410;
 
   return (
     <div className="pub">
@@ -36,10 +50,24 @@ export default function RequestPageView() {
       </header>
 
       <main className="pub-main">
-        {error ? (
-          <ErrorCard onRetry={reload} notFound={error.status === 404} />
-        ) : loading || !data ? (
+        {expired ? (
+          <section className="pub-card">
+            <h1>{t('pubExpiredTitle')}</h1>
+            <p>{t('pubExpiredBody')}</p>
+          </section>
+        ) : error ? (
+          <ErrorCard onRetry={gate.reload} notFound={error.status === 404} />
+        ) : gate.loading ? (
           <Loading />
+        ) : !data || !code ? (
+          <VerifyCard
+            path={path}
+            onOpen={(c, page) => {
+              setCode(c);
+              setData(page);
+            }}
+            onExpired={() => setLost('expired')}
+          />
         ) : receipt && !editing ? (
           <Receipt data={data} receipt={receipt} onEdit={() => setEditing(true)} />
         ) : (
@@ -47,6 +75,7 @@ export default function RequestPageView() {
             <Notice data={data} />
             <RequestForm
               token={token}
+              code={code}
               data={data}
               current={receipt}
               onDone={(r) => {
@@ -78,6 +107,52 @@ function ErrorCard({ notFound, onRetry }: { notFound: boolean; onRetry: () => vo
   );
 }
 
+const CODE_ERRORS: Record<string, DictKey> = { wrong_code: 'pubErrCode', locked: 'pubErrLocked', too_many_requests: 'pubErrTooMany' };
+
+/** Asks for the last four digits of the subscriber number before anything about the home is shown. */
+function VerifyCard({ path, onOpen, onExpired }: { path: string; onOpen: (code: string, page: RequestPage) => void; onExpired: () => void }) {
+  const { t } = useI18n();
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<DictKey | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onOpen(code, await api<RequestPage>(`${path}/open`, { method: 'POST', body: { code } }));
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'expired') return onExpired();
+      setError(err instanceof ApiError ? CODE_ERRORS[err.code] ?? 'pubErrSend' : 'pubErrSend');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="pub-card" onSubmit={submit} noValidate>
+      <span className="eyebrow">{t('pubEyebrow')}</span>
+      <h1>{t('pubVerifyTitle')}</h1>
+      <p className="pub-lead">{t('pubVerifyBody')}</p>
+      <div className="form">
+        <label className="field">
+          <span>{t('pubCode')}</span>
+          <input
+            type="text" inputMode="numeric" autoComplete="off" maxLength={4} pattern="[0-9]{4}"
+            value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))} required
+          />
+          <small className="fine left">{t('pubCodeHint')}</small>
+        </label>
+        {error && <div className="form-error" role="alert">{t(error)}</div>}
+        <button className="btn primary block" type="submit" disabled={busy || code.length !== 4}>
+          {busy ? t('pubOpening') : t('pubOpen')}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function Notice({ data }: { data: RequestPage }) {
   const { t } = useI18n();
   return (
@@ -96,7 +171,6 @@ function Notice({ data }: { data: RequestPage }) {
       <ul className="evidence">
         {data.points.map((p) => <li key={p}><Icon name="step" /><span>{p}</span></li>)}
       </ul>
-      {data.closed && <p className="pub-closed">{t('pubClosed')}</p>}
       <p className="fine pub-sent">{dateTime(data.noticeAt)}</p>
     </section>
   );
@@ -110,11 +184,15 @@ const ERRORS: Record<string, DictKey> = {
   invalid_slot: 'pubErrSlot',
   invalid_change: 'pubErrChange',
   too_many_requests: 'pubErrTooMany',
+  too_many_updates: 'pubErrUpdates',
+  expired: 'pubExpiredTitle',
+  wrong_code: 'pubErrCode',
+  locked: 'pubErrLocked',
 };
 
 function RequestForm(
-  { token, data, current, onDone }:
-  { token: string; data: RequestPage; current: RequestReceipt | null; onDone: (r: RequestReceipt) => void },
+  { token, code, data, current, onDone }:
+  { token: string; code: string; data: RequestPage; current: RequestReceipt | null; onDone: (r: RequestReceipt) => void },
 ) {
   const { t } = useI18n();
   const [name, setName] = useState(current?.name ?? data.customer.name);
@@ -134,7 +212,7 @@ function RequestForm(
     try {
       const receipt = await api<RequestReceipt>(`/public/request/${encodeURIComponent(token)}`, {
         method: 'POST',
-        body: { name, phone, email, address, slot, note, change },
+        body: { code, name, phone, email, address, slot, note, change },
       });
       onDone(receipt);
     } catch (err) {

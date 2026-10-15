@@ -90,9 +90,11 @@ export interface CustomerNotice {
   /** Only roles that see full addresses can open the resident's page; others read the link as text. */
   href: string | null;
   linkText: string;
+  /** Last four digits of the subscriber number that open the link; only for the technician at the door. */
+  codeHint: string | null;
 }
 
-/** A request the resident sent from that link, as staff see it. */
+/** A request the resident sent from that link, as staff see it; masked roles get masked name and phone. */
 export interface CustomerRequest {
   reference: string;
   at: string;
@@ -129,8 +131,7 @@ export interface RequestPage {
   equipmentLabel: string;
   excessShare: number | null;
   days: number;
-  closed: boolean;
-  /** Prefilled from the subscriber record; the resident can change any of it. */
+  /** Prefilled from the subscriber record once the resident gave the code; they can change any of it. */
   customer: { name: string; phone: string; email: string; address: string };
   slots: { value: RequestSlot; label: string }[];
   /** "Did anything change?" choices: a new device explains a deviation better than any model. */
@@ -314,6 +315,7 @@ export interface UserRow {
 export interface UsersData {
   users: UserRow[];
   screens: { key: ScreenKey; title: string }[];
-  roles: { key: RoleKey; label: string; screens: ScreenKey[] }[];
+  /** `allowedScreens`: what an admin may give the role; a full-address role never gets the whole queue. */
+  roles: { key: RoleKey; label: string; screens: ScreenKey[]; allowedScreens: ScreenKey[] }[];
   canManage: boolean;
 }

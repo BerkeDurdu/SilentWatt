@@ -44,7 +44,8 @@ function fileStore<T>(file: string): StateStore<T> {
     save(state) {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       const tmp = `${file}.${process.pid}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(envelope(state), null, 2), 'utf8');
+      // The state holds residents' names, phones and addresses: readable by the server's own user only.
+      fs.writeFileSync(tmp, JSON.stringify(envelope(state), null, 2), { encoding: 'utf8', mode: 0o600 });
       fs.renameSync(tmp, file);
     },
     flush: async () => {},
@@ -64,13 +65,26 @@ const SCHEMA = `
     state     jsonb NOT NULL
   )`;
 
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]', 'db']);
+
+/**
+ * TLS for the database connection. Residents' data crosses this link, so a database on another host needs
+ * TLS with its CA certificate (or an explicit sslmode in the URL). Only a database on the same machine or
+ * the compose network may go without, or one that SILENTWATT_DATABASE_TLS=off names on purpose.
+ */
+export function databaseSsl(url: string, caFile: string | null, tls: 'on' | 'off'): pg.PoolConfig['ssl'] {
+  if (caFile) return { ca: fs.readFileSync(caFile, 'utf8'), rejectUnauthorized: true };
+  const parsed = new URL(url);
+  if (LOCAL_HOSTS.has(parsed.hostname) || tls === 'off' || parsed.searchParams.has('sslmode')) return undefined;
+  throw new Error(
+    `The database ${parsed.hostname} is not on this machine: set SILENTWATT_DATABASE_CA to its CA certificate for TLS ` +
+    '(Huawei Cloud RDS offers it for download), or SILENTWATT_DATABASE_TLS=off for a private network on purpose.',
+  );
+}
+
 /** One row per console instance, written as a whole: a handful of users, a few hundred cases at most. */
-function postgresStore<T>(url: string, caFile: string | null): StateStore<T> {
-  const pool = new pg.Pool({
-    connectionString: url,
-    max: 3,
-    ssl: caFile ? { ca: fs.readFileSync(caFile, 'utf8') } : undefined,
-  });
+function postgresStore<T>(url: string, caFile: string | null, tls: 'on' | 'off'): StateStore<T> {
+  const pool = new pg.Pool({ connectionString: url, max: 3, ssl: databaseSsl(url, caFile, tls) });
   const ID = 'console';
   let ready: Promise<unknown> | null = null;
   const schema = () => (ready ??= pool.query(SCHEMA));
@@ -110,8 +124,10 @@ function postgresStore<T>(url: string, caFile: string | null): StateStore<T> {
   };
 }
 
-export function createStateStore<T>(options: { databaseUrl: string | null; databaseCa: string | null; stateFile: string | null }): StateStore<T> {
-  if (options.databaseUrl) return postgresStore<T>(options.databaseUrl, options.databaseCa);
+export function createStateStore<T>(
+  options: { databaseUrl: string | null; databaseCa: string | null; databaseTls: 'on' | 'off'; stateFile: string | null },
+): StateStore<T> {
+  if (options.databaseUrl) return postgresStore<T>(options.databaseUrl, options.databaseCa, options.databaseTls);
   if (options.stateFile) return fileStore<T>(options.stateFile);
   return memoryStore<T>();
 }

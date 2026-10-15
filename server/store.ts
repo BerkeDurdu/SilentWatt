@@ -1,6 +1,6 @@
 // In-memory store: users and case workflow live here, the cases themselves come from the evidence files.
 // Swap for a database later; the API shape stays the same.
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import type {
   ChangeKind, ChangeNotice, DetectorName, EvidenceCase, EvidenceFamily, EvidenceKind, EvidenceOrigin,
@@ -20,7 +20,8 @@ import { hashPassword } from './password';
 import { createStateStore } from './persist';
 
 export const ORGANIZATION: Text = { tr: 'Pilot Dağıtım A.Ş. (örnek)', en: 'Pilot Distribution Co. (example)' };
-export const DEMO_PASSWORD = 'SilentWatt2026!';
+/** The README prints the default, so production demo accounts need SILENTWATT_DEMO_PASSWORD (see loadUsers). */
+export const DEMO_PASSWORD = config.demoPassword ?? 'SilentWatt2026!';
 
 const now = () => new Date().toISOString();
 const locale = (l: Lang) => (l === 'tr' ? 'tr-TR' : 'en-GB');
@@ -75,6 +76,9 @@ function fileUsers(file: string): User[] {
 }
 
 function loadUsers(): User[] {
+  if (config.prod && config.demoAccounts && !config.demoPassword) {
+    throw new Error('Demo accounts in production need their own password: set SILENTWATT_DEMO_PASSWORD (the default one is public in the README).');
+  }
   const list = [...(config.demoAccounts ? demoUsers() : []), ...(config.usersFile ? fileUsers(config.usersFile) : [])];
   if (list.length === 0) {
     throw new Error('No accounts: set SILENTWATT_USERS_FILE, or SILENTWATT_DEMO_ACCOUNTS=on for a demo (the demo password is public).');
@@ -227,6 +231,8 @@ interface CustomerRecord {
   name: string;
   phone: string;
   email: string;
+  /** Subscriber number on the resident's bill. Its last four digits open the SMS link. */
+  subscriber: string;
 }
 
 interface Site {
@@ -241,15 +247,15 @@ interface Site {
  * them so that assignment, address masking and the resident SMS can be shown; screens label them.
  */
 const EXAMPLE_SITES: Site[] = [
-  { district: 'Bornova', hood: 'Kazımdirik Mah.', street: '372/4 Sk. No:9', customer: { name: 'Ayşe Demir', phone: '0532 118 44 07', email: 'ayse.demir@ornek.com' } },
-  { district: 'Karşıyaka', hood: 'Bostanlı Mah.', street: '1814 Sk. No:22', customer: { name: 'Mert Özkan', phone: '0505 447 20 91', email: 'mert.ozkan@ornek.com' } },
-  { district: 'Buca', hood: 'Şirinyer Mah.', street: 'Menderes Cd. No:118', customer: { name: 'Hacer Yalçın', phone: '0543 260 71 88', email: 'hacer.yalcin@ornek.com' } },
-  { district: 'Çiğli', hood: 'Ataşehir Mah.', street: '8028 Sk. No:3', customer: { name: 'Burak Şen', phone: '0538 905 13 62', email: 'burak.sen@ornek.com' } },
-  { district: 'Bornova', hood: 'Evka-3 Mah.', street: '124 Sk. No:41', customer: { name: 'Nalan Kurt', phone: '0554 371 08 25', email: '' } },
-  { district: 'Karşıyaka', hood: 'Mavişehir Mah.', street: '2040/1 Sk. No:7', customer: { name: 'Serkan Aksoy', phone: '0531 642 99 10', email: 'serkan.aksoy@ornek.com' } },
-  { district: 'Buca', hood: 'Kaynaklar Mah.', street: 'Kaynaklar Cd. No:62', customer: { name: 'Fatma Uysal', phone: '0536 208 55 41', email: '' } },
-  { district: 'Bornova', hood: 'Erzene Mah.', street: '96 Sk. No:12', customer: { name: 'İlker Bayrak', phone: '0542 713 66 09', email: 'ilker.bayrak@ornek.com' } },
-  { district: 'Çiğli', hood: 'Egekent Mah.', street: '8660 Sk. No:5', customer: { name: 'Zeynep Çelik', phone: '0533 884 17 50', email: 'zeynep.celik@ornek.com' } },
+  { district: 'Bornova', hood: 'Kazımdirik Mah.', street: '372/4 Sk. No:9', customer: { name: 'Ayşe Demir', phone: '0532 118 44 07', email: 'ayse.demir@ornek.com', subscriber: '4001 2287 3104' } },
+  { district: 'Karşıyaka', hood: 'Bostanlı Mah.', street: '1814 Sk. No:22', customer: { name: 'Mert Özkan', phone: '0505 447 20 91', email: 'mert.ozkan@ornek.com', subscriber: '4001 5530 1927' } },
+  { district: 'Buca', hood: 'Şirinyer Mah.', street: 'Menderes Cd. No:118', customer: { name: 'Hacer Yalçın', phone: '0543 260 71 88', email: 'hacer.yalcin@ornek.com', subscriber: '4002 0816 4473' } },
+  { district: 'Çiğli', hood: 'Ataşehir Mah.', street: '8028 Sk. No:3', customer: { name: 'Burak Şen', phone: '0538 905 13 62', email: 'burak.sen@ornek.com', subscriber: '4002 3392 8851' } },
+  { district: 'Bornova', hood: 'Evka-3 Mah.', street: '124 Sk. No:41', customer: { name: 'Nalan Kurt', phone: '0554 371 08 25', email: '', subscriber: '4001 7746 0268' } },
+  { district: 'Karşıyaka', hood: 'Mavişehir Mah.', street: '2040/1 Sk. No:7', customer: { name: 'Serkan Aksoy', phone: '0531 642 99 10', email: 'serkan.aksoy@ornek.com', subscriber: '4003 1154 6639' } },
+  { district: 'Buca', hood: 'Kaynaklar Mah.', street: 'Kaynaklar Cd. No:62', customer: { name: 'Fatma Uysal', phone: '0536 208 55 41', email: '', subscriber: '4002 6608 2915' } },
+  { district: 'Bornova', hood: 'Erzene Mah.', street: '96 Sk. No:12', customer: { name: 'İlker Bayrak', phone: '0542 713 66 09', email: 'ilker.bayrak@ornek.com', subscriber: '4001 9921 5042' } },
+  { district: 'Çiğli', hood: 'Egekent Mah.', street: '8660 Sk. No:5', customer: { name: 'Zeynep Çelik', phone: '0533 884 17 50', email: 'zeynep.celik@ornek.com', subscriber: '4003 4470 7386' } },
 ];
 
 export interface CaseRecord {
@@ -296,12 +302,60 @@ const messages: MessageRecord[] = [];
 
 /* ── residents: notice SMS and service requests ────────── */
 
-/** One unguessable link per case. The resident never signs in; the token is the whole key. */
-const tokenByCase = new Map<string, string>();
+/**
+ * One unguessable link per case. The resident never signs in, but the link alone shows nothing personal:
+ * the page opens with the last four digits of the subscriber number on their bill, so a forwarded SMS or
+ * one sent to an old number reveals no name, address or finding. The link ends with the case, or after
+ * SILENTWATT_RESIDENT_LINK_DAYS.
+ */
+const tokenByCase = new Map<string, { token: string; issuedAt: string }>();
 const caseByToken = new Map<string, string>();
 
 export const REQUEST_PATH = '/talep';
-const requestHref = (c: CaseRecord) => `${REQUEST_PATH}/${tokenByCase.get(c.id)}`;
+const requestHref = (c: CaseRecord) => `${REQUEST_PATH}/${tokenByCase.get(c.id)?.token}`;
+
+function issueLink(caseId: string, token = randomBytes(12).toString('base64url'), issuedAt = now()) {
+  tokenByCase.set(caseId, { token, issuedAt });
+  caseByToken.set(token, caseId);
+}
+
+const digits = (v: string) => v.replace(/\D/g, '');
+const subscriberCode = (c: CaseRecord) => digits(c.site.customer.subscriber).slice(-4);
+const LINK_MS = config.residentLinkDays * 24 * 60 * 60 * 1000;
+
+/** The case behind a link, and whether the link still opens: the case is open and the link is not too old. */
+function linkCase(token: string): { c: CaseRecord; expired: boolean } | null {
+  const c = getCase(caseByToken.get(token) ?? '');
+  if (!c) return null;
+  const issued = Date.parse(tokenByCase.get(c.id)!.issuedAt);
+  return { c, expired: !isOpen(c) || Date.now() - issued > LINK_MS };
+}
+
+// Four digits are 10 000 guesses: five wrong tries lock the link for half an hour.
+const CODE_WINDOW = 30 * 60 * 1000;
+const MAX_CODE_TRIES = 5;
+const codeFailures = new Map<string, { count: number; reset: number }>();
+setInterval(() => {
+  const t = Date.now();
+  for (const [key, entry] of codeFailures) if (entry.reset <= t) codeFailures.delete(key);
+}, CODE_WINDOW).unref();
+
+function checkCode(token: string, c: CaseRecord, code: unknown): 'ok' | 'locked' | 'wrong_code' {
+  const t = Date.now();
+  const seen = codeFailures.get(token);
+  const entry = seen && seen.reset > t ? seen : null;
+  if (entry && entry.count >= MAX_CODE_TRIES) return 'locked';
+  const given = typeof code === 'string' ? digits(code) : '';
+  const expected = subscriberCode(c);
+  if (given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected))) {
+    codeFailures.delete(token);
+    return 'ok';
+  }
+  const next = entry ?? { count: 0, reset: t + CODE_WINDOW };
+  next.count += 1;
+  codeFailures.set(token, next);
+  return next.count >= MAX_CODE_TRIES ? 'locked' : 'wrong_code';
+}
 
 interface RequestRecord {
   caseId: string;
@@ -315,8 +369,11 @@ interface RequestRecord {
   slot: RequestSlot;
   note: string;
   change: ChangeKind | null;
+  /** How many times the form was sent; a link takes a few corrections, not an unlimited stream. */
+  submissions: number;
 }
 
+const MAX_SUBMISSIONS = 5;
 const requests: RequestRecord[] = [];
 const requestFor = (caseId: string) => requests.find((r) => r.caseId === caseId);
 
@@ -345,7 +402,8 @@ interface ConsoleState {
   cases: { id: string; status: CaseStatus; techId: string | null; events: CaseEventRecord[] }[];
   messages: MessageRecord[];
   requests: RequestRecord[];
-  tokens: [caseId: string, token: string][];
+  /** Older saves have no issue time; those links count from the restart. */
+  tokens: [caseId: string, token: string, issuedAt?: string][];
   users: { id: string; role: RoleKey; screens: ScreenKey[]; active: boolean }[];
   changes?: ChangeNotice[];
 }
@@ -354,7 +412,7 @@ function snapshot(): ConsoleState {
   return {
     cases: cases.map(({ id, status, techId, events }) => ({ id, status, techId, events })),
     messages, requests, changes,
-    tokens: [...tokenByCase],
+    tokens: [...tokenByCase].map(([caseId, link]): [string, string, string] => [caseId, link.token, link.issuedAt]),
     users: users.map(({ id, role, screens, active }) => ({ id, role, screens, active })),
   };
 }
@@ -376,29 +434,37 @@ async function restore() {
       if (c && !isSynthetic(c)) Object.assign(c, { status: s.status, techId: s.techId && findUser(s.techId) ? s.techId : null, events: s.events });
     }
     messages.push(...saved.messages.filter((m) => getCase(m.caseId) && findUser(m.techId)));
-    requests.push(...saved.requests.filter((r) => getCase(r.caseId)).map((r) => ({ ...r, change: r.change ?? null })));
+    requests.push(...saved.requests.filter((r) => getCase(r.caseId)).map((r) => ({ ...r, change: r.change ?? null, submissions: r.submissions ?? 1 })));
     changes.push(...(saved.changes ?? []).filter((n) => householdIds.includes(n.household_id)));
-    for (const [caseId, token] of saved.tokens) {
+    for (const [caseId, token, issuedAt] of saved.tokens) {
       const c = getCase(caseId);
-      if (c && hasNotice(c)) {
-        tokenByCase.set(caseId, token);
-        caseByToken.set(token, caseId);
-      }
+      if (c && hasNotice(c)) issueLink(caseId, token, issuedAt ?? now());
     }
     for (const s of saved.users) {
       const u = findUser(s.id);
-      if (u && isRoleKey(s.role) && s.screens.every(isScreenKey)) Object.assign(u, { role: s.role, screens: s.screens, active: s.active });
+      if (u && isRoleKey(s.role) && s.screens.every(isScreenKey)) {
+        // A hand-edited save cannot hand a role a screen it may not have.
+        Object.assign(u, { role: s.role, screens: s.screens.filter((k) => ROLES[s.role].allowedScreens.includes(k)), active: s.active });
+      }
     }
   }
   // One unguessable link per case that may notify a resident.
   for (const c of cases.filter(hasNotice)) {
-    if (tokenByCase.has(c.id)) continue;
-    const token = randomBytes(12).toString('base64url');
-    tokenByCase.set(c.id, token);
-    caseByToken.set(token, c.id);
+    if (!tokenByCase.has(c.id)) issueLink(c.id);
   }
+  pruneRequests();
   save();
 }
+
+/** Residents' requests carry a name, phone and address; they are deleted after the retention period. */
+function pruneRequests() {
+  const cutoff = Date.now() - config.requestRetentionDays * 24 * 60 * 60 * 1000;
+  const keep = requests.filter((r) => Date.parse(r.at) >= cutoff);
+  if (keep.length === requests.length) return false;
+  requests.splice(0, requests.length, ...keep);
+  return true;
+}
+setInterval(() => { if (pruneRequests()) save(); }, 6 * 60 * 60 * 1000).unref();
 
 await restore();
 
@@ -442,18 +508,27 @@ export function customerNotice(c: CaseRecord, level: AddressLevel, l: Lang): Cus
   const text = l === 'tr'
     ? `SilentWatt: ${DEVICE[c.evidence.family].on.tr} ${measuredText(c, l)}. Bu bir arıza bildirimi değildir; acil bir durum yok. Yakın zamanda bir değişiklik olduysa veya ücretsiz kontrol isterseniz:`
     : `SilentWatt: ${DEVICE[c.evidence.family].on.en}, ${measuredText(c, l)}. This is not a fault report; nothing is urgent. If something changed recently, or for a free inspection:`;
-  // The resident's page carries their full address and phone. Roles that see masked addresses
-  // get neither the link nor the token it contains.
+  // Roles that see masked addresses get neither the link nor the token it contains. The technician who
+  // visits the home sees the code hint, to help a resident who cannot find the number on their bill.
   const full = level === 'full';
-  return { at: c.events[0].at, text, href: full ? href : null, linkText: `silentwatt.app${full ? href : `${REQUEST_PATH}/••••••`}` };
+  return {
+    at: c.events[0].at, text, href: full ? href : null, linkText: `silentwatt.app${full ? href : `${REQUEST_PATH}/••••••`}`,
+    codeHint: full ? `•••• ${subscriberCode(c)}` : null,
+  };
 }
 
-/** What staff see about the resident's request, with the address masked to their role. */
+const maskName = (name: string) => name.split(' ').map((w) => `${w.slice(0, 1)}***`).join(' ');
+const maskPhone = (phone: string) => `••• ••• •• ${digits(phone).slice(-2)}`;
+
+/** What staff see about the resident's request: name, phone, e-mail and address masked to their role. */
 function toCustomerRequest(r: RequestRecord, level: AddressLevel, l: Lang): CustomerRequest {
   const c = getCase(r.caseId)!;
   const masked = level !== 'full';
   return {
-    reference: r.reference, at: r.at, name: r.name, phone: r.phone, email: r.email || null,
+    reference: r.reference, at: r.at,
+    name: masked ? maskName(r.name) : r.name,
+    phone: masked ? maskPhone(r.phone) : r.phone,
+    email: masked ? null : r.email || null,
     address: masked ? address(c, level) : r.address,
     addressEdited: r.addressEdited, slotLabel: SLOT_LABELS[l][r.slot], note: r.note || null, masked,
     changeLabel: r.change ? CHANGE_LABEL[r.change][l] : null,
@@ -466,10 +541,26 @@ const toReceipt = (r: RequestRecord, l: Lang): RequestReceipt => ({
   changeLabel: r.change ? CHANGE_LABEL[r.change][l] : null,
 });
 
-/** The public page behind the SMS link, or null when the token means nothing. */
-export function requestPage(token: string, l: Lang): RequestPage | null {
-  const c = getCase(caseByToken.get(token) ?? '');
-  if (!c) return null;
+export type LinkError = 'not_found' | 'expired' | 'locked' | 'wrong_code';
+
+/** What the bare link answers: nothing about the resident, only whether it can still be opened. */
+export function requestGate(token: string): 'verify' | 'expired' | null {
+  const link = linkCase(token);
+  if (!link) return null;
+  return link.expired ? 'expired' : 'verify';
+}
+
+/** The page behind the SMS link, once the resident gave the last four digits of their subscriber number. */
+export function openRequest(token: string, code: unknown, l: Lang): { ok: true; page: RequestPage } | { ok: false; error: LinkError } {
+  const link = linkCase(token);
+  if (!link) return { ok: false, error: 'not_found' };
+  if (link.expired) return { ok: false, error: 'expired' };
+  const check = checkCode(token, link.c, code);
+  if (check !== 'ok') return { ok: false, error: check };
+  return { ok: true, page: requestPage(link.c, l) };
+}
+
+function requestPage(c: CaseRecord, l: Lang): RequestPage {
   const tr = l === 'tr';
   const existing = requestFor(c.id);
   const measured = measuredText(c, l);
@@ -488,8 +579,7 @@ export function requestPage(token: string, l: Lang): RequestPage | null {
     equipmentLabel: DEVICE[c.evidence.family].label[l],
     excessShare: c.evidence.excess_share,
     days: c.evidence.flagged_days,
-    closed: !isOpen(c),
-    customer: { ...c.site.customer, address: fullAddress(c) },
+    customer: { name: c.site.customer.name, phone: c.site.customer.phone, email: c.site.customer.email, address: fullAddress(c) },
     slots: SLOTS.map((value) => ({ value, label: SLOT_LABELS[l][value] })),
     changeOptions: changeOptions(l),
     changeQuestion: tr ? 'Son zamanlarda bu cihazla ilgili bir değişiklik oldu mu? (isteğe bağlı)' : 'Did anything change with this device recently? (optional)',
@@ -507,8 +597,14 @@ const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().repl
  * the prefilled values are a convenience, not a constraint.
  */
 export function submitRequest(token: string, input: RequestInput, l: Lang): SubmitResult {
-  const c = getCase(caseByToken.get(token) ?? '');
-  if (!c) return { ok: false, error: 'not_found' };
+  const link = linkCase(token);
+  if (!link) return { ok: false, error: 'not_found' };
+  if (link.expired) return { ok: false, error: 'expired' };
+  const { c } = link;
+  const check = checkCode(token, c, input.code);
+  if (check !== 'ok') return { ok: false, error: check };
+  const existing = requestFor(c.id);
+  if (existing && existing.submissions >= MAX_SUBMISSIONS) return { ok: false, error: 'too_many_updates' };
 
   const name = text(input.name, 80);
   const phone = text(input.phone, 24);
@@ -526,18 +622,17 @@ export function submitRequest(token: string, input: RequestInput, l: Lang): Subm
   }
   const change = isChangeKind(input.change) ? input.change : null;
 
-  const existing = requestFor(c.id);
   const record: RequestRecord = {
     caseId: c.id,
     reference: existing?.reference ?? `TL-${c.evidence.household_id}-${c.evidence.onset_local_date.slice(5).replace('-', '')}`,
     at: now(), name, phone, email, address,
     addressEdited: address !== fullAddress(c),
-    slot: input.slot, note, change,
+    slot: input.slot, note, change, submissions: (existing?.submissions ?? 0) + 1,
   };
   if (existing) Object.assign(existing, record);
   else requests.push(record);
-  // The resident cannot date the change against the replay; it is taken to hold from the onset.
-  if (change) recordChange(c, change, c.evidence.onset_local_date, 'resident', note || null);
+  // A reported change reaches the detector only when an operator confirms it (POST /cases/:id/explain):
+  // whoever holds the link must not be able to make the detector re-learn, and so ignore, a device.
   c.events.push({ type: 'requested', at: record.at, note: change ? CHANGE_LABEL[change].tr : undefined });
   save();
   return { ok: true, receipt: toReceipt(record, l) };
@@ -1039,7 +1134,9 @@ export function usersData(me: User, l: Lang): UsersData {
   return {
     users: users.map((t) => toUserRow(t, me, l)),
     screens: SCREEN_ORDER.map((key) => ({ key, title: SCREENS[key].title[l] })),
-    roles: (Object.keys(ROLES) as RoleKey[]).map((key) => ({ key, label: ROLES[key].label[l], screens: ROLES[key].screens })),
+    roles: (Object.keys(ROLES) as RoleKey[]).map((key) => ({
+      key, label: ROLES[key].label[l], screens: ROLES[key].screens, allowedScreens: ROLES[key].allowedScreens,
+    })),
     canManage: can(me, 'users.manage'),
   };
 }
@@ -1061,6 +1158,7 @@ export function updateUser(me: User, id: string, patch: Record<string, unknown>,
     if (!Array.isArray(patch.screens) || !patch.screens.every(isScreenKey)) return { ok: false, error: 'invalid_screens' };
     screens = [...new Set(patch.screens)];
   }
+  if (!screens.every((k) => ROLES[role].allowedScreens.includes(k))) return { ok: false, error: 'screen_not_allowed' };
 
   let active = target.active;
   if (patch.active !== undefined) {
@@ -1073,7 +1171,12 @@ export function updateUser(me: User, id: string, patch: Record<string, unknown>,
   }
 
   const deactivated = target.active && !active;
+  const before = { role: target.role, screens: target.screens, active: target.active };
   Object.assign(target, { role, screens, active });
   save();
+  // Who changed whose access, and how: one JSON line next to the request log.
+  if (config.requestLog) {
+    console.log(JSON.stringify({ t: now(), audit: 'user_access', actor: me.id, target: target.id, before, after: { role, screens, active } }));
+  }
   return { ok: true, user: toUserRow(target, me, l), deactivated };
 }

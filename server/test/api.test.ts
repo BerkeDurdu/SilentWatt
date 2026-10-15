@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
-import { FRIDGE, OBSERVED, SOLAR, SYNTHETIC, startApi } from './helpers';
+import { FRIDGE, OBSERVED, SOLAR, SYNTHETIC, codeOf, startApi } from './helpers';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sw-api-'));
 process.env.SILENTWATT_STATE_FILE = path.join(dir, 'state.json');
@@ -89,12 +89,13 @@ test('the workflow runs end to end and every step is saved', async () => {
   assert.deepEqual(jobs.json.jobs.map((j: { id: string }) => j.id), [OBSERVED]);
   const detail = await api.call(`/cases/${OBSERVED}`, { cookie: technician });
   const token = detail.json.notice.href.split('/').pop();
+  const code = codeOf(detail.json);
 
-  const page = await api.call(`/public/request/${token}`);
+  const page = await api.call(`/public/request/${token}/open`, { method: 'POST', body: { code } });
   assert.equal(page.status, 200);
   assert.equal(page.json.excessShare, 0.18);
   const request = await api.call(`/public/request/${token}`, {
-    method: 'POST', body: { name: 'Ayşe Demir', phone: '0532 118 44 07', email: '', address: 'Şirinyer Mah. Menderes Cd. No:118, Buca', slot: 'morning', note: '' },
+    method: 'POST', body: { code, name: 'Ayşe Demir', phone: '0532 118 44 07', email: '', address: 'Şirinyer Mah. Menderes Cd. No:118, Buca', slot: 'morning', note: '' },
   });
   assert.equal(request.status, 200);
 
@@ -175,14 +176,16 @@ test('a reported change explains a case: it closes, and the change is exported f
   assert.equal((await api.call('/changes', { cookie: manager })).status, 404, 'the export needs the data screen');
 });
 
-test('a resident can say a new device explains the gap; it is recorded but the operator still decides', async () => {
+test('a resident can say a new device explains the gap; the operator confirms it before the detector hears', async () => {
   const operator = await api.signIn('operator@silentwatt.demo');
   assert.equal((await api.call(`/cases/${SOLAR}/assign`, { method: 'POST', cookie: operator, body: { technicianId: 'u-deniz' } })).status, 200);
   const technician = await api.signIn('deniz@silentwatt.demo');
-  const token = (await api.call(`/cases/${SOLAR}`, { cookie: technician })).json.notice.href.split('/').pop();
-  const page = await api.call(`/public/request/${token}`);
+  const job = (await api.call(`/cases/${SOLAR}`, { cookie: technician })).json;
+  const token = job.notice.href.split('/').pop();
+  const code = codeOf(job);
+  const page = await api.call(`/public/request/${token}/open`, { method: 'POST', body: { code } });
   assert.ok(page.json.changeOptions.some((o: { value: string }) => o.value === 'new_device'));
-  const body = { name: 'Burak Şen', phone: '0538 905 13 62', email: '', address: 'Ataşehir Mah. 8028 Sk. No:3, Çiğli', slot: 'any', note: '' };
+  const body = { code, name: 'Burak Şen', phone: '0538 905 13 62', email: '', address: 'Ataşehir Mah. 8028 Sk. No:3, Çiğli', slot: 'any', note: '' };
   assert.equal((await api.call(`/public/request/${token}`, { method: 'POST', body: { ...body, change: 'sideways' } })).status, 400);
   const receipt = await api.call(`/public/request/${token}`, { method: 'POST', body: { ...body, change: 'repair' } });
   assert.equal(receipt.json.changeLabel, 'Onarım veya bakım yapıldı');
@@ -190,7 +193,8 @@ test('a resident can say a new device explains the gap; it is recorded but the o
   const detail = await api.call(`/cases/${SOLAR}`, { cookie: operator });
   assert.equal(detail.json.status, 'assigned', 'a resident report does not close the case');
   assert.equal(detail.json.request.changeLabel, 'Onarım veya bakım yapıldı');
-  assert.equal(detail.json.changes[0].sourceLabel, 'Müşteri bildirdi');
+  assert.deepEqual(detail.json.changes, [], 'whoever holds the link cannot make the detector re-learn a device');
+  assert.ok(!(await api.call('/changes', { cookie: operator })).json.changes.some((n: { case_id: string }) => n.case_id === SOLAR));
   const notes = await api.call('/notifications', { cookie: operator });
   assert.ok(notes.json.some((n: { text: string }) => n.text.startsWith('Müşteri değişiklik bildirdi')));
 });

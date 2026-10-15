@@ -184,9 +184,12 @@ export function CaseDetailView({ backLabel }: { backLabel: DictKey }) {
                     : <span className="mono muted">{c.notice.linkText}</span>}
                 </p>
                 {c.notice.href ? (
-                  <a className="btn quiet sms-link" href={c.notice.href} target="_blank" rel="noreferrer">
-                    <Icon name="send" />{t('custOpenLink')}
-                  </a>
+                  <>
+                    <a className="btn quiet sms-link" href={c.notice.href} target="_blank" rel="noreferrer">
+                      <Icon name="send" />{t('custOpenLink')}
+                    </a>
+                    {c.notice.codeHint && <p className="masked"><Icon name="lock" />{t('custCodeHint', { code: c.notice.codeHint })}</p>}
+                  </>
                 ) : (
                   <p className="masked"><Icon name="lock" />{t('custLinkMasked')}</p>
                 )}

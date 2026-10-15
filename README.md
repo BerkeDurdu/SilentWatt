@@ -88,7 +88,7 @@ ML akışı çevrimdışıdır; konsola kanıt dosyalarıyla bağlanır. Baselin
 
 ## Demo hesapları
 
-Tüm hesapların şifresi `SilentWatt2026!`. Bu hesaplar geliştirmede açıktır; canlı modda yalnızca `SILENTWATT_DEMO_ACCOUNTS=on` ile açılır. Giriş ekranındaki demo listesi yalnızca `npm run dev` ile görünür.
+Tüm hesapların şifresi `SilentWatt2026!`. Bu hesaplar geliştirmede açıktır; canlı modda yalnızca `SILENTWATT_DEMO_ACCOUNTS=on` ile ve `SILENTWATT_DEMO_PASSWORD` ile verilen ayrı bir şifreyle açılır (bu README'deki şifreyle canlı sunucu başlamaz). Giriş ekranındaki demo listesi yalnızca `npm run dev` ile görünür.
 
 | E-posta | Rol | Gördüğü ekranlar |
 |---|---|---|
@@ -111,20 +111,25 @@ Toplam 7 ekran var. Roller yalnızca başlangıç ayarıdır; sistem yöneticisi
 
 Vaka açıldığında abonenin telefonuna bilgilendirme SMS'i gider: ne ölçtüğümüz sade bir dille, model referansına göre fark olarak anlatılır (birim, enerji veya para yazılmaz) ve **isterse** talep oluşturabileceği bir adres verilir (`silentwatt.app/talep/<jeton>`).
 
-- **Giriş yok.** Link tek bir vakaya bağlı, tahmin edilemez bir jeton taşır. Geçersiz jeton `404` döner ve sayfa "bu bağlantı geçerli değil" der; konsola yönlendirme yapılmaz.
-- **Form dolu gelir.** Ad, telefon, e-posta ve adres abonelik kaydından doldurulur; **hiçbiri kilitli değildir**. Abone adresini düzeltirse ekip düzeltilmiş adrese gider ve konsolda "müşteri düzeltti" etiketi görünür.
+- **Hesap yok, ama link tek başına bir şey göstermez.** Link tek bir vakaya bağlı, tahmin edilemez bir jeton taşır (96 bit). Sayfa önce faturadaki **abone numarasının son 4 hanesini** ister; bu girilmeden ad, adres, telefon ya da ölçüm bulgusu gösterilmez. SMS eski bir numaraya gittiyse veya biri linki ilettiyse bilgiler görünmez. Beş yanlış denemede link yarım saat kilitlenir.
+- **Linkin süresi var.** Link vaka kapanınca ve en geç 30 gün sonra (`SILENTWATT_RESIDENT_LINK_DAYS`) kapanır; sayfa "bağlantının süresi doldu" der (`410`). Geçersiz jeton `404` döner.
+- **Form, kod doğrulandıktan sonra dolu gelir.** Ad, telefon, e-posta ve adres abonelik kaydından doldurulur; **hiçbiri kilitli değildir**. Abone adresini düzeltirse ekip düzeltilmiş adrese gider ve konsolda "müşteri düzeltti" etiketi görünür. Talep en fazla 5 kez güncellenebilir.
+- **Müşterinin bildirdiği değişiklik dedektöre doğrudan gitmez.** "Yeni cihaz taktırdım" cevabı talepte görünür; dedektörün referansı yeniden öğrenmesi için operatörün **Bildirilen değişiklikle açıkla** ile onaylaması gerekir. Linki eline geçiren biri böylece bir cihazı susturamaz.
+- **Saklama süresi:** Talepler (ad, telefon, adres) 180 gün sonra silinir (`SILENTWATT_REQUEST_RETENTION_DAYS`).
 - **Sayfa müşteriye göredir.** Hane kimliği, dedektör ayrıntıları ve öncelik gibi iç veriler bu sayfada yoktur. Sentetik ve veri sorunu vakalarında SMS ve link hiç oluşmaz.
 - **Konsolda karşılığı:** Vaka detayında "Müşteriye giden SMS" ve "Müşteri talebi" panelleri açılır, vaka geçmişine bir satır düşer, kuyrukta ve iş emri kartında "Talep var" rozeti çıkar, operatöre bildirim gider.
-- **Maskeleme burada da geçerli:** Talepteki adres yönetime ilçe, operatöre mahalle düzeyinde gösterilir. Link ve içindeki jeton yalnızca tam adres yetkisi olan role (saha teknisyeni) açılır; diğerlerinde `silentwatt.app/talep/••••••` olarak görünür.
-- **Kötüye kullanım:** Talep gönderimi IP başına saatte 20 istekle sınırlıdır; form alanları sunucuda doğrulanır ve `X-Requested-With` başlığı zorunludur.
+- **Maskeleme burada da geçerli:** Talepteki adres yönetime ilçe, operatöre mahalle düzeyinde gösterilir; bu rollerde ad ve telefon da maskelenir (`A*** D***`, `••• ••• •• 07`), e-posta gösterilmez. Link ve içindeki jeton yalnızca tam adres yetkisi olan role (saha teknisyeni) açılır; diğerlerinde `silentwatt.app/talep/••••••` olarak görünür.
+- **Kötüye kullanım:** Kod denemesi ve talep gönderimi birlikte IP başına saatte 30 istekle sınırlıdır; form alanları sunucuda doğrulanır ve `X-Requested-With` başlığı zorunludur.
 
-Demo için: operatörle vakayı bir teknisyene atayın, teknisyen hesabında vaka detayındaki **Bağlantıyı aç** düğmesine basın — müşterinin gördüğü sayfa açılır.
+Demo için: operatörle vakayı bir teknisyene atayın, teknisyen hesabında vaka detayındaki **Bağlantıyı aç** düğmesine basın. Kodu aynı panelde görürsünüz ("abone numarasının son 4 hanesi"); sayfaya girince müşterinin gördüğü sayfa açılır.
 
 ## Yetki modeli
 
-- **Oturum:** Giriş başarılı olunca sunucu `httpOnly`, `SameSite=Lax` bir çerez verir. Canlı ortamda çerez `Secure` olur. Oturum 8 saat sürer.
+- **Oturum:** Giriş başarılı olunca sunucu `httpOnly`, `SameSite=Lax` bir çerez verir. Canlı ortamda çerez `Secure` olur. Oturum 30 dakika işlem yapılmazsa, her durumda da 8 saat sonra biter.
 - **Şifreler:** `scrypt` ile tuzlanarak saklanır. Bilinmeyen e-posta ile yanlış şifre aynı sürede ve aynı mesajla reddedilir.
-- **Kaba kuvvet:** Aynı IP ve e-posta için 10 dakikada 5 hatalı denemeden sonra `429` döner.
+- **Kaba kuvvet:** 10 dakikalık pencerede aynı IP ve e-posta için 5, aynı IP'den bütün hesaplara toplam 20, aynı hesaba bütün IP'lerden toplam 10 hatalı denemeden sonra `429` döner.
+- **Rol ve ekran:** Yönetici bir role yalnızca o rolün alabileceği ekranları verebilir; tam adres gören teknisyen rolü bütün vaka kuyruğunu alamaz. Her yetki değişikliği istek kaydına bir `audit` satırı olarak yazılır.
+- **Tarayıcı:** Her yanıtta `Content-Security-Policy` (yalnızca kendi betikleri ve Google Fonts), `X-Frame-Options: DENY`, `nosniff` ve canlıda HSTS vardır.
 - **CSRF:** Veri değiştiren her istek `X-Requested-With: silentwatt` başlığı taşımak zorundadır.
 - **Ekran erişimi sunucuda denetlenir:** Her API ucu bir ekrana veya yetkiye bağlıdır (`requireScreen`, `requireCapability`). Kullanıcıda o ekran yoksa yanıt `403` değil `404` olur; ekranın varlığı böylece sızmaz.
 - **Vaka erişimi:** Teknisyen yalnızca kendisine atanmış vakayı açabilir. Diğer vaka numaraları ona `404` döner.

@@ -5,7 +5,8 @@ services:
   console:
     build: .
     ports:
-      - "${SILENTWATT_HTTP_PORT:-3001}:3001"
+      # Only this machine by default; set SILENTWATT_HTTP_BIND=0.0.0.0 to open it to the network.
+      - "${SILENTWATT_HTTP_BIND:-127.0.0.1}:${SILENTWATT_HTTP_PORT:-3001}:3001"
     environment:
       SILENTWATT_DEMO_ACCOUNTS: ${SILENTWATT_DEMO_ACCOUNTS:-off}
       SILENTWATT_USERS_FILE: ${SILENTWATT_USERS_FILE:-}

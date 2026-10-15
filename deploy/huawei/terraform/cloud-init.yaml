@@ -1,6 +1,7 @@
 #cloud-config
 # First boot of the console VM: Docker with the compose plugin, obsutil, folders and the backup cron.
 # The app itself is copied or cloned to /srv/silentwatt/app afterwards (deploy/huawei/README.md, step 4).
+# SSH: only the "silentwatt" user with the key pair's key; no root login, no passwords.
 package_update: true
 packages:
   - docker.io
@@ -14,3 +15,9 @@ runcmd:
   - tar -xzf /tmp/obsutil.tar.gz -C /tmp
   - sh -c 'install -m 0755 /tmp/obsutil_linux_amd64_*/obsutil /usr/local/bin/obsutil'
   - sh -c "echo '15 3 * * * root /srv/silentwatt/app/deploy/scripts/backup-db.sh >> /var/log/silentwatt-backup.log 2>&1' > /etc/cron.d/silentwatt-backup"
+  - useradd --create-home --shell /bin/bash --groups sudo,docker silentwatt
+  - sh -c 'echo "silentwatt ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-silentwatt && chmod 0440 /etc/sudoers.d/90-silentwatt'
+  - install -d -m 0700 -o silentwatt -g silentwatt /home/silentwatt/.ssh
+  - install -m 0600 -o silentwatt -g silentwatt /root/.ssh/authorized_keys /home/silentwatt/.ssh/authorized_keys
+  - sh -c 'printf "PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\n" > /etc/ssh/sshd_config.d/10-silentwatt.conf'
+  - systemctl restart ssh
